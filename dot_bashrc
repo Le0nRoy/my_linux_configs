@@ -148,3 +148,5 @@ ex ()
 }
 
 VBOX_USB=usbfs
+EDITOR='vim'
+VISUAL='vim'
