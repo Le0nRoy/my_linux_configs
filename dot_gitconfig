@@ -1,0 +1,9 @@
+[user]
+	email = you@example.com
+	name = Your Name
+[core]
+	editor = vim
+[credential]
+	username = le0nRoy
+[color]
+	ui = auto
