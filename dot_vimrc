@@ -86,8 +86,3 @@ map Y y$
 " Map <C-L> (redraw screen) to also turn off search highlighting until the
 " next search
 nnoremap <C-L> :nohl<CR><C-L>
-
-" Add vim-plug
-call plug#begin()
-Plug 'vim-scripts/c.vim'
-call plug#end()
