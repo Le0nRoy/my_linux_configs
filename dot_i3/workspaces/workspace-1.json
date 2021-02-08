@@ -91,8 +91,8 @@
             "swallows": [
                {
                 "class": "^TelegramDesktop$",
-                "instance": "^telegram\\-desktop$",
-                "title": "^Telegram.*$"
+                "instance": "^Telegram$",
+                "title": "^Telegram$"
                }
             ],
             "type": "con"
