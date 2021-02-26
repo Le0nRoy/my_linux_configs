@@ -59,7 +59,7 @@ set $ws7 7
 set $ws8 8
 
 ###############################################################################################
-## Bindsym section
+## Bindsym section (keybindings)
 ################################################################################################
 
 ## Kill focused window
@@ -79,7 +79,7 @@ bindsym $mod+t exec terminal -e 'tmux'
 bindsym $mod+Return exec terminal
 ## Messengers
 bindsym $mod+Shift+t exec telegram-desktop
-#bindsym $mod+Shift+v exec vk-messenger
+bindsym $mod+Shift+v exec vk-messenger
 bindsym $mod+s exec skypeforlinux
 
 ## IDE
@@ -93,6 +93,8 @@ bindsym $mod+shift+i exec qtcreator
 #bindsym XF86MonBrightnessUp exec "xbacklight -inc 10; notify-send 'brightness up'"
 #bindsym XF86MonBrightnessDown exec "xbacklight -dec 10; notify-send 'brightness down'"
 
+## Keepass
+bindsym $mod+F5 exec keepass /home/lap/Major_git/Database.kdbx
 ## Internet browser
 bindsym $mod+b exec firefox
 ## File browser
