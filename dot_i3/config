@@ -93,6 +93,10 @@ bindsym $mod+shift+i exec qtcreator
 #bindsym XF86MonBrightnessUp exec "xbacklight -inc 10; notify-send 'brightness up'"
 #bindsym XF86MonBrightnessDown exec "xbacklight -dec 10; notify-send 'brightness down'"
 
+## Lang applet
+bindsym $mod+F9 exec sbxkb
+exec_always --no-startup-id sbxkb
+
 ## Keepass
 bindsym $mod+F5 exec keepass /home/lap/Major_git/Database.kdbx
 ## Internet browser
@@ -116,6 +120,9 @@ bindsym $mod+Mod2+KP_1 exec quodlibet --previous
 bindsym $mod+Mod2+KP_2 exec quodlibet --next
 bindsym $mod+Mod2+KP_9 exec quodlibet --volume-up
 bindsym $mod+Mod2+KP_6 exec quodlibet --volume-down
+
+## Games
+bindsym $mod+Shift+m exec minecraft.sh
 
 ## Screenshots
 bindsym Print exec --no-startup-id i3-scrot
