@@ -92,7 +92,7 @@
                {
                 "class": "^TelegramDesktop$",
                 "instance": "^Telegram$",
-                "title": "^Telegram$"
+                "title": "^Telegram.+$"
                }
             ],
             "type": "con"
