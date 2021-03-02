@@ -90,9 +90,7 @@
             "percent": 0.333333333333333,
             "swallows": [
                {
-                "class": "^TelegramDesktop$",
-                "instance": "^Telegram$",
-                "title": "^Telegram.+$"
+                "class": "^TelegramDesktop$"
                }
             ],
             "type": "con"
