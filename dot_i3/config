@@ -125,9 +125,9 @@ bindsym $mod+Mod2+KP_6 exec quodlibet --volume-down
 bindsym $mod+Shift+m exec minecraft.sh
 
 ## Screenshots
-bindsym Print exec --no-startup-id i3-scrot
-bindsym $mod+Print --release exec --no-startup-id i3-scrot -w
-bindsym $mod+Shift+Print --release exec --no-startup-id i3-scrot -s
+bindsym Print exec --no-startup-id flameshot full -c
+bindsym $mod+Print --release exec --no-startup-id flameshot gui
+bindsym $mod+Shift+Print --release exec --no-startup-id flameshot launcher
 
 ## Calculator and calendar
 bindsym $mod+c exec zenity --calendar
