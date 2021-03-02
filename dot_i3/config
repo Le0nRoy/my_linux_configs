@@ -157,7 +157,7 @@ bindsym $mod+h split h;exec notify-send 'tile horizontally'
 bindsym $mod+v split v;exec notify-send 'tile vertically'
 
 ## Change background image
-bindsym $mod+Shift+b exec feh --bg-fill --randomize /home/lap/Pictures
+#bindsym $mod+Shift+b exec feh --bg-fill --randomize /home/lap/Pictures
 
 ## Change container layout (stacked, tabbed, toggle split)
 #bindsym $mod+s layout stacking
@@ -377,7 +377,7 @@ exec_always --no-startup-id xautolock -time 30 -secure -locker 'i3lock -i $LOCK_
 exec --no-startup-id setxkbmap -layout us,ru -option grp:alt_shift_toggle 
 ## Set background picture
 exec --no-startup-id nitrogen --restore; sleep 1; compton -b
-exec_always --no-startup-id feh --randomize --bg-fill Pictures/
+exec_always --no-startup-id feh --bg-fill /home/lap/Pictures/TentacloCalypse.jpg
 ## Restore layouts on workspaces from files
 exec --no-startup-id "i3-msg 'workspace 1; append_layout $WORKSPACES/workspace-1.json'"
 exec --no-startup-id "i3-msg 'workspace 2; append_layout $WORKSPACES/workspace-2.json'"
