@@ -372,7 +372,8 @@ set $WORKSPACES /home/lap/.i3/workspaces
 exec --no-startup-id /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec --no-startup-id source  ${HOME}/.bashrc
 exec --no-startup-id xfce4-power-manager
-exec_always --no-startup-id xautolock -time 30 -secure -locker 'i3lock -i $LOCK_PICTURE -e'
+## Works awfully
+#exec_always --no-startup-id xautolock -time 30 -secure -locker 'i3lock -i $LOCK_PICTURE -e'
 ## Set keybord layouts
 exec --no-startup-id setxkbmap -layout us,ru -option grp:alt_shift_toggle 
 ## Set background picture
