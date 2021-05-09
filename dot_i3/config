@@ -370,8 +370,9 @@ for_window [class="Quodlibet"] floating enable resize set 900 600
 set $WORKSPACES /home/lap/.i3/workspaces
 
 exec --no-startup-id /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
-exec --no-startup-id source  ${HOME}/.bashrc
+exec --no-startup-id source ${HOME}/.bashrc
 exec --no-startup-id xfce4-power-manager
+exec --no-startup-id redshift -O 4500
 ## Works awfully
 #exec_always --no-startup-id xautolock -time 30 -secure -locker 'i3lock -i $LOCK_PICTURE -e'
 ## Set keybord layouts
