@@ -1,6 +1,6 @@
-[sourceVCS]
+[git]
 	autoCommit = true
 	autoPush = true
 [data]
-#	email = "cerber9283@gmail.com"
+##	email = "cerber9283@gmail.com"
 #	name = "Vadim"
