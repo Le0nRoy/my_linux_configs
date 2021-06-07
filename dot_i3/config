@@ -372,7 +372,6 @@ set $WORKSPACES /home/lap/.i3/workspaces
 exec --no-startup-id /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec --no-startup-id source ${HOME}/.bashrc
 exec --no-startup-id xfce4-power-manager
-exec --no-startup-id redshift -O 4500
 ## Works awfully
 #exec_always --no-startup-id xautolock -time 30 -secure -locker 'i3lock -i $LOCK_PICTURE -e'
 ## Set keybord layouts
@@ -386,6 +385,8 @@ exec --no-startup-id "i3-msg 'workspace 2; append_layout $WORKSPACES/workspace-2
 exec --no-startup-id "i3-msg 'workspace 3; append_layout $WORKSPACES/workspace-3.json'"
 ## Start applications for workspaces
 exec --no-startup-id firefox
+exec --no-startup-id cherrytree
+exec --no-startup-id obsidian_mind-map
 exec --no-startup-id terminal -e 'tmux'
 exec --no-startup-id telegram-desktop
 exec --no-startup-id vk-messenger
@@ -408,6 +409,7 @@ exec --no-startup-id numlockx on
 ## FIXME Do I need them?
 exec_always --no-startup-id ff-theme-util
 exec_always --no-startup-id fix_xcursor
+exec --no-startup-id redshift -O 4500
 
 ## Start i3bar to display a workspace bar (plus the system information i3status if available)
 bar {
