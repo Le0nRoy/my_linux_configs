@@ -385,7 +385,7 @@ exec --no-startup-id "i3-msg 'workspace 2; append_layout $WORKSPACES/workspace-2
 exec --no-startup-id "i3-msg 'workspace 3; append_layout $WORKSPACES/workspace-3.json'"
 ## Start applications for workspaces
 exec --no-startup-id firefox
-exec --no-startup-id cherrytree
+#exec --no-startup-id cherrytree
 exec --no-startup-id obsidian_mind-map
 exec --no-startup-id terminal -e 'tmux'
 exec --no-startup-id telegram-desktop
