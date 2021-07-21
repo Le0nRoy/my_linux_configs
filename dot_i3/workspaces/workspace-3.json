@@ -15,8 +15,7 @@
        {
         "class": "^firefox$",
         "instance": "^Navigator$",
-        "title": "^\\[Media\\].+$",
-        "window_role": "^browser$"
+        "title": "^\\[Media\\].+$"
        }
     ],
     "type": "con"
