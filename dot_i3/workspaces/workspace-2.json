@@ -23,8 +23,7 @@
                {
                 "class": "^firefox$",
                 "instance": "^Navigator$",
-                "title": "^\\[Configure\\:\\ Linux\\].+$",
-                "window_role": "^browser$"
+                "title": "^\\[Configure\\:\\ Linux\\].+$"
                }
             ],
             "type": "con"
