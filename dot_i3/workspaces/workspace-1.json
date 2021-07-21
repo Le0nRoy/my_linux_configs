@@ -23,8 +23,7 @@
                {
                 "class": "^firefox$",
                 "instance": "^Navigator$",
-                "title": "^\\[Main\\:\\ Common\\ tabs\\]",
-                "window_role": "^browser$"
+                "title": "^\\[Main\\:\\ Common\\ tabs\\]"
                }
             ],
             "type": "con"
@@ -46,8 +45,7 @@
                {
                 "class": "^firefox$",
                 "instance": "^Navigator$",
-                "title": "^\\[Main\\:\\ Trello\\]",
-                "window_role": "^browser$"
+                "title": "^\\[Main\\:\\ Trello\\]"
                }
             ],
             "type": "con"
@@ -69,8 +67,7 @@
                {
                 "class": "^firefox$",
                 "instance": "^Navigator$",
-                "title": "^\\[Main\\:\\ ToRead\\]",
-                "window_role": "^browser$"
+                "title": "^\\[Main\\:\\ ToRead\\]"
                }
             ],
             "type": "con"
