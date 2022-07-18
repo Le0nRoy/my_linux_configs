@@ -27,30 +27,8 @@
                }
             ],
             "type": "con"
-        },
-        {
-            "border": "normal",
-            "current_border_width": 2,
-            "floating": "auto_off",
-            "geometry": {
-               "height": 1008,
-               "width": 955,
-               "x": 1,
-               "y": 45
-            },
-            "marks": [],
-            "name": "[Main: Trello] Today: Todoist — Mozilla Firefox",
-            "percent": 0.333333333333333,
-            "swallows": [
-               {
-                "class": "^firefox$",
-                "instance": "^Navigator$",
-                "title": "^\\[Main\\:\\ Trello\\]"
-               }
-            ],
-            "type": "con"
         }
-   ]
+	]
 }
 
 {
