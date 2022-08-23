@@ -1,0 +1,25 @@
+{
+    "border": "normal",
+    "current_border_width": 2,
+    "floating": "auto_off",
+    "geometry": {
+       "height": 1011,
+       "width": 956,
+       "x": 0,
+       "y": 0
+    },
+    "marks": [],
+    "name": "[Media]",
+    "percent": 1,
+    "swallows": [
+       {
+       "class": "^firefox$",
+       "instance": "^Navigator$",
+       "machine": "^dragonlady$",
+       "title": "^\\[Media\\]\\",
+       "window_role": "^browser$"
+       }
+    ],
+    "type": "con"
+}
+
