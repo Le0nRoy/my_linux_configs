@@ -23,7 +23,6 @@
                {
                "class": "^firefox$",
                "instance": "^Navigator$",
-               "machine": "^dragonlady$",
                "title": "^\\[Main\\:\\ Common\\ tabs\\]",
                "window_role": "^browser$"
                }
@@ -47,7 +46,6 @@
                {
                "class": "^firefox$",
                "instance": "^Navigator$",
-               "machine": "^dragonlady$",
                "title": "^\\[Linux\\]",
                "window_role": "^browser$"
                }
@@ -81,8 +79,7 @@
             "swallows": [
                {
                "class": "^TelegramDesktop$",
-               "instance": "^telegram\\-desktop$",
-               "machine": "^dragonlady$"
+               "instance": "^telegram\\-desktop$"
                }
             ],
             "type": "con"
@@ -104,7 +101,6 @@
                {
                "class": "^Alacritty$",
                "instance": "^Alacritty$",
-               "machine": "^dragonlady$",
                "title": "^Alacritty$"
                }
             ],

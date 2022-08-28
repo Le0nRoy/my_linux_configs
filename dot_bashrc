@@ -32,10 +32,12 @@ colors() {
 }
 
 [ -r /usr/share/bash-completion/bash_completion ] && . /usr/share/bash-completion/bash_completion
-for i in `ls /etc/bash_completion.d`
-do
-	. /etc/bash_completion.d/$i
-done
+if [[ -d /etc/bash_completion.d  ]]; then
+	for i in `ls /etc/bash_completion.d`
+	do
+		. /etc/bash_completion.d/$i
+	done
+fi
 
 # Change the window title of X terminals
 case ${TERM} in
