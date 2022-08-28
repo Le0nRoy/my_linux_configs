@@ -88,10 +88,13 @@ bindsym $mod+shift+i exec qtcreator
 #bindsym $mod+shift+i exec code
 
 ## Screen brightness controls
-#bindsym XF86MonBrightnessUp exec "xbacklight -inc 10; notify-send 'brightness up'"
-#bindsym XF86MonBrightnessDown exec "xbacklight -dec 10; notify-send 'brightness down'"
 bindsym XF86MonBrightnessUp exec "sudo light -A 5; notify-send 'brightness up'"
 bindsym XF86MonBrightnessDown exec "sudo light -U 5; notify-send 'brightness down'"
+
+## Volume controls
+bindsym XF86AudioRaiseVolume exec "amixer set Master 5%+"
+bindsym XF86AudioLowerVolume exec "amixer set Master 5%-"
+bindsym XF86AudioMute exec "amixer set Master toggle"
 
 ## Lang applet
 bindsym $mod+F9 exec sbxkb
@@ -365,7 +368,7 @@ for_window [class="Quodlibet"] floating enable resize set 900 600
 ## Autostart applications
 ##########################################################################
 
-set $WORKSPACES /home/lap/.i3/workspaces
+set $WORKSPACES /home/lap/.config/i3/workspaces
 
 exec --no-startup-id /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec --no-startup-id source ${HOME}/.bashrc
@@ -381,8 +384,8 @@ exec --no-startup-id setxkbmap -layout us,ru -option grp:alt_shift_toggle
 exec --no-startup-id nitrogen --restore; sleep 1; compton -b
 exec_always --no-startup-id feh --bg-fill /home/lap/Pictures/TentacloCalypse.jpg
 ## Restore layouts on workspaces from files
-exec --no-startup-id "i3-msg 'workspace 1; append_layout $WORKSPACES/i3wsCommon.json'"
-exec --no-startup-id "i3-msg 'workspace 2; append_layout $WORKSPACES/i3wsMedia.json'"
+exec --no-startup-id "i3-msg 'workspace 1; append_layout $WORKSPACES/workspace_1.json'"
+exec --no-startup-id "i3-msg 'workspace 2; append_layout $WORKSPACES/workspace_2.json'"
 ## Start applications for workspaces
 exec --no-startup-id firefox
 exec --no-startup-id alacritty -e 'tmux'
