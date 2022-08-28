@@ -91,7 +91,7 @@ bindsym $mod+shift+i exec qtcreator
 set $brightness_up "sudo light -A 5; notify-send 'brightness up'"
 set $brightness_down "sudo light -U 5; notify-send 'brightness down'"
 bindsym XF86MonBrightnessUp exec $brightness_up
-bindsym XF86MonBrightnessDown exec $brtightness_down 
+bindsym XF86MonBrightnessDown exec $brightness_down 
 ## Brightness controls without special keys
 bindsym $mod+ctrl+plus exec $brightness_up
 bindsym $mod+ctrl+minus exec $brightness_down
