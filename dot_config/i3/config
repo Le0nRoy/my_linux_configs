@@ -43,7 +43,7 @@ exec --no-startup-id "i3-msg 'workspace 2; append_layout $WORKSPACES/workspace_2
 exec --no-startup-id firefox
 exec --no-startup-id alacritty -e 'tmux'
 exec --no-startup-id telegram-desktop
-exec --no-startup-id vk-messenger
+exec --no-startup-id vk
 ## Status bar applets
 exec_always --no-startup-id sbxkb
 exec --no-startup-id volumeicon
