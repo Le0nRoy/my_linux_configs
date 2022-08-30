@@ -21,6 +21,7 @@ set $brightness_down "sudo light -U 5; notify-send 'brightness down'"
 ## Pictures for lock screen and desktop background
 set $LOCK_PICTURE /home/lap/Pictures/png_files/maximum_beat.png
 set $DESKTOP_BG /home/lap/Pictures/TentacloCalypse.jpg
+set $LANGUAGE_SETTER setxkbmap -layout us,ru -option grp:alt_shift_toggle
 
 ##########################################################################
 ## Autostart applications
@@ -28,12 +29,12 @@ set $DESKTOP_BG /home/lap/Pictures/TentacloCalypse.jpg
 # TODO remove unneeded autostarts
 exec --no-startup-id /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec --no-startup-id xfce4-power-manager
-## Get environment variables (TODO do I need it?)
+## Get environment variables (TODO do I need it here?)
 exec --no-startup-id source ${HOME}/.bashrc
 ## Switch to only laptop screen (to avoid issue when second screen is treated as primary)
 exec --no-startup-id autorandr -l mobile; sleep 2
 ## Set keybord layouts
-exec --no-startup-id setxkbmap -layout us,ru -option grp:alt_shift_toggle 
+exec --no-startup-id $LANGUAGE_SETTER
 ## Set background picture
 exec_always --no-startup-id feh --bg-fill $DESKTOP_BG
 ## Restore layouts on workspaces from files
@@ -72,7 +73,6 @@ set $ws6 6
 ###############################################################################################
 ## Bindsym section (keybindings)
 ################################################################################################
-bindsym XF86AudioMute exec "amixer set Master toggle"
 #bindsym $mod+Ctrl+m exec terminal -e 'alsamixer'
 ## Kill focused window
 bindsym $mod+Shift+q kill
@@ -94,8 +94,9 @@ bindsym $mod+ctrl+minus exec $brightness_down
 ## Volume controls
 bindsym XF86AudioRaiseVolume exec "amixer set Master 5%+"
 bindsym XF86AudioLowerVolume exec "amixer set Master 5%-"
+bindsym XF86AudioMute exec "amixer set Master toggle"
 ## Lang applet
-bindsym $mod+F9 exec sbxkb
+bindsym $mod+F9 exec "sbxkb && $LANGUAGE_SETTER"
 ## Keepass
 bindsym $mod+F5 exec keepass /home/lap/Major_git/Database.kdbx
 ## Internet browser
@@ -172,7 +173,7 @@ bindsym $mod+Shift+c reload
 ## Exit i3 (logs you out of your X session)
 #bindsym $mod+Shift+e exec "i3-nagbar -t warning -m 'You pressed the exit shortcut. Do you really want to exit i3? This will end your X session.' -b 'Yes, exit i3' 'i3-msg exit'"
 ## Lock screen
-bindsym $mod+l exec --no-startup-id "setxkbmap us && setxkbmap -option grp:alt_shift_toggle us,ru && i3lock -i $LOCK_PICTURE -e"
+bindsym $mod+l exec --no-startup-id "setxkbmap us && $LANGUAGE_SETTER&& i3lock -i $LOCK_PICTURE -e"
 ## Set shutdown, restart and locking features
 bindsym $mod+0 mode "$mode_system"
 set $mode_system (l)ock, (e)xit, (h)ibernate, (r)eboot, (Shift+s)hutdown
@@ -216,6 +217,7 @@ for_window [title="alsamixer"] floating enable border pixel 1
 for_window [class="Pavucontrol"] floating enable
 for_window [class="(?i)virtualbox"] floating enable border normal
 for_window [class="Quodlibet"] floating enable resize set 900 600
+for_window [class="(?i)galculator"] floating enable 
 
 ##########################################################################
 ## Start i3bar to display a workspace bar and system information.
