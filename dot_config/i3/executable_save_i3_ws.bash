@@ -21,8 +21,8 @@ fi
 if [[ $2 == "test" ]]; then
 	if [[ -n $3 ]]; then
 		test_ws_num $3
+		WORKSPACE_NUM=$3
 	fi
-	WORKSPACE_NUM=$3
 	echo "Succesfully restored workspace \`$WORKSPACE_NUM\` from \`$WORKSPACE_PATH\`"
 	i3-msg "workspace $WORKSPACE_NUM; append_layout $WORKSPACE_PATH"
 fi

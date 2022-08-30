@@ -21,7 +21,8 @@ set $brightness_down "sudo light -U 5; notify-send 'brightness down'"
 ## Pictures for lock screen and desktop background
 set $LOCK_PICTURE /home/lap/Pictures/png_files/maximum_beat.png
 set $DESKTOP_BG /home/lap/Pictures/TentacloCalypse.jpg
-set $LANGUAGE_SETTER setxkbmap -layout us,ru -option grp:alt_shift_toggle
+## Command to allow keymap changing (Shift+Alt)
+set $LANGUAGE_SETTER setxkbmap -layout us,ru,ge -option grp:alt_shift_toggle,grp:win_space_toggle
 
 ##########################################################################
 ## Autostart applications
@@ -29,12 +30,12 @@ set $LANGUAGE_SETTER setxkbmap -layout us,ru -option grp:alt_shift_toggle
 # TODO remove unneeded autostarts
 exec --no-startup-id /usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1
 exec --no-startup-id xfce4-power-manager
-## Get environment variables (TODO do I need it here?)
+## Get environment variables (TODO do I need i,get here?)
 exec --no-startup-id source ${HOME}/.bashrc
 ## Switch to only laptop screen (to avoid issue when second screen is treated as primary)
 exec --no-startup-id autorandr -l mobile; sleep 2
 ## Set keybord layouts
-exec --no-startup-id $LANGUAGE_SETTER
+exec --no-startup-id "$LANGUAGE_SETTER"
 ## Set background picture
 exec_always --no-startup-id feh --bg-fill $DESKTOP_BG
 ## Restore layouts on workspaces from files
@@ -173,7 +174,7 @@ bindsym $mod+Shift+c reload
 ## Exit i3 (logs you out of your X session)
 #bindsym $mod+Shift+e exec "i3-nagbar -t warning -m 'You pressed the exit shortcut. Do you really want to exit i3? This will end your X session.' -b 'Yes, exit i3' 'i3-msg exit'"
 ## Lock screen
-bindsym $mod+l exec --no-startup-id "setxkbmap us && $LANGUAGE_SETTER&& i3lock -i $LOCK_PICTURE -e"
+bindsym $mod+l exec --no-startup-id "setxkbmap us && $LANGUAGE_SETTER && i3lock -i $LOCK_PICTURE -e"
 ## Set shutdown, restart and locking features
 bindsym $mod+0 mode "$mode_system"
 set $mode_system (l)ock, (e)xit, (h)ibernate, (r)eboot, (Shift+s)hutdown
