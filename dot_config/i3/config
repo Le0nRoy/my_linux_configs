@@ -22,7 +22,7 @@ set $brightness_down "sudo light -U 5; notify-send 'brightness down'"
 set $LOCK_PICTURE /home/lap/Pictures/png_files/maximum_beat.png
 set $DESKTOP_BG /home/lap/Pictures/TentacloCalypse.jpg
 ## Command to allow keymap changing (Shift+Alt)
-set $LANGUAGE_SETTER setxkbmap -layout us,ru,ge -option grp:alt_shift_toggle,grp:win_space_toggle
+set $LANGUAGE_SETTER setxkbmap -layout us,ru -option grp:alt_shift_toggle,grp:win_space_toggle
 
 ##########################################################################
 ## Autostart applications
@@ -97,7 +97,8 @@ bindsym XF86AudioRaiseVolume exec "amixer set Master 5%+"
 bindsym XF86AudioLowerVolume exec "amixer set Master 5%-"
 bindsym XF86AudioMute exec "amixer set Master toggle"
 ## Lang applet
-bindsym $mod+F9 exec "sbxkb && $LANGUAGE_SETTER"
+bindsym $mod+F9 exec "kill `pidof sbxkb` && sbxkb; $LANGUAGE_SETTER"
+bindsym $mod+F10 exec "setxkbmap -layout ge"
 ## Keepass
 bindsym $mod+F5 exec keepass /home/lap/Major_git/Database.kdbx
 ## Internet browser
