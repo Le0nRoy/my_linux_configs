@@ -119,8 +119,8 @@ bindsym $mod+Mod2+KP_2 exec quodlibet --next
 bindsym $mod+Mod2+KP_9 exec quodlibet --volume-up
 bindsym $mod+Mod2+KP_6 exec quodlibet --volume-down
 ## Screenshots
-bindsym Print exec --no-startup-id flameshot full -c
-bindsym $mod+Print --release exec --no-startup-id flameshot gui
+bindsym Print --release exec --no-startup-id flameshot gui
+bindsym $mod+Print exec --no-startup-id flameshot full -c
 bindsym $mod+Shift+Print --release exec --no-startup-id flameshot launcher
 ## Calculator and calendar
 bindsym $mod+c exec zenity --calendar
