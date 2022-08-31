@@ -108,6 +108,7 @@ alias upgrade='sudo pacman -Syu --ignore intellij-idea-community-edition'
 alias vim='vim -p'
 alias pwd='pwd -P'
 alias xprop_class='xprop | grep -i class'
+alias mount_job="sudo bash -c \"cryptsetup luksOpen /dev/sdb3 sdb3; mount /dev/mapper/sdb3 /Job\""
 
 xhost +local:root > /dev/null 2>&1
 
