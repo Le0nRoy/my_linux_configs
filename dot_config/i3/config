@@ -97,7 +97,7 @@ bindsym XF86AudioRaiseVolume exec "amixer set Master 5%+"
 bindsym XF86AudioLowerVolume exec "amixer set Master 5%-"
 bindsym XF86AudioMute exec "amixer set Master toggle"
 ## Lang applet
-bindsym $mod+F9 exec "kill `pidof sbxkb` && sbxkb; $LANGUAGE_SETTER"
+bindsym $mod+F9 exec "kill `pidof sbxkb`; sbxkb; $LANGUAGE_SETTER"
 bindsym $mod+F10 exec "setxkbmap -layout ge"
 ## Keepass
 bindsym $mod+F5 exec keepass /home/lap/Major_git/Database.kdbx
