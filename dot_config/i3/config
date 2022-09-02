@@ -144,9 +144,9 @@ bindsym $mod+e layout toggle split
 ## Focus the parent container
 bindsym $mod+a focus parent
 ## Toggle tiling / floating
-bindsym $mod+Shift+space floating toggle
+bindsym $mod+Shift+Space floating toggle
 ## Change focus between tiling / floating windows
-bindsym $mod+space focus mode_toggle
+bindsym $mod+Space focus mode_toggle
 ## Move the currently focused window to the scratchpad
 bindsym $mod+Shift+minus move scratchpad
 ## Show the next scratchpad window or hide the focused scratchpad window.

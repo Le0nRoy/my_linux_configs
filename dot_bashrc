@@ -78,7 +78,9 @@ if ${use_color} ; then
 	if [[ ${EUID} == 0 ]] ; then
 		PS1='\[\033[01;31m\][\h\[\033[01;36m\] \W\[\033[01;31m\]]\$\[\033[00m\] '
 	else
-		PS1='\[\033[01;37m\]\u@\[\033[01;37m\]\h\[\033[00;37m\]:\[\033[00;37m\]\w\[\033[00;37m\]\n\$\[\033[00m\] '
+		COLOR='\[\033[02;36m\]'
+		SECOND_COLOR='\[\033[32m\]'
+		PS1="$COLOR\u$SECOND_COLOR@$COLOR\h$COLOR:$SECOND_COLOR\w$COLOR\n\$\[\033[00m\] "
 	fi
 
 	alias ls='ls --color=auto'
@@ -109,7 +111,9 @@ alias vim='vim -p'
 alias pwd='pwd -P'
 alias xprop_class='xprop | grep -i class'
 
-source $HOME/scripts/special_aliases
+if [[ -e "$HOME/scripts/special_aliases.bash" ]]; then
+	source $HOME/scripts/special_aliases.bash
+fi
 
 xhost +local:root > /dev/null 2>&1
 
