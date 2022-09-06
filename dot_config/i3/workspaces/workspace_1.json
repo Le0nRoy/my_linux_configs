@@ -11,42 +11,19 @@
             "current_border_width": 2,
             "floating": "auto_off",
             "geometry": {
-               "height": 989,
+               "height": 1011,
                "width": 956,
                "x": 0,
-               "y": 66
-            },
-            "marks": [],
-            "name": "[Main: Common tabs]",
-            "percent": 0.333333333333333,
-            "swallows": [
-               {
-               "class": "^firefox$",
-               "instance": "^Navigator$",
-               "title": "^\\[Main\\:\\ Common\\ tabs\\].+$",
-               "window_role": "^browser$"
-               }
-            ],
-            "type": "con"
-        },
-        {
-            "border": "normal",
-            "current_border_width": 2,
-            "floating": "auto_off",
-            "geometry": {
-               "height": 989,
-               "width": 956,
-               "x": 0,
-               "y": 44
+               "y": 0
             },
             "marks": [],
             "name": "[Job]",
-            "percent": 0.333333333333333,
+            "percent": 0.5,
             "swallows": [
                {
                "class": "^firefox$",
                "instance": "^Navigator$",
-               "title": "^\\[Job\\].+$",
+               "title": "^\\[Job\\]",
                "window_role": "^browser$"
                }
             ],
@@ -64,12 +41,12 @@
             },
             "marks": [],
             "name": "[Linux]",
-            "percent": 0.333333333333333,
+            "percent": 0.5,
             "swallows": [
                {
                "class": "^firefox$",
                "instance": "^Navigator$",
-               "title": "^\\[Linux\\].+$",
+               "title": "^\\[Linux\\]",
                "window_role": "^browser$"
                }
             ],
@@ -98,54 +75,12 @@
             },
             "marks": [],
             "name": "Alacritty",
-            "percent": 0.333333333333333,
+            "percent": 1,
             "swallows": [
                {
                "class": "^Alacritty$",
                "instance": "^Alacritty$",
                "title": "^Alacritty$"
-               }
-            ],
-            "type": "con"
-        },
-        {
-            "border": "normal",
-            "current_border_width": 2,
-            "floating": "auto_off",
-            "geometry": {
-               "height": 597,
-               "width": 970,
-               "x": 475,
-               "y": 241
-            },
-            "marks": [],
-            "name": "VK Messenger",
-            "percent": 0.333333333333333,
-            "swallows": [
-               {
-               "class": "^VK$",
-               "instance": "^vk$"
-               }
-            ],
-            "type": "con"
-        },
-        {
-            "border": "none",
-            "current_border_width": 2,
-            "floating": "user_off",
-            "geometry": {
-               "height": 1057,
-               "width": 668,
-               "x": 2880,
-               "y": 0
-            },
-            "marks": [],
-            "name": "Telegram (24)",
-            "percent": 0.333333333333333,
-            "swallows": [
-               {
-               "class": "^TelegramDesktop$",
-               "instance": "^telegram\\-desktop$"
                }
             ],
             "type": "con"
