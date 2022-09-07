@@ -40,7 +40,7 @@ exec --no-startup-id "$LANGUAGE_SETTER"
 exec_always --no-startup-id feh --bg-fill $DESKTOP_BG
 ## Restore layouts on workspaces from files
 exec --no-startup-id "i3-msg 'workspace 1; append_layout $WORKSPACES/workspace_1.json'"
-exec --no-startup-id "i3-msg 'workspace 2; append_layout $WORKSPACES/workspace_2.json'"
+exec --no-startup-id "i3-msg 'workspace 6; append_layout $WORKSPACES/workspace_6.json'"
 ## Start applications for workspaces
 exec --no-startup-id firefox
 exec --no-startup-id alacritty -e 'tmux'
@@ -144,9 +144,11 @@ bindsym $mod+e layout toggle split
 ## Focus the parent container
 bindsym $mod+a focus parent
 ## Toggle tiling / floating
-bindsym $mod+Shift+Space floating toggle
+#bindsym $mod+Shift+Space floating toggle
+bindcode $mod+Shift+65 floating toggle
 ## Change focus between tiling / floating windows
-bindsym $mod+Space focus mode_toggle
+#bindsym $mod+Space focus mode_toggle
+bindcode $mod+65 focus mode_toggle
 ## Move the currently focused window to the scratchpad
 bindsym $mod+Shift+minus move scratchpad
 ## Show the next scratchpad window or hide the focused scratchpad window.
@@ -210,9 +212,9 @@ workspace_auto_back_and_forth yes
 ## Use `xprop` to get class of window
 ##########################################################################
 ## Open applications on specific workspaces
-assign [class="(?i)zoom"] $ws6
-assign [class="(?i)skype"] $ws6
-assign [class="jetbrains-pycharm-ce"] $ws3
+assign [class="(?i)zoom"] $ws5
+assign [class="(?i)skype"] $ws5
+assign [class="jetbrains-pycharm-ce"] $ws2
 ## Open specific applications in floating mode
 for_window [title="alsamixer"] floating enable border pixel 1
 for_window [class="Pavucontrol"] floating enable
