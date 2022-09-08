@@ -12,7 +12,7 @@
 set $mod Mod4
 ## Font for window titles. Will also be used by the bar unless a different 
 ## font is used in the bar {} block below.
-font xft:URWGothic-Book 11
+font xft:URWGothic-Book 12
 ## Directory with worksapce presets
 set $WORKSPACES /home/lap/.config/i3/workspaces
 ## Commands to adjust screen brightness
@@ -23,6 +23,8 @@ set $LOCK_PICTURE /home/lap/Pictures/png_files/maximum_beat.png
 set $DESKTOP_BG /home/lap/Pictures/TentacloCalypse.jpg
 ## Command to allow keymap changing (Shift+Alt)
 set $LANGUAGE_SETTER setxkbmap -layout us,ru -option grp:alt_shift_toggle,grp:win_space_toggle
+## Tmux session
+set $TMUX "tmux new-session -s \"i3-tmux\" -A -D"
 
 ##########################################################################
 ## Autostart applications
@@ -43,7 +45,7 @@ exec --no-startup-id "i3-msg 'workspace 1; append_layout $WORKSPACES/workspace_1
 exec --no-startup-id "i3-msg 'workspace 6; append_layout $WORKSPACES/workspace_6.json'"
 ## Start applications for workspaces
 exec --no-startup-id firefox
-exec --no-startup-id alacritty -e 'tmux'
+exec --no-startup-id alacritty -e "$TMUX"
 exec --no-startup-id telegram-desktop
 exec --no-startup-id vk
 exec --no-startup-id quodlibet
@@ -81,7 +83,7 @@ bindsym $mod+Shift+q kill
 ## Program launcher
 bindsym $mod+d exec dmenu_run -i -fn iso01-12x22
 ## Terminal
-bindsym $mod+t exec alacritty -e 'tmux'
+bindsym $mod+t exec alacritty -e "$TMUX"
 bindsym $mod+Return exec alacritty
 ## Messengers
 bindsym $mod+Shift+t exec telegram-desktop
