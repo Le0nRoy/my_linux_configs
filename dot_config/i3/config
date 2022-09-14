@@ -119,6 +119,8 @@ bindsym $mod+Mod2+KP_1 exec quodlibet --previous
 bindsym $mod+Mod2+KP_2 exec quodlibet --next
 bindsym $mod+Mod2+KP_9 exec quodlibet --volume-up
 bindsym $mod+Mod2+KP_6 exec quodlibet --volume-down
+bindsym $mod+Shift+XF86AudioRaiseVolume exec quodlibet --volume-up
+bindsym $mod+Shift+XF86AudioLowerVolume exec quodlibet --volume-down
 bindsym $mod+XF86AudioRaiseVolume exec quodlibet --next 
 bindsym $mod+XF86AudioLowerVolume exec quodlibet --previous
 bindsym $mod+XF86AudioMute exec quodlibet --play-pause
