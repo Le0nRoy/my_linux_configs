@@ -18,6 +18,10 @@ set $WORKSPACES /home/lap/.config/i3/workspaces
 ## Commands to adjust screen brightness
 set $brightness_up "sudo light -A 5; notify-send 'brightness up'"
 set $brightness_down "sudo light -U 5; notify-send 'brightness down'"
+## Commands to adjust sound volume
+set $volume_up "amixer set Master 5%+"
+set $volume_down "amixer set Master 5%-"
+set $volume_mute "amixer set Master toggle"
 ## Pictures for lock screen and desktop background
 set $LOCK_PICTURE /home/lap/Pictures/png_files/maximum_beat.png
 set $DESKTOP_BG /home/lap/Pictures/TentacloCalypse.jpg
@@ -77,7 +81,6 @@ set $ws6 6
 ###############################################################################################
 ## Bindsym section (keybindings)
 ################################################################################################
-#bindsym $mod+Ctrl+m exec terminal -e 'alsamixer'
 ## Kill focused window
 bindsym $mod+Shift+q kill
 ## Program launcher
@@ -85,9 +88,7 @@ bindsym $mod+d exec dmenu_run -i -fn iso01-12x22
 ## Terminal
 bindsym $mod+t exec alacritty -e "$TMUX"
 bindsym $mod+Return exec alacritty
-## Messengers
-bindsym $mod+Shift+t exec telegram-desktop
-bindsym $mod+Shift+v exec vk-messenger
+bindsym $mod+Shift+Return exec alacritty -o "shell=/bin/zsh"
 ## Screen brightness controls
 bindsym XF86MonBrightnessUp exec $brightness_up
 bindsym XF86MonBrightnessDown exec $brightness_down 
@@ -95,24 +96,22 @@ bindsym XF86MonBrightnessDown exec $brightness_down
 bindsym $mod+ctrl+plus exec $brightness_up
 bindsym $mod+ctrl+minus exec $brightness_down
 ## Volume controls
-bindsym XF86AudioRaiseVolume exec "amixer set Master 5%+"
-bindsym XF86AudioLowerVolume exec "amixer set Master 5%-"
-bindsym XF86AudioMute exec "amixer set Master toggle"
+bindsym XF86AudioRaiseVolume exec $volume_up
+bindsym XF86AudioLowerVolume exec $volume_down
+bindsym XF86AudioMute exec $volume_mute
 ## Lang applet
 bindsym $mod+F9 exec "kill `pidof sbxkb`; sbxkb; $LANGUAGE_SETTER"
-bindsym $mod+F10 exec "setxkbmap -layout ge"
+bindsym $mod+F10 exec "kill `pidof sbxkb`; sbxkb; setxkbmap -layout ge"
 ## Keepass
 bindsym $mod+F5 exec keepass /home/lap/Major_git/Database.kdbx
 ## Internet browser
-bindsym $mod+b exec firefox
+bindsym $mod+F2 exec firefox
 ## File browser
 bindsym $mod+F3 exec pcmanfm
 #bindsym $mod+F3 exec ranger
 ## Video-player
 # Open video by URL from clipboard
 bindsym $mod+Ctrl+v exec xsel -bo | xargs vlc
-# "Хватит курить кальян!"
-bindsym $mod+F4 exec vlc https://www.youtube.com/watch?v=FxmBHyymXjo&feature=emb_logo
 ## Music player
 bindsym $mod+m exec quodlibet
 bindsym $mod+Mod2+KP_0 exec quodlibet --play-pause
@@ -120,13 +119,16 @@ bindsym $mod+Mod2+KP_1 exec quodlibet --previous
 bindsym $mod+Mod2+KP_2 exec quodlibet --next
 bindsym $mod+Mod2+KP_9 exec quodlibet --volume-up
 bindsym $mod+Mod2+KP_6 exec quodlibet --volume-down
+bindsym $mod+XF86AudioRaiseVolume exec quodlibet --next 
+bindsym $mod+XF86AudioLowerVolume exec quodlibet --previous
+bindsym $mod+XF86AudioMute exec quodlibet --play-pause
 ## Screenshots
 bindsym Print --release exec --no-startup-id flameshot gui
 bindsym $mod+Print exec --no-startup-id flameshot full -c
 bindsym $mod+Shift+Print --release exec --no-startup-id flameshot launcher
 ## Calculator and calendar
-bindsym $mod+c exec zenity --calendar
-bindsym $mod+Ctrl+c exec galculator
+bindsym $mod+F4 exec zenity --calendar
+bindsym $mod+Ctrl+F4 exec galculator
 ## Change focus
 bindsym $mod+Left focus left
 bindsym $mod+Down focus down

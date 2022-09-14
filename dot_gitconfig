@@ -7,3 +7,5 @@
 	username = le0nRoy
 [color]
 	ui = auto
+[init]
+	defaultBranch = main
