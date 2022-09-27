@@ -56,7 +56,7 @@ exec_always --no-startup-id "$LANGUAGE_SETTER"
 exec_always --no-startup-id feh --bg-fill $DESKTOP_BG
 ## Restore layouts on workspaces from files
 exec --no-startup-id "i3-msg 'workspace 1; append_layout $WORKSPACES/workspace_1.json'"
-exec --no-startup-id "i3-msg 'workspace 4; append_layout $WORKSPACES/workspace_6.json'"
+exec --no-startup-id "i3-msg 'workspace 4; append_layout $WORKSPACES/workspace_4.json'"
 ## Start applications for workspaces
 exec --no-startup-id firefox
 exec --no-startup-id alacritty -e "$TMUX"

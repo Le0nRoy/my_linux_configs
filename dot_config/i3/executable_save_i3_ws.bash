@@ -13,7 +13,14 @@ test_ws_num $WORKSPACE_NUM
 
 if [[ -z $2 || $2 == "save" ]]; then
 	i3-save-tree --workspace $WORKSPACE_NUM > $WORKSPACE_PATH
-	sed -i 's|^\(\s*\)// "|\1"|g; /^\s*\/\//d' $WORKSPACE_PATH
+	sed --in-place --regexp-extended \
+		--expression='s|^(\s*)// "|\1"|g; /^\s*\/\//d' \
+		--expression="/\"machine\":/d" \
+		--expression="s/(\"name\": \"\[.*\]).*$/\1\",/" \
+		--expression="s/(\"title\": \".*\[.*\]).*$/\1\",/" \
+		--expression="s/(\"name\": \"Telegram).*$/\1\",/" \
+		--expression="s/(\"title\": \"\^Telegram).*\"(,*)$/\1\"\2/" \
+		$WORKSPACE_PATH
 	echo "Succesfully saved workspace \`$WORKSPACE_NUM\` to \`$WORKSPACE_PATH\`"
 	echo "You may want to check and fix it a bit"
 fi

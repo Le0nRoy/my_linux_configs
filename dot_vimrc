@@ -1,5 +1,8 @@
 " Set no compatibility with Vi
 set nocompatible
+if &diff
+	colorscheme desert
+endif
 
 filetype indent plugin on
 
