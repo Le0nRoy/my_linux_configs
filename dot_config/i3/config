@@ -35,7 +35,7 @@ set $DESKTOP_BG /home/lap/Pictures/TentacloCalypse.jpg
 ## Command to allow keymap changing (Shift+Alt)
 set $LANGUAGE_SETTER setxkbmap -layout us,ru -option grp:alt_shift_toggle,grp:win_space_toggle
 ## Tmux session
-set $TMUX "tmux new-session -s \"i3-tmux\" -A -D"
+set $TMUX "tmux new-session -s \"i3-tmux\" -n \"WorkSpace\" -A -D"
 
 ##########################################################################
 ## Autostart applications
@@ -71,9 +71,9 @@ exec_always --no-startup-id numlockx on
 ## Switch to all screens
 #exec_always --no-startup-id autorandr -c
 # TODO set using brightness command
-exec --no-startup-id echo 100 > /sys/class/backlight/nv_backlight/brightness
+#exec --no-startup-id echo 100 > /sys/class/backlight/nv_backlight/brightness
 # TODO Add configurations for automatic color adjustment
-exec_always --no-startup-id redshift -PO 4500
+exec_always --no-startup-id redshift -PO 3000
 
 ## TODO focus on specific window
 # [class="class"] focus
@@ -85,7 +85,7 @@ exec_always --no-startup-id redshift -PO 4500
 ## Kill focused window
 bindsym $mod+Shift+q kill
 ## Program launcher
-bindsym $mod+d exec dmenu_run -i -fn iso01-12x22
+bindsym $mod+d exec dmenu_run -i -fn 'iso01-12x22'
 ## Terminal
 bindsym $mod+t exec alacritty -e "$TMUX"
 bindsym $mod+Return exec alacritty
@@ -219,6 +219,7 @@ focus_follows_mouse no
 ##########################################################################
 ## Open applications on specific workspaces
 assign [class="(?i)zoom"] $ws3
+assign [class="(?i)lens"] $ws3
 assign [class="(?i)skype"] $ws3
 assign [class="jetbrains-pycharm-ce"] $ws2
 ## Open specific applications in floating mode

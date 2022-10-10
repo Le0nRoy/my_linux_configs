@@ -160,3 +160,4 @@ ex ()
 VBOX_USB=usbfs
 EDITOR='vim'
 VISUAL='vim'
+PIPENV_VENV_IN_PROJECT=1
