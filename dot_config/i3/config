@@ -63,6 +63,7 @@ exec --no-startup-id alacritty -e "$TMUX"
 exec_always --no-startup-id telegram-desktop
 exec_always --no-startup-id vk
 exec_always --no-startup-id quodlibet
+exec_always --no-startup-id qbittorrent
 ## Status bar applets
 exec_always --no-startup-id sbxkb
 exec --no-startup-id volumeicon
@@ -120,8 +121,8 @@ bindsym $mod+Mod2+KP_1 exec quodlibet --previous
 bindsym $mod+Mod2+KP_2 exec quodlibet --next
 bindsym $mod+Mod2+KP_9 exec quodlibet --volume-up
 bindsym $mod+Mod2+KP_6 exec quodlibet --volume-down
-bindsym $mod+Shift+XF86AudioRaiseVolume exec quodlibet --volume-up
-bindsym $mod+Shift+XF86AudioLowerVolume exec quodlibet --volume-down
+bindsym $mod+Ctrl+XF86AudioRaiseVolume exec quodlibet --volume-up
+bindsym $mod+Ctrl+XF86AudioLowerVolume exec quodlibet --volume-down
 bindsym $mod+XF86AudioRaiseVolume exec quodlibet --next 
 bindsym $mod+XF86AudioLowerVolume exec quodlibet --previous
 bindsym $mod+XF86AudioMute exec quodlibet --play-pause
@@ -218,10 +219,11 @@ focus_follows_mouse no
 ## Use `xprop` to get class of window
 ##########################################################################
 ## Open applications on specific workspaces
-assign [class="(?i)zoom"] $ws3
-assign [class="(?i)lens"] $ws3
-assign [class="(?i)skype"] $ws3
+assign [class="(?i)lens"] $ws2
+assign [class="(?i)postman"] $ws2
 assign [class="jetbrains-pycharm-ce"] $ws2
+assign [class="(?i)zoom"] $ws3
+assign [class="(?i)skype"] $ws3
 ## Open specific applications in floating mode
 for_window [title="alsamixer"] floating enable border pixel 1
 for_window [class="Pavucontrol"] floating enable

@@ -18,7 +18,7 @@
             },
             "marks": [],
             "name": "[Main: Common tabs]",
-            "percent": 0.5,
+            "percent": 0.333333333333333,
             "swallows": [
                {
                "class": "^firefox$",
@@ -41,13 +41,35 @@
             },
             "marks": [],
             "name": "[Media]",
-            "percent": 0.5,
+            "percent": 0.333333333333333,
             "swallows": [
                {
                "class": "^firefox$",
                "instance": "^Navigator$",
                "title": "^\\[Media\\]",
                "window_role": "^browser$"
+               }
+            ],
+            "type": "con"
+        },
+        {
+            "border": "normal",
+            "current_border_width": 2,
+            "floating": "auto_off",
+            "geometry": {
+               "height": 981,
+               "width": 1052,
+               "x": 2,
+               "y": 72
+            },
+            "marks": [],
+            "name": "qBittorrent v4.4.5",
+            "percent": 0.333333333333333,
+            "swallows": [
+               {
+               "class": "^qBittorrent$",
+               "instance": "^qbittorrent$",
+               "title": "^qBittorrent\\ v4\\.4\\.5$"
                }
             ],
             "type": "con"
@@ -64,7 +86,7 @@
     "type": "con",
     "nodes": [
         {
-            "border": "none",
+            "border": "normal",
             "current_border_width": 2,
             "floating": "auto_off",
             "geometry": {
