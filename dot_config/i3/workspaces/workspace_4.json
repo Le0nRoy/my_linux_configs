@@ -34,6 +34,27 @@
             "current_border_width": 2,
             "floating": "auto_off",
             "geometry": {
+               "height": 981,
+               "width": 1052,
+               "x": 0,
+               "y": 72
+            },
+            "marks": [],
+            "name": "Quodlibet",
+            "percent": 0.333333333333333,
+            "swallows": [
+               {
+               "class": "^Quodlibet$",
+               "instance": "^io\\.github\\.quodlibet\\.QuodLibet$"
+               }
+            ],
+            "type": "con"
+        },
+        {
+            "border": "normal",
+            "current_border_width": 2,
+            "floating": "auto_off",
+            "geometry": {
                "height": 1033,
                "width": 1916,
                "x": 0,
@@ -51,28 +72,6 @@
                }
             ],
             "type": "con"
-        },
-        {
-            "border": "normal",
-            "current_border_width": 2,
-            "floating": "auto_off",
-            "geometry": {
-               "height": 981,
-               "width": 1052,
-               "x": 2,
-               "y": 72
-            },
-            "marks": [],
-            "name": "qBittorrent v4.4.5",
-            "percent": 0.333333333333333,
-            "swallows": [
-               {
-               "class": "^qBittorrent$",
-               "instance": "^qbittorrent$",
-               "title": "^qBittorrent\\ v4\\.4\\.5$"
-               }
-            ],
-            "type": "con"
         }
     ]
 }
@@ -86,7 +85,7 @@
     "type": "con",
     "nodes": [
         {
-            "border": "normal",
+            "border": "none",
             "current_border_width": 2,
             "floating": "auto_off",
             "geometry": {

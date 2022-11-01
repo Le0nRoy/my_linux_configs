@@ -88,6 +88,7 @@ if ${use_color} ; then
 	alias egrep='egrep --colour=auto'
 	alias fgrep='fgrep --colour=auto'
 	alias xclip='xclip -selection clipboard'
+	alias ln='ln -i'
 else
 	if [[ ${EUID} == 0 ]] ; then
 		# show root@ when we don't have colors
@@ -161,3 +162,6 @@ VBOX_USB=usbfs
 EDITOR='vim'
 VISUAL='vim'
 PIPENV_VENV_IN_PROJECT=1
+JAVA_HOME=/usr/lib/jvm/java-11-openjdk/
+alias gio_get_path="gio mount -li | grep activation_root | awk 'sub(\"^.*=\", \"\")'"
+alias gio_cd="cd /run/user/1000/gvfs/mtp\:host\=HUAWEI_HRY-LX1T_XELNW19423001614/Internal\ shared\ storage/"
