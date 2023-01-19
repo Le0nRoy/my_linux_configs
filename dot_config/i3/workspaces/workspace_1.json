@@ -18,13 +18,35 @@
             },
             "marks": [],
             "name": "[Job]",
-            "percent": 0.5,
+            "percent": 0.333333333333333,
             "swallows": [
                {
                "class": "^firefox$",
                "instance": "^Navigator$",
                "title": "^\\[Job\\]",
                "window_role": "^browser$"
+               }
+            ],
+            "type": "con"
+        },
+        {
+            "border": "normal",
+            "current_border_width": 3,
+            "floating": "auto_off",
+            "geometry": {
+               "height": 993,
+               "width": 1914,
+               "x": 0,
+               "y": 0
+            },
+            "marks": [],
+            "name": "Inbox - cerber9283@gmail.com - Mozilla Thunderbird",
+            "percent": 0.333333333333333,
+            "swallows": [
+               {
+               "class": "^thunderbird$",
+               "instance": "^Mail$",
+               "window_role": "^3pane$"
                }
             ],
             "type": "con"
@@ -41,7 +63,7 @@
             },
             "marks": [],
             "name": "[Linux]",
-            "percent": 0.5,
+            "percent": 0.333333333333333,
             "swallows": [
                {
                "class": "^firefox$",
