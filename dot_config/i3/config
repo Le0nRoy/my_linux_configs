@@ -24,21 +24,12 @@ font xft:URWGothic-Book 10
 set $WORKSPACES /home/lap/.config/i3/workspaces
 #TODO add polkit rules for light
 ## Commands to adjust screen brightness
-set $brightness_up "sudo light -A 5; notify-send --urgency=low --expire-time=500 'brightness up'"
-set $brightness_down "sudo light -U 5; notify-send --urgency=low --expire-time=500 'brightness down'"
+set $brightness_up "sudo light -A 5; $HOME/.config/i3/dunstifyBrightness.bash"
+set $brightness_down "sudo light -U 5; $HOME/.config/i3/dunstifyBrightness.bash"
 ## Commands to adjust sound volume
-### ALSA
-set $volume_alsa_up "amixer set Master 5%+"
-set $volume_alsa_down "amixer set Master 5%-"
-set $volume_alsa_mute "amixer set Master toggle"
-### PulseAudio main card
-set $volume_up "pactl set-sink-mute 0 false ; pactl set-sink-volume 0 +5%"
-set $volume_down "pactl set-sink-mute 0 false ; pactl set-sink-volume 0 -5%"
-set $volume_mute "pactl set-sink-mute 0 toggle"
-### PulseAudio second card (HDMI)
-set $volume_alt_up "pactl set-sink-mute 1 false ; pactl set-sink-volume 1 +5%"
-set $volume_alt_down "pactl set-sink-mute 1 false ; pactl set-sink-volume 1 -5%"
-set $volume_alt_mute "pactl set-sink-mute 1 toggle"
+set $volume_up "pactl set-sink-mute @DEFAULT_SINK@ false ; pactl set-sink-volume @DEFAULT_SINK@ +5%; $HOME/.config/i3/dunstifyVolume.bash"
+set $volume_down "pactl set-sink-mute @DEFAULT_SINK@ false ; pactl set-sink-volume @DEFAULT_SINK@ -5%; $HOME/.config/i3/dunstifyVolume.bash"
+set $volume_mute "pactl set-sink-mute @DEFAULT_SINK@ toggle; $HOME/.config/i3/dunstifyVolume.bash"
 ## Picture for desktop background
 set $DESKTOP_BG /home/lap/Pictures/TentacloCalypse.jpg
 ## Command to allow keymap changing (Shift+Alt)
@@ -114,14 +105,9 @@ bindsym $mod+ctrl+plus exec $brightness_up
 bindsym $mod+ctrl+minus exec $brightness_down
 ## Volume controls
 bindsym $mod+Ctrl+m exec pavucontrol
-### Main card
 bindsym XF86AudioRaiseVolume exec $volume_up
 bindsym XF86AudioLowerVolume exec $volume_down
 bindsym XF86AudioMute exec $volume_mute
-### Second card (HDMI)
-bindsym shift+XF86AudioRaiseVolume exec $volume_alt_up
-bindsym shift+XF86AudioLowerVolume exec $volume_alt_down
-bindsym shift+XF86AudioMute exec $volume_alt_mute
 ## Lang applet
 bindsym $mod+F9 exec "kill `pidof sbxkb`; sbxkb; $LANGUAGE_SETTER"
 bindsym $mod+F10 exec "kill `pidof sbxkb`; sbxkb; setxkbmap -layout ge"
@@ -231,6 +217,14 @@ mode "resize" {
         bindsym Right resize grow width 5 px or 5 ppt
         bindsym Escape mode "default"
 }
+## Switch display profile
+set $mode_display (m)obile, (d)ocked
+bindsym $mod+F12 mode "$mode_display" 
+mode "$mode_display" {
+        bindsym m exec autorandr --load mobile
+        bindsym d exec autorandr --load docked
+        bindsym Escape mode "default"
+}
 
 ##########################################################################
 ## Specific options for windows
@@ -258,6 +252,7 @@ for_window [class="(?i)virtualbox"] floating enable border normal
 #for_window [class="Quodlibet"] floating enable resize set 900 600
 for_window [class="(?i)galculator"] floating enable 
 for_window [class="keepass2|KeePass2"] floating enable resize set 900 600
+for_window [class="(?i)blueman-manager"] floating enable resize set 900 600
 ## Configure focus options
 no_focus [window_type="notification"]
 #no_focus [window_type="dialog"]
