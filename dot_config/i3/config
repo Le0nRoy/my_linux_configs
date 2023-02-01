@@ -65,21 +65,21 @@ exec --no-startup-id "i3-msg 'workspace 4; append_layout $WORKSPACES/workspace_4
 ## Start applications for workspaces
 exec --no-startup-id firefox
 exec --no-startup-id alacritty -e "$TMUX"
-exec_always --no-startup-id telegram-desktop
-exec_always --no-startup-id vk
-exec_always --no-startup-id quodlibet
+exec --no-startup-id telegram-desktop
+exec --no-startup-id vk
+exec --no-startup-id quodlibet
 ## Mail client
 exec --no-startup-id thunderbird
 ## Status bar applets
 exec --no-startup-id polybar
-exec_always --no-startup-id birdtray
+exec --no-startup-id birdtray
 exec --no-startup-id pasystray
 exec --no-startup-id blueman-applet
 exec --no-startup-id cbatticon --update-interval 5 --low-level 25 --critical-level 10 --command-critical-level "$LOCK_SCREEN; systemctl hibernate"
 ## Switch NumLock to use Num keyboard
 exec_always --no-startup-id numlockx on
 ## Set minimum brightness level and adjust comfortable brightness level
-exec --no-startup-id sudo light -N 5
+exec_always --no-startup-id sudo light -N 5
 #exec --no-startup-id sudo light -S 35
 ## Start redshift daemon to have dynamical screen color and temperature adjustment
 exec_always --no-startup-id redshift -P -l 42:45 -t 4000:3500
