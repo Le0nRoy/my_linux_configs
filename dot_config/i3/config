@@ -52,7 +52,7 @@ workspace $ws3 output secondary
 workspace $ws4 output primary
 workspace $ws5 output secondary
 workspace $ws6 output secondary
-## FIXME enable mobile profile of autorandr
+## Enable only laptop screen
 exec_always --no-startup-id autorandr --load mobile
 ## Set keybord layouts
 exec_always --no-startup-id "$LANGUAGE_SETTER"
@@ -69,16 +69,18 @@ exec_always --no-startup-id telegram-desktop
 exec_always --no-startup-id vk
 exec_always --no-startup-id quodlibet
 ## Mail client
-exec_always --no-startup-id birdtray
-exec_always --no-startup-id thunderbird
+exec --no-startup-id thunderbird
 ## Status bar applets
-exec_always --no-startup-id sbxkb
+exec --no-startup-id polybar
+exec_always --no-startup-id birdtray
 exec --no-startup-id pasystray
+exec --no-startup-id blueman-applet
+exec --no-startup-id cbatticon --update-interval 5 --low-level 25 --critical-level 10 --command-critical-level "$LOCK_SCREEN; systemctl hibernate"
 ## Switch NumLock to use Num keyboard
 exec_always --no-startup-id numlockx on
 ## Set minimum brightness level and adjust comfortable brightness level
-exec_always --no-startup-id sudo light -N 5
-exec_always --no-startup-id sudo light -S 35
+exec --no-startup-id sudo light -N 5
+#exec --no-startup-id sudo light -S 35
 ## Start redshift daemon to have dynamical screen color and temperature adjustment
 exec_always --no-startup-id redshift -P -l 42:45 -t 4000:3500
 ## Add X11 compositor (windows opacity)
@@ -109,8 +111,8 @@ bindsym XF86AudioRaiseVolume exec $volume_up
 bindsym XF86AudioLowerVolume exec $volume_down
 bindsym XF86AudioMute exec $volume_mute
 ## Lang applet
-bindsym $mod+F9 exec "kill `pidof sbxkb`; sbxkb; $LANGUAGE_SETTER"
-bindsym $mod+F10 exec "kill `pidof sbxkb`; sbxkb; setxkbmap -layout ge"
+# FIXME make mode to switch
+#bindsym $mod+F10 exec "setxkbmap -layout ge"
 ## Window compositor
 bindsym $mod+F7 exec "kill `pidof picom`; $COMPOSITOR"
 ## Keepass
@@ -156,7 +158,7 @@ bindsym $mod+Shift+Right move right
 bindsym $mod+h split h;exec notify-send --urgency=low --expire-time=500 'tile horizontally'
 bindsym $mod+v split v;exec notify-send --urgency=low --expire-time=500 'tile vertically'
 ## Change container layout (stacked, tabbed, toggle split)
-bindsym $mod+Shift+s layout stacking
+bindsym $mod+Shift+s layout stacked
 bindsym $mod+e layout toggle split
 ## Focus the parent container
 bindsym $mod+a focus parent
@@ -191,8 +193,6 @@ bindsym $mod+Shift+5 move container to workspace $ws5; workspace $ws5
 bindsym $mod+Shift+6 move container to workspace $ws6; workspace $ws6
 ## Reload the configuration file
 bindsym $mod+Shift+c reload
-# FIXME
-#bindsym $mod+F12 i3-nagbar --type=warning --message='Do you really want to restart i3 inplace (preserves your layout/session, can be used to upgrade i3).' --button 'Yes, restart i3' 'i3-msg restart'
 ## Lock screen
 bindsym $mod+l exec --no-startup-id $LOCK_SCREEN 
 ## Set shutdown, restart and locking features
@@ -221,8 +221,10 @@ mode "resize" {
 set $mode_display (m)obile, (d)ocked
 bindsym $mod+F12 mode "$mode_display" 
 mode "$mode_display" {
-        bindsym m exec autorandr --load mobile
-        bindsym d exec autorandr --load docked
+        bindsym m exec autorandr --load mobile, mode "default"
+        bindsym d exec autorandr --load docked, mode "default"
+#        bindsym m exec xrandr --output DP-0 --mode 1920x1080 --primary --output HDMI-0 --off, mode "default"
+#        bindsym d exec xrandr --output DP-0 --mode 1920x1080 --primary --output HDMI-0 --mode 1920x1080 --right-of DP-0, mode "default"
         bindsym Escape mode "default"
 }
 
@@ -261,34 +263,6 @@ no_focus [window_type="notification"]
 focus_on_window_activation urgent 
 ## With touchpad focus sometimes acts to randomly
 focus_follows_mouse no
-
-##########################################################################
-## Start i3bar to display a workspace bar and system information.
-## Configure colors of i3bar and its members
-##########################################################################
-bar {
-	i3bar_command "i3bar"
-	status_command i3status
-	position bottom
-	tray_output primary
-
-	bindsym button4 nop
-	bindsym button5 nop
-    font xft:URWGothic-Book 10
-	strip_workspace_numbers yes
-
-    colors {
-#        background #222D31
-#        statusline #F9FAF9
-#        separator  #454947
-##                          border  backgr. text
-        focused_workspace  #F9FAF9 #16a085 #292F34
-        active_workspace   #595B5B #353836 #FDF6E3
-        inactive_workspace #595B5B #222D31 #EEE8D5
-        binding_mode       #16a085 #2C2C2C #F9FAF9
-        urgent_workspace   #16a085 #FDF6E3 #E5201D
-    }
-}
 
 # TODO understand this section
 ##########################################################################
