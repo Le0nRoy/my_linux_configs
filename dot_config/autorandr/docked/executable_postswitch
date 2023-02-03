@@ -1,2 +1,3 @@
 #!/bin/bash
 polybar secondary > /dev/null 2> /dev/null &
+MONITOR=HDMI-0 polybar info > /dev/null 2> /dev/null &

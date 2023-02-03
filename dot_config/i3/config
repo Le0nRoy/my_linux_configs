@@ -22,10 +22,9 @@ set $ws6 6
 font xft:URWGothic-Book 10
 ## Directory with worksapce presets
 set $WORKSPACES /home/lap/.config/i3/workspaces
-#TODO add polkit rules for light
-## Commands to adjust screen brightness
-set $brightness_up "sudo light -A 5; $HOME/.config/i3/dunstifyBrightness.bash"
-set $brightness_down "sudo light -U 5; $HOME/.config/i3/dunstifyBrightness.bash"
+## Commands to adjust screen brightness (add user to `video` group to allow changes without sudo)
+set $brightness_up "light -A 5; $HOME/.config/i3/dunstifyBrightness.bash"
+set $brightness_down "light -U 5; $HOME/.config/i3/dunstifyBrightness.bash"
 ## Commands to adjust sound volume
 set $volume_up "pactl set-sink-mute @DEFAULT_SINK@ false ; pactl set-sink-volume @DEFAULT_SINK@ +5%; $HOME/.config/i3/dunstifyVolume.bash"
 set $volume_down "pactl set-sink-mute @DEFAULT_SINK@ false ; pactl set-sink-volume @DEFAULT_SINK@ -5%; $HOME/.config/i3/dunstifyVolume.bash"
@@ -53,7 +52,7 @@ workspace $ws4 output primary
 workspace $ws5 output secondary
 workspace $ws6 output secondary
 ## Enable only laptop screen
-exec_always --no-startup-id autorandr --load mobile
+exec --no-startup-id autorandr --default mobile --load mobile
 ## Set keybord layouts
 exec_always --no-startup-id "$LANGUAGE_SETTER"
 ## Set background picture
@@ -71,7 +70,8 @@ exec --no-startup-id quodlibet
 ## Mail client
 exec --no-startup-id thunderbird
 ## Status bar applets
-exec --no-startup-id polybar
+exec --no-startup-id "MONITOR=DP-0 polybar info"
+exec --no-startup-id polybar primary
 exec --no-startup-id birdtray
 exec --no-startup-id pasystray
 exec --no-startup-id blueman-applet
@@ -80,7 +80,7 @@ exec --no-startup-id cbatticon --update-interval 5 --low-level 25 --critical-lev
 exec_always --no-startup-id numlockx on
 ## Set minimum brightness level and adjust comfortable brightness level
 exec_always --no-startup-id sudo light -N 5
-#exec --no-startup-id sudo light -S 35
+exec --no-startup-id sudo light -S 70
 ## Start redshift daemon to have dynamical screen color and temperature adjustment
 exec_always --no-startup-id redshift -P -l 42:45 -t 4000:3500
 ## Add X11 compositor (windows opacity)
@@ -111,8 +111,10 @@ bindsym XF86AudioRaiseVolume exec $volume_up
 bindsym XF86AudioLowerVolume exec $volume_down
 bindsym XF86AudioMute exec $volume_mute
 ## Lang applet
+# FIXME add some hook for bluetooth to automatically reload setxkbmap
+bindsym $mod+F9 exec "$LANGUAGE_SETTER"
 # FIXME make mode to switch
-#bindsym $mod+F10 exec "setxkbmap -layout ge"
+bindsym $mod+F10 exec "setxkbmap -layout ge"
 ## Window compositor
 bindsym $mod+F7 exec "kill `pidof picom`; $COMPOSITOR"
 ## Keepass
@@ -221,8 +223,8 @@ mode "resize" {
 set $mode_display (m)obile, (d)ocked
 bindsym $mod+F12 mode "$mode_display" 
 mode "$mode_display" {
-        bindsym m exec autorandr --load mobile, mode "default"
-        bindsym d exec autorandr --load docked, mode "default"
+        bindsym m exec autorandr --default mobile --load mobile, mode "default"
+        bindsym d exec autorandr --default mobile --load docked, mode "default"
 #        bindsym m exec xrandr --output DP-0 --mode 1920x1080 --primary --output HDMI-0 --off, mode "default"
 #        bindsym d exec xrandr --output DP-0 --mode 1920x1080 --primary --output HDMI-0 --mode 1920x1080 --right-of DP-0, mode "default"
         bindsym Escape mode "default"
