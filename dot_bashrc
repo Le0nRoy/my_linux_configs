@@ -167,3 +167,5 @@ export USE_GKE_GCLOUD_AUTH_PLUGIN=True
 alias gio_get_path="gio mount -li | grep activation_root | awk 'sub(\"^.*=\", \"\")'"
 alias gio_cd="cd /run/user/1000/gvfs/mtp\:host\=HUAWEI_HRY-LX1T_XELNW19423001614/Internal\ storage/"
 alias pdf_open="okular"
+alias gpg_encrypt="gpg --local-user Vadim_signature --sign --encrypt --armor --recipient" # Pass <recipent> and <file to encrypt>
+alias gpg_decrypt="gpg --decrypt reply.txt.asc | tee reply.txt | gpg --verify"

@@ -11,27 +11,6 @@
             "current_border_width": 2,
             "floating": "auto_off",
             "geometry": {
-               "height": 981,
-               "width": 1052,
-               "x": 0,
-               "y": 72
-            },
-            "marks": [],
-            "name": "Ôðåä - ÊèØ, Ì. Ãîðøåí¸â, Êîðîëü è øóò - Quod Libet",
-            "percent": 0.5,
-            "swallows": [
-               {
-               "class": "^Quodlibet$",
-               "instance": "^io\\.github\\.quodlibet\\.QuodLibet$"
-               }
-            ],
-            "type": "con"
-        },
-        {
-            "border": "normal",
-            "current_border_width": 2,
-            "floating": "auto_off",
-            "geometry": {
                "height": 1033,
                "width": 1916,
                "x": 0,
@@ -79,29 +58,6 @@
                "class": "^TelegramDesktop$",
                "instance": "^telegram\\-desktop$",
                "title": "^Telegram"
-               }
-            ],
-            "type": "con"
-        },
-        {
-            "border": "normal",
-            "current_border_width": 3,
-            "floating": "auto_off",
-            "geometry": {
-               "height": 390,
-               "width": 825,
-               "x": 1089,
-               "y": 629
-            },
-            "marks": [],
-            "name": "VK Messenger",
-            "percent": 0.35,
-            "swallows": [
-               {
-               "class": "^VK$",
-               "instance": "^vk$",
-               "title": "^VK\\ Messenger$",
-               "window_role": "^browser\\-window$"
                }
             ],
             "type": "con"
