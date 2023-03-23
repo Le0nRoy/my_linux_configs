@@ -46,6 +46,11 @@ set $LOGOUT_I3 i3-nagbar --type=warning --message='Do you really want to exit i3
 #set $COMPOSITOR picom --backend glx --daemon
 
 ##########################################################################
+## Gaps for polybar
+##########################################################################
+gaps bottom 17
+
+##########################################################################
 ## Autostart applications
 ##########################################################################
 workspace $ws1 output primary
@@ -69,6 +74,7 @@ exec --no-startup-id "i3-msg 'workspace 4; append_layout $WORKSPACES/workspace_4
 exec --no-startup-id firefox
 exec --no-startup-id alacritty -e "$TMUX"
 exec --no-startup-id telegram-desktop
+exec --no-startup-id todoist
 #exec --no-startup-id vk
 ## Mail client
 exec --no-startup-id thunderbird
@@ -258,6 +264,7 @@ assign [class="(?i)discord"] $ws3
 assign [class="(?i)quodlibet"] $ws4
 assign [class="(?i)telegram-desktop|TelegramDesktop"] $ws4
 assign [class="(?i)vk"] $ws4
+assign [class="(?i)todoist"] $ws4
 assign [class="(?i)steam"] $ws5
 assign [class="(?i)chromium"] $ws6
 ## Open specific applications in floating mode
