@@ -169,3 +169,4 @@ alias gio_cd="cd /run/user/1000/gvfs/mtp\:host\=HUAWEI_HRY-LX1T_XELNW19423001614
 alias pdf_open="okular"
 alias gpg_encrypt="gpg --local-user Vadim_signature --sign --encrypt --armor --recipient" # Pass <recipent> and <file to encrypt>
 alias gpg_decrypt="gpg --decrypt reply.txt.asc | tee reply.txt | gpg --verify"
+alias adb_pull="adb pull /sdcard/Vk/Vkontakte/ /Data/vkDownloads/Music/"
