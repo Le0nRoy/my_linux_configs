@@ -1,3 +1,9 @@
 #!/bin/bash
-polybar --reload secondary > /dev/null 2> /dev/null &
-MONITOR=HDMI-0 polybar --reload info > /dev/null 2> /dev/null &
+LOG_LEVEL_info=/dev/null
+if [[ -z "$(ps -C 'polybar' -o cmd | grep 'secondary$')" ]]; then
+	polybar --reload secondary > /dev/null 2>&1 &
+fi
+if [[ -z "$(ps -C 'polybar' -o cmd | grep 'secondary-info$')" ]]; then
+	MONITOR=HDMI-0 polybar --log=warning --reload secondary-info > /dev/null 2>&1 &
+fi
+i3-msg "workspace 3; move workspace to output HDMI-0; workspace back_and_forth"

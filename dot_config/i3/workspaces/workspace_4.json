@@ -37,13 +37,13 @@
                "y": 0
             },
             "marks": [],
-            "name": "[Media]",
+            "name": "Media",
             "percent": 0.5,
             "swallows": [
                {
                "class": "^firefox$",
                "instance": "^Navigator$",
-               "title": "^\\[Media\\]",
+               "title": "^Media - ",
                "window_role": "^browser$"
                }
             ],

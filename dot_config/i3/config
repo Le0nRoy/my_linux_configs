@@ -61,9 +61,13 @@ workspace $ws5 output secondary
 workspace $ws6 output secondary
 workspace_layout stacking
 ## Enable only laptop screen
-exec --no-startup-id autorandr --default mobile --load mobile
+#exec --no-startup-id autorandr --default mobile --load mobile
+exec --no-startup-id xrandr --output DP-0 --mode 1920x1080 --primary --output HDMI-0 --off
+## Load NVIDIA settings
+exec --no-startup-id nvidia-settings --load-config-only
+# FIXME
 ## Add X11 compositor (windows opacity)
-exec_always --no-startup-id "$COMPOSITOR"
+#exec_always --no-startup-id "$COMPOSITOR"
 ## Set background picture
 exec_always --no-startup-id feh --bg-fill $DESKTOP_BG
 ## Restore layouts on workspaces from files
@@ -75,6 +79,8 @@ exec --no-startup-id firefox
 exec --no-startup-id alacritty -e "$TMUX"
 exec --no-startup-id telegram-desktop
 exec --no-startup-id todoist
+exec --no-startup-id quodlibet
+#exec --no-startup-id joplin
 #exec --no-startup-id vk
 ## Mail client
 exec --no-startup-id thunderbird
@@ -84,7 +90,9 @@ exec --no-startup-id polybar primary --reload
 exec --no-startup-id birdtray 
 exec --no-startup-id pasystray
 exec --no-startup-id blueman-applet
-exec --no-startup-id cbatticon --update-interval 5 --low-level 25 --critical-level 10 --command-critical-level "$LOCK_SCREEN; systemctl hibernate"
+exec --no-startup-id iwgtk -i
+# TODO add --command-critical-level "$LOCK_SCREEN; systemctl hibernate"
+exec --no-startup-id cbatticon --update-interval 5 --low-level 25 --critical-level 10 
 ## Switch NumLock to use Num keyboard
 #exec_always --no-startup-id numlockx on
 ## Set minimum brightness level and adjust comfortable brightness level
@@ -101,7 +109,9 @@ exec --no-startup-id start-pulseaudio-x11
 ## Kill focused window
 bindsym $mod+Shift+q kill
 ## Program launcher
-bindsym $mod+d exec dmenu_run_history -i #-fn 'iso01-12x22'
+#bindsym $mod+d exec dmenu_run_history -i #-fn 'iso01-12x22'
+bindsym $mod+d exec rofi -show run
+bindsym $mod+ctrl+d exec rofi -show drun
 ## Terminal
 bindsym $mod+t exec alacritty -e "$TMUX"
 bindsym $mod+Return exec alacritty -o "shell=/bin/zsh"
@@ -226,15 +236,13 @@ mode "resize" {
         bindsym Escape mode "default"
 }
 ## Switch display profile
-set $mode_display (m)obile, (d)ocked, (r)eload
+set $mode_display (m)obile, (d)ocked
 bindsym $mod+F10 mode "$mode_display" 
 mode "$mode_display" {
         bindsym m exec autorandr --load mobile, mode "default"
-        bindsym d exec autorandr --load docked, mode "default"
-#        bindsym r exec autorandr --force --load `autorandr | grep current | awk '{print $1}'`, mode "default"
-# TODO create some type of script for xrandr to launch polybar
-#        bindsym m exec xrandr --output DP-0 --mode 1920x1080 --primary --output HDMI-0 --off, mode "default"
-#        bindsym d exec xrandr --output DP-0 --mode 1920x1080 --primary --output HDMI-0 --mode 1920x1080 --right-of DP-0, mode "default"
+#        bindsym d exec autorandr --load docked, mode "default"
+        bindsym m exec xrandr --output DP-0 --mode 1920x1080 --primary --output HDMI-0 --off, mode "default"
+        bindsym d exec xrandr --output DP-0 --mode 1920x1080 --primary --output HDMI-0 --mode 1920x1080 --right-of DP-0 && bash ${HOME}/.config/autorandr/docked/postswitch, mode "default"
         bindsym Escape mode "default"
 }
 
@@ -266,11 +274,13 @@ assign [class="(?i)telegram-desktop|TelegramDesktop"] $ws4
 assign [class="(?i)vk"] $ws4
 assign [class="(?i)todoist"] $ws4
 assign [class="(?i)steam"] $ws5
+assign [title="(?i)steam"] $ws5
 assign [class="(?i)chromium"] $ws6
 ## Open specific applications in floating mode
 # FIXME for now by some reason creates new workspace instead of sending to existing
 #for_window [class="(?i)firefox" title="[Linux]"] move to workspace $ws2 move left layout stacking
 for_window [title="alsamixer"] floating enable border pixel 1
+for_window [title="Create or select new Steam library folder" class="(?i)steam"] floating enable 
 for_window [class="Pavucontrol"] floating enable
 for_window [class="(?i)virtualbox"] floating enable border normal
 #for_window [class="Quodlibet"] floating enable resize set 900 600
@@ -281,6 +291,7 @@ for_window [class="(?i)zoom" title="Chat"] floating enable resize set 900 600
 for_window [class="keepass2|KeePass2"] floating enable resize set 900 600
 for_window [class="(?i)pavucontrol"] floating enable resize set 600 900
 for_window [class="(?i)blueman-manager"] floating enable resize set 900 600
+for_window [class="(?i)iwgtk"] floating enable resize set 600 900
 ## Configure focus options
 no_focus [window_type="notification"]
 #no_focus [window_type="dialog"]

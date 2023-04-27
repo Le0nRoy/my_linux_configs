@@ -17,13 +17,13 @@
                "y": 0
             },
             "marks": [],
-            "name": "[Job]",
+            "name": "Job",
             "percent": 0.333333333333333,
             "swallows": [
                {
                "class": "^firefox$",
                "instance": "^Navigator$",
-               "title": "^\\[Job\\]",
+               "title": "^Job - ",
                "window_role": "^browser$"
                }
             ],
@@ -62,13 +62,13 @@
                "y": 0
             },
             "marks": [],
-            "name": "[Linux]",
+            "name": "Linux",
             "percent": 0.333333333333333,
             "swallows": [
                {
                "class": "^firefox$",
                "instance": "^Navigator$",
-               "title": "^\\[Linux\\]",
+               "title": "^Linux - ",
                "window_role": "^browser$"
                }
             ],
