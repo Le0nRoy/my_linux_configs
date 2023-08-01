@@ -1,0 +1,7 @@
+[Unit]
+Description=Send a notification about a failed systemd unit
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/notify-send --urgency=critical --expire-time=5000 "'%i' systemd unit has failed. Use 'journalctl --user-unit=%i' to see details"
