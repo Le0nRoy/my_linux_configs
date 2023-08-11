@@ -5,6 +5,8 @@ if &diff
 endif
 
 filetype indent plugin on
+" Remove auto-indent for the `#` symbol
+set indentkeys-=0#
 
 syntax on
 
