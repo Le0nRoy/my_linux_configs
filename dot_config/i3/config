@@ -110,8 +110,8 @@ exec --no-startup-id start-pulseaudio-x11
 bindsym $mod+Shift+q kill
 ## Program launcher
 #bindsym $mod+d exec dmenu_run_history -i #-fn 'iso01-12x22'
-bindsym $mod+d exec rofi -show run
-bindsym $mod+ctrl+d exec rofi -show drun
+bindsym $mod+ctrl+d exec rofi -show run
+bindsym $mod+d exec rofi -show drun
 ## Terminal
 bindsym $mod+t exec alacritty -e "$TMUX"
 bindsym $mod+Return exec alacritty -o "shell=/bin/zsh"
@@ -133,9 +133,6 @@ bindsym ctrl+XF86AudioMute exec $volume_hdmi_mute
 ## Calculator and calendar
 bindsym $mod+F1 exec galculator
 bindsym $mod+F2 exec zenity --calendar
-## File browser
-bindsym $mod+F3 exec pcmanfm
-#bindsym $mod+F3 exec ranger
 ## Window compositor
 bindsym $mod+F4 exec "kill `pidof picom`; $COMPOSITOR"
 ## Keepass
@@ -149,12 +146,15 @@ bindsym $mod+Ctrl+v exec xsel -bo | xargs vlc
 ## Music player
 bindsym $mod+m exec quodlibet
 bindsym $mod+Mod2+KP_0 exec quodlibet --play-pause
+bindsym XF86AudioPlay exec quodlibet --play-pause
 bindsym $mod+Mod2+KP_1 exec quodlibet --previous
 bindsym $mod+Mod2+KP_2 exec quodlibet --next
 bindsym $mod+Mod2+KP_9 exec quodlibet --volume-up
 bindsym $mod+Mod2+KP_6 exec quodlibet --volume-down
 bindsym $mod+Ctrl+XF86AudioRaiseVolume exec quodlibet --next 
 bindsym $mod+Ctrl+XF86AudioLowerVolume exec quodlibet --previous
+bindsym XF86AudioNext exec quodlibet --next 
+bindsym XF86AudioPrev exec quodlibet --previous
 bindsym $mod+XF86AudioRaiseVolume exec quodlibet --volume-up
 bindsym $mod+XF86AudioLowerVolume exec quodlibet --volume-down
 bindsym $mod+XF86AudioMute exec quodlibet --play-pause
@@ -236,13 +236,14 @@ mode "resize" {
         bindsym Escape mode "default"
 }
 ## Switch display profile
-set $mode_display (m)obile, (d)ocked
+set $mode_display (m)obile, (d)ocked, docked (p)rimary
 bindsym $mod+F10 mode "$mode_display" 
 mode "$mode_display" {
         bindsym m exec autorandr --load mobile, mode "default"
 #        bindsym d exec autorandr --load docked, mode "default"
         bindsym m exec xrandr --output DP-0 --mode 1920x1080 --primary --output HDMI-0 --off, mode "default"
         bindsym d exec xrandr --output DP-0 --mode 1920x1080 --primary --output HDMI-0 --mode 1920x1080 --right-of DP-0 && bash ${HOME}/.config/autorandr/docked/postswitch, mode "default"
+        bindsym p exec xrandr --output DP-0 --mode 1920x1080 --output HDMI-0 --mode 1920x1080 --primary --right-of DP-0 && bash ${HOME}/.config/autorandr/docked/postswitch, mode "default"
         bindsym Escape mode "default"
 }
 
@@ -258,7 +259,7 @@ assign [class="(?i)slack"] $ws1
 #assign [class="(?i)firefox" title="[Job]"] $ws1
 #assign [class="(?i)firefox" title="[Linux]"] $ws4
 assign [class="(?i)thunderbird|Mail"] $ws1
-assign [class="(?i)joplin"] $ws1
+#assign [class="(?i)joplin"] $ws1
 assign [class="(?i)alacritty"] $ws2
 assign [class="(?i)lens"] $ws2
 assign [class="(?i)postman"] $ws2
@@ -276,11 +277,15 @@ assign [class="(?i)todoist"] $ws4
 assign [class="(?i)steam"] $ws5
 assign [title="(?i)steam"] $ws5
 assign [class="(?i)chromium"] $ws6
+assign [class="(?i)opera"] $ws6
 ## Open specific applications in floating mode
 # FIXME for now by some reason creates new workspace instead of sending to existing
 #for_window [class="(?i)firefox" title="[Linux]"] move to workspace $ws2 move left layout stacking
 for_window [title="alsamixer"] floating enable border pixel 1
+for_window [class="(?i)thunderbird|Mail"] floating disable 
 for_window [title="Create or select new Steam library folder" class="(?i)steam"] floating enable 
+for_window [title="News" class="(?i)steam"] floating enable resize set 600 400
+for_window [title="Friends List" class="(?i)steam"] floating enable resize set 600 400
 for_window [class="Pavucontrol"] floating enable
 for_window [class="(?i)virtualbox"] floating enable border normal
 #for_window [class="Quodlibet"] floating enable resize set 900 600

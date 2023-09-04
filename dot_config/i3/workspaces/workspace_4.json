@@ -18,10 +18,34 @@
             },
             "marks": [],
             "name": "Quod Libet",
-            "percent": 0.5,
+            "percent": 0.333333333333333,
             "swallows": [
                {
-               "class": "^Quodlibet$"
+               "class": "^Quodlibet$",
+               "instance": "^io\\.github\\.quodlibet\\.QuodLibet$"
+               }
+            ],
+            "type": "con"
+        },
+        {
+            "border": "normal",
+            "current_border_width": 2,
+            "floating": "auto_off",
+            "geometry": {
+               "height": 989,
+               "width": 956,
+               "x": 0,
+               "y": 0
+            },
+            "marks": [],
+            "name": "Linux",
+            "percent": 0.333333333333333,
+            "swallows": [
+               {
+               "class": "^firefox$",
+               "instance": "^Navigator$",
+               "title": "^Linux - ",
+               "window_role": "^browser$"
                }
             ],
             "type": "con"
@@ -38,7 +62,7 @@
             },
             "marks": [],
             "name": "Media",
-            "percent": 0.5,
+            "percent": 0.333333333333333,
             "swallows": [
                {
                "class": "^firefox$",
@@ -76,7 +100,8 @@
             "swallows": [
                {
                "class": "^TelegramDesktop$",
-               "instance": "^telegram\\-desktop$"
+               "instance": "^telegram\\-desktop$",
+               "title": "^Telegram"
                }
             ],
             "type": "con"
@@ -92,7 +117,7 @@
                "y": 73
             },
             "marks": [],
-            "name": "Today: Todoist",
+            "name": "Todoist",
             "percent": 0.5,
             "swallows": [
                {

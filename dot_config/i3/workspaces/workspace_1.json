@@ -8,22 +8,22 @@
     "nodes": [
         {
             "border": "normal",
-            "current_border_width": 2,
+            "current_border_width": 3,
             "floating": "auto_off",
             "geometry": {
-               "height": 1011,
-               "width": 956,
+               "height": 952,
+               "width": 1050,
                "x": 0,
                "y": 0
             },
             "marks": [],
-            "name": "Job",
+            "name": "[Job]",
             "percent": 0.333333333333333,
             "swallows": [
                {
                "class": "^firefox$",
                "instance": "^Navigator$",
-               "title": "^Job - ",
+               "title": "^\\[Job\\]",
                "window_role": "^browser$"
                }
             ],
@@ -34,42 +34,42 @@
             "current_border_width": 3,
             "floating": "auto_off",
             "geometry": {
-               "height": 993,
+               "height": 978,
                "width": 1914,
                "x": 0,
                "y": 0
             },
             "marks": [],
-            "name": "Inbox - cerber9283@gmail.com - Mozilla Thunderbird",
+            "name": "[Job]",
             "percent": 0.333333333333333,
             "swallows": [
                {
-               "class": "^thunderbird$",
-               "instance": "^Mail$",
-               "window_role": "^3pane$"
+               "class": "^firefox$",
+               "instance": "^Navigator$",
+               "title": "^\\[Job\\]",
+               "window_role": "^browser$"
                }
             ],
             "type": "con"
         },
         {
             "border": "normal",
-            "current_border_width": 2,
+            "current_border_width": 3,
             "floating": "auto_off",
             "geometry": {
-               "height": 989,
-               "width": 956,
+               "height": 926,
+               "width": 1914,
                "x": 0,
-               "y": 0
+               "y": 125
             },
             "marks": [],
-            "name": "Linux",
+            "name": "Mozilla Thunderbird",
             "percent": 0.333333333333333,
             "swallows": [
                {
-               "class": "^firefox$",
-               "instance": "^Navigator$",
-               "title": "^Linux - ",
-               "window_role": "^browser$"
+               "class": "^thunderbird$",
+               "instance": "^Mail$",
+               "window_role": "^3pane$"
                }
             ],
             "type": "con"

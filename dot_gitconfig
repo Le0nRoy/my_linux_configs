@@ -1,5 +1,6 @@
 [user]
 	name = Vadim Trishin
+	email = vtrishin@wallarm.com
 [core]
 	editor = vim
 [credential]
