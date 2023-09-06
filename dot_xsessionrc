@@ -1,7 +1,8 @@
-xinput --set-prop 'SynPS/2 Synaptics TouchPad' 'libinput Tapping Enabled' 1
-xinput --set-prop 'SynPS/2 Synaptics TouchPad' 'libinput Natural Scrolling Enabled' 1
-xset s off
-xset s noblank
-xset -dpms
+# HP
+#xinput --set-prop 'SynPS/2 Synaptics TouchPad' 'libinput Tapping Enabled' 1
+#xinput --set-prop 'SynPS/2 Synaptics TouchPad' 'libinput Natural Scrolling Enabled' 1
+# ASUS
+xinput --set-prop 'ASUE120D:00 04F3:31FB Touchpad' 'libinput Tapping Enabled' 1
+xinput --set-prop 'ASUE120D:00 04F3:31FB Touchpad' 'libinput Natural Scrolling Enabled' 1
 eval `ssh-agent`
 
