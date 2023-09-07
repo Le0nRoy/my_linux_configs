@@ -48,7 +48,7 @@ set $LOGOUT_I3 i3-nagbar --type=warning --message='Do you really want to exit i3
 ##########################################################################
 ## Gaps for polybar
 ##########################################################################
-gaps bottom 13
+gaps bottom 17
 
 ##########################################################################
 ## Autostart applications
@@ -61,8 +61,6 @@ workspace $ws5 output secondary
 workspace $ws6 output secondary
 workspace_layout stacking
 ## Enable only laptop screen
-#exec --no-startup-id autorandr --default mobile --load mobile
-exec --no-startup-id xrandr --output DP-0 --mode 1920x1080 --primary --output HDMI-0 --off
 ## Load NVIDIA settings
 exec --no-startup-id nvidia-settings --load-config-only
 # FIXME
@@ -161,8 +159,11 @@ bindsym $mod+XF86AudioLowerVolume exec quodlibet --volume-down
 bindsym $mod+XF86AudioMute exec quodlibet --play-pause
 ## Screenshots
 bindsym Print --release exec --no-startup-id flameshot gui
+bindsym XF86Launch3 --release exec --no-startup-id flameshot gui
 bindsym $mod+Print exec --no-startup-id flameshot full -c
+bindsym $mod+XF86Launch3 exec --no-startup-id flameshot full -c
 bindsym $mod+Shift+Print --release exec --no-startup-id flameshot launcher
+bindsym $mod+Shift+XF86Launch3 --release exec --no-startup-id flameshot launcher
 ## Change focus
 bindsym $mod+Left focus left
 bindsym $mod+Down focus down
@@ -292,6 +293,7 @@ for_window [class="(?i)virtualbox"] floating enable border normal
 #for_window [class="Quodlibet"] floating enable resize set 900 600
 for_window [class="(?i)galculator"] floating enable 
 for_window [title="Android Emulator"] floating enable 
+for_window [class="(?i)zoom" title="Zoom - Free Account"] floating disable
 for_window [class="(?i)zoom" title="Zoom Meeting"] floating disable
 for_window [class="(?i)zoom" title="Chat"] floating enable resize set 900 600
 ## Keep zoom notifications floating

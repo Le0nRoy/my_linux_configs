@@ -172,4 +172,3 @@ alias gpg_encrypt="gpg --local-user Vadim_signature --sign --encrypt --armor --r
 alias gpg_decrypt="gpg --decrypt reply.txt.asc | tee reply.txt | gpg --verify"
 alias adb_pull="adb pull /sdcard/Vk/Vkontakte/ /Data/vkDownloads/Music/"
 
-GTK_THEME=Materia:dark
