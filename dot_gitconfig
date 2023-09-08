@@ -1,6 +1,3 @@
-[user]
-	name = Vadim Trishin
-	email = vtrishin@wallarm.com
 [core]
 	editor = vim
 [credential]
@@ -11,3 +8,6 @@
 	defaultBranch = main
 [push]
 	autoSetupRemote = true
+[user]
+	email = cerber9283@gmail.com
+	name = Vadim
