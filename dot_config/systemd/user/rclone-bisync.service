@@ -1,6 +1,7 @@
 [Unit]
 Description=RClone bisync job
 OnFailure=failure-notification@%n
+OnSuccess=success-notification@%n
 
 [Service]
 # if the launch fails the resync will be required (takes about an hour)
