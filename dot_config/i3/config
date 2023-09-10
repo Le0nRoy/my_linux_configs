@@ -22,6 +22,8 @@ set $ws6 6
 font xft:URWGothic-Book 8
 ## Directory with worksapce presets
 set $WORKSPACES /home/lap/.config/i3/workspaces
+## Commands to toggle touchpad state
+set $touchpad_toggle "$HOME/.config/i3/touchpad_toggle.sh"
 ## Commands to adjust screen brightness (add user to `video` group to allow changes without sudo)
 set $brightness_up "light -A 5; $HOME/.config/i3/dunstifyBrightness.bash"
 set $brightness_down "light -U 5; $HOME/.config/i3/dunstifyBrightness.bash"
@@ -63,6 +65,9 @@ workspace_layout stacking
 ## Enable only laptop screen
 ## Load NVIDIA settings
 exec --no-startup-id nvidia-settings --load-config-only
+## Disable screen saver
+exec_always --no-startup-id xset s off
+exec_always --no-startup-id xset s noblank
 # FIXME
 ## Add X11 compositor (windows opacity)
 #exec_always --no-startup-id "$COMPOSITOR"
@@ -113,6 +118,8 @@ bindsym $mod+d exec rofi -show drun
 ## Terminal
 bindsym $mod+t exec alacritty -e "$TMUX"
 bindsym $mod+Return exec alacritty -o "shell=/bin/zsh"
+## Toggle touchpad
+bindsym XF86TouchpadToggle exec $touchpad_toggle
 ## Screen brightness controls
 bindsym XF86MonBrightnessUp exec $brightness_up
 bindsym XF86MonBrightnessDown exec $brightness_down 
