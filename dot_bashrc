@@ -171,4 +171,5 @@ alias pdf_open="okular"
 alias gpg_encrypt="gpg --local-user Vadim_signature --sign --encrypt --armor --recipient" # Pass <recipent> and <file to encrypt>
 alias gpg_decrypt="gpg --decrypt reply.txt.asc | tee reply.txt | gpg --verify"
 alias adb_pull="adb pull /sdcard/Vk/Vkontakte/ /Data/vkDownloads/Music/"
+alias xev_get_codes="xev | awk -F'[ )]+' '/^KeyPress/ { a[NR+2] } NR in a { printf \"%-3s %s\n\", \$5, \$8 }'"
 
