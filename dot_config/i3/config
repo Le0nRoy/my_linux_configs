@@ -43,6 +43,8 @@ set $TMUX "tmux new-session -s \"i3-tmux\" -n \"WorkSpace\" -A -D"
 set $LOCK_SCREEN setxkbmap us && i3lock --ignore-empty-password --show-failed-attempts --image=/home/lap/Pictures/png_files/maximum_beat.png
 ## Exit i3 (logs you out of your X session)
 set $LOGOUT_I3 i3-nagbar --type=warning --message='Do you really want to exit i3? This will logout your X session.' --button 'Yes, exit i3' 'i3-msg exit'
+## Layout setting commands
+set $SET_EN_RU_LAYOUT "setxkbmap -layout us,ru -option grp:alt_shift_toggle"
 ## Enable window compositor
 #FIXME it breaks firefox with i3-layout restoration
 #set $COMPOSITOR picom --backend glx --daemon
@@ -65,12 +67,12 @@ workspace_layout stacking
 ## Enable only laptop screen
 ## Load NVIDIA settings
 exec --no-startup-id nvidia-settings --load-config-only
+## Set default layout
+exec_always --no-startup-id $SET_EN_RU_LAYOUT
 ## Disable screen saver
+# FIXME does not work
 exec_always --no-startup-id xset s off
 exec_always --no-startup-id xset s noblank
-# FIXME
-## Add X11 compositor (windows opacity)
-#exec_always --no-startup-id "$COMPOSITOR"
 ## Set background picture
 exec_always --no-startup-id feh --bg-fill $DESKTOP_BG
 ## Restore layouts on workspaces from files
@@ -83,8 +85,6 @@ exec --no-startup-id alacritty -e "$TMUX"
 exec --no-startup-id telegram-desktop
 exec --no-startup-id todoist
 exec --no-startup-id quodlibet
-#exec --no-startup-id joplin
-#exec --no-startup-id vk
 ## Mail client
 exec --no-startup-id thunderbird
 ## Status bar applets
@@ -96,8 +96,6 @@ exec --no-startup-id blueman-applet
 exec --no-startup-id iwgtk -i
 # TODO add --command-critical-level "$LOCK_SCREEN; systemctl hibernate"
 exec --no-startup-id cbatticon --update-interval 5 --low-level 25 --critical-level 10 
-## Switch NumLock to use Num keyboard
-#exec_always --no-startup-id numlockx on
 ## Set minimum brightness level and adjust comfortable brightness level
 exec_always --no-startup-id light -N 5
 exec --no-startup-id light -S 70
@@ -143,7 +141,7 @@ bindsym $mod+F4 exec "kill `pidof picom`; $COMPOSITOR"
 ## Keepass
 bindsym $mod+F5 exec keepass /home/lap/Major_git/Database.kdbx
 ## Keyboard layouts
-bindsym $mod+F12 exec "setxkbmap -layout us,ru -option grp:alt_shift_toggle"
+bindsym $mod+F12 exec $SET_EN_RU_LAYOUT
 bindsym $mod+Shift+F12 exec "bash /home/lap/.xsessionrc"
 bindsym $mod+F11 exec "setxkbmap -layout ge,us -option grp:alt_shift_toggle"
 ## Video-player
@@ -218,6 +216,9 @@ bindsym $mod+Shift+3 move container to workspace $ws3; workspace $ws3
 bindsym $mod+Shift+4 move container to workspace $ws4; workspace $ws4
 bindsym $mod+Shift+5 move container to workspace $ws5; workspace $ws5
 bindsym $mod+Shift+6 move container to workspace $ws6; workspace $ws6
+## Move workspace to different output
+bindsym $mod+Ctrl+greater move workspace to output right
+bindsym $mod+Ctrl+less move workspace to output left
 ## Reload the configuration file
 bindsym $mod+Shift+c reload
 ## Lock screen
