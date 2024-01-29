@@ -28,19 +28,25 @@ set $touchpad_toggle "$HOME/.config/i3/touchpad_toggle.sh"
 set $brightness_up "light -A 5; $HOME/.config/i3/dunstifyBrightness.bash"
 set $brightness_down "light -U 5; $HOME/.config/i3/dunstifyBrightness.bash"
 ## Commands to adjust sound volume
-set $volume_up "pactl set-sink-mute @DEFAULT_SINK@ false ; pactl set-sink-volume @DEFAULT_SINK@ +5%; $HOME/.config/i3/dunstifyVolume.bash"
-set $volume_down "pactl set-sink-mute @DEFAULT_SINK@ false ; pactl set-sink-volume @DEFAULT_SINK@ -5%; $HOME/.config/i3/dunstifyVolume.bash"
-set $volume_mute "pactl set-sink-mute @DEFAULT_SINK@ toggle; $HOME/.config/i3/dunstifyVolume.bash"
-# FIXME dustify shows only volume of @DEFAULT_SINK@
-set $volume_hdmi_up "pactl set-sink-mute alsa_output.pci-0000_01_00.1.hdmi-stereo false ; pactl set-sink-volume alsa_output.pci-0000_01_00.1.hdmi-stereo +5%; $HOME/.config/i3/dunstifyVolume.bash"
-set $volume_hdmi_down "pactl set-sink-mute alsa_output.pci-0000_01_00.1.hdmi-stereo false ; pactl set-sink-volume alsa_output.pci-0000_01_00.1.hdmi-stereo -5%; $HOME/.config/i3/dunstifyVolume.bash"
-set $volume_hdmi_mute "pactl set-sink-mute alsa_output.pci-0000_01_00.1.hdmi-stereo toggle; $HOME/.config/i3/dunstifyVolume.bash"
+#set $volume_up "pactl set-sink-mute @DEFAULT_SINK@ false ; pactl set-sink-volume @DEFAULT_SINK@ +5%; $HOME/.config/i3/dunstifyVolume.bash"
+#set $volume_down "pactl set-sink-mute @DEFAULT_SINK@ false ; pactl set-sink-volume @DEFAULT_SINK@ -5%; $HOME/.config/i3/dunstifyVolume.bash"
+#set $volume_mute "pactl set-sink-mute @DEFAULT_SINK@ toggle; $HOME/.config/i3/dunstifyVolume.bash"
+set $volume_up "bash $HOME/.config/i3/dunstifyVolume.bash raise"
+set $volume_down "bash $HOME/.config/i3/dunstifyVolume.bash low"
+set $volume_mute "bash $HOME/.config/i3/dunstifyVolume.bash mute"
+#set $volume_hdmi_up "pactl set-sink-mute alsa_output.pci-0000_01_00.1.hdmi-stereo false ; pactl set-sink-volume alsa_output.pci-0000_01_00.1.hdmi-stereo +5%; $HOME/.config/i3/dunstifyVolume.bash"
+#set $volume_hdmi_down "pactl set-sink-mute alsa_output.pci-0000_01_00.1.hdmi-stereo false ; pactl set-sink-volume alsa_output.pci-0000_01_00.1.hdmi-stereo -5%; $HOME/.config/i3/dunstifyVolume.bash"
+#set $volume_hdmi_mute "pactl set-sink-mute alsa_output.pci-0000_01_00.1.hdmi-stereo toggle; $HOME/.config/i3/dunstifyVolume.bash"
+set $volume_hdmi_up "bash $HOME/.config/i3/dunstifyVolume.bash -s alsa_output.pci-0000_01_00.1.hdmi-stereo raise"
+set $volume_hdmi_down "bash $HOME/.config/i3/dunstifyVolume.bash -s alsa_output.pci-0000_01_00.1.hdmi-stereo low"
+set $volume_hdmi_mute "bash $HOME/.config/i3/dunstifyVolume.bash -s alsa_output.pci-0000_01_00.1.hdmi-stereo mute"
 ## Picture for desktop background
-set $DESKTOP_BG /home/lap/Pictures/TentacloCalypse.jpg
+#set $DESKTOP_BG /home/lap/Pictures/TentacloCalypse.jpg
+set $DESKTOP_BG /home/lap/Pictures/png_files/St_Louis_Sciamano.png
 ## Tmux session
 set $TMUX "tmux new-session -s \"i3-tmux\" -n \"WorkSpace\" -A -D"
 ## Lock screen command
-set $LOCK_SCREEN setxkbmap us && i3lock --ignore-empty-password --show-failed-attempts --image=/home/lap/Pictures/png_files/maximum_beat.png
+set $LOCK_SCREEN "setxkbmap us && i3lock --ignore-empty-password --show-failed-attempts --image=/home/lap/Pictures/png_files/maximum_beat.png && setxkbmap -layout us,ru -option grp:alt_shift_toggle"
 ## Exit i3 (logs you out of your X session)
 set $LOGOUT_I3 i3-nagbar --type=warning --message='Do you really want to exit i3? This will logout your X session.' --button 'Yes, exit i3' 'i3-msg exit'
 ## Layout setting commands
@@ -148,7 +154,6 @@ bindsym $mod+F11 exec "setxkbmap -layout ge,us -option grp:alt_shift_toggle"
 # Open video by URL from clipboard
 bindsym $mod+Ctrl+v exec xsel -bo | xargs vlc
 ## Music player
-bindsym $mod+m exec quodlibet
 bindsym $mod+Mod2+KP_0 exec quodlibet --play-pause
 bindsym XF86AudioPlay exec quodlibet --play-pause
 bindsym $mod+Mod2+KP_1 exec quodlibet --previous
@@ -246,14 +251,12 @@ mode "resize" {
         bindsym Escape mode "default"
 }
 ## Switch display profile
-set $mode_display (m)obile, (d)ocked, docked (p)rimary
+set $mode_display (m)obile, (d)ocked_right, docked_(l)eft
 bindsym $mod+F10 mode "$mode_display" 
 mode "$mode_display" {
         bindsym m exec autorandr --load mobile, mode "default"
-#        bindsym d exec autorandr --load docked, mode "default"
-        bindsym m exec xrandr --output DP-0 --mode 1920x1080 --primary --output HDMI-0 --off, mode "default"
-        bindsym d exec xrandr --output DP-0 --mode 1920x1080 --primary --output HDMI-0 --mode 1920x1080 --right-of DP-0 && bash ${HOME}/.config/autorandr/docked/postswitch, mode "default"
-        bindsym p exec xrandr --output DP-0 --mode 1920x1080 --output HDMI-0 --mode 1920x1080 --primary --right-of DP-0 && bash ${HOME}/.config/autorandr/docked/postswitch, mode "default"
+        bindsym d exec autorandr --load docked_right, mode "default"
+        bindsym l exec autorandr --load docked_left, mode "default"
         bindsym Escape mode "default"
 }
 
@@ -276,6 +279,7 @@ assign [class="(?i)postman"] $ws2
 assign [class="jetbrains-pycharm-ce"] $ws2
 assign [class="jetbrains-studio"] $ws2
 assign [title="Android Emulator"] $ws2
+assign [class="Arduino IDE"] $ws2
 assign [class="(?i)zoom" title="(?i)Zoom"] $ws3
 assign [class="(?i)zoom" title="Chat"] $ws1
 assign [class="(?i)skype"] $ws3
@@ -310,6 +314,9 @@ for_window [class="keepass2|KeePass2"] floating enable resize set 900 600
 for_window [class="(?i)pavucontrol"] floating enable resize set 600 900
 for_window [class="(?i)blueman-manager"] floating enable resize set 900 600
 for_window [class="(?i)iwgtk"] floating enable resize set 600 900
+## Make all notifications and dialog windows floating
+for_window [window_type="dialog"] floating enabled
+for_window [window_type="notification"] floating enabled
 ## Configure focus options
 no_focus [window_type="notification"]
 #no_focus [window_type="dialog"]

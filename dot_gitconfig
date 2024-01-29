@@ -1,7 +1,7 @@
 [core]
 	editor = vim
 [credential]
-	username = le0nRoy
+        username = le0nRoy
 [color]
 	ui = auto
 [init]
@@ -9,5 +9,4 @@
 [push]
 	autoSetupRemote = true
 [user]
-	email = cerber9283@gmail.com
 	name = Vadim
