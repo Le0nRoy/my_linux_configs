@@ -23,37 +23,26 @@ font xft:URWGothic-Book 8
 ## Directory with worksapce presets
 set $WORKSPACES /home/lap/.config/i3/workspaces
 ## Commands to toggle touchpad state
-set $touchpad_toggle "$HOME/.config/i3/touchpad_toggle.sh"
+set $touchpad_toggle "$HOME/.config/helper.bash toggle_touchpad"
 ## Commands to adjust screen brightness (add user to `video` group to allow changes without sudo)
-set $brightness_up "light -A 5; $HOME/.config/i3/dunstifyBrightness.bash"
-set $brightness_down "light -U 5; $HOME/.config/i3/dunstifyBrightness.bash"
-## Commands to adjust sound volume
-#set $volume_up "pactl set-sink-mute @DEFAULT_SINK@ false ; pactl set-sink-volume @DEFAULT_SINK@ +5%; $HOME/.config/i3/dunstifyVolume.bash"
-#set $volume_down "pactl set-sink-mute @DEFAULT_SINK@ false ; pactl set-sink-volume @DEFAULT_SINK@ -5%; $HOME/.config/i3/dunstifyVolume.bash"
-#set $volume_mute "pactl set-sink-mute @DEFAULT_SINK@ toggle; $HOME/.config/i3/dunstifyVolume.bash"
-set $volume_up "bash $HOME/.config/i3/dunstifyVolume.bash raise"
-set $volume_down "bash $HOME/.config/i3/dunstifyVolume.bash low"
-set $volume_mute "bash $HOME/.config/i3/dunstifyVolume.bash mute"
-#set $volume_hdmi_up "pactl set-sink-mute alsa_output.pci-0000_01_00.1.hdmi-stereo false ; pactl set-sink-volume alsa_output.pci-0000_01_00.1.hdmi-stereo +5%; $HOME/.config/i3/dunstifyVolume.bash"
-#set $volume_hdmi_down "pactl set-sink-mute alsa_output.pci-0000_01_00.1.hdmi-stereo false ; pactl set-sink-volume alsa_output.pci-0000_01_00.1.hdmi-stereo -5%; $HOME/.config/i3/dunstifyVolume.bash"
-#set $volume_hdmi_mute "pactl set-sink-mute alsa_output.pci-0000_01_00.1.hdmi-stereo toggle; $HOME/.config/i3/dunstifyVolume.bash"
-set $volume_hdmi_up "bash $HOME/.config/i3/dunstifyVolume.bash -s alsa_output.pci-0000_01_00.1.hdmi-stereo raise"
-set $volume_hdmi_down "bash $HOME/.config/i3/dunstifyVolume.bash -s alsa_output.pci-0000_01_00.1.hdmi-stereo low"
-set $volume_hdmi_mute "bash $HOME/.config/i3/dunstifyVolume.bash -s alsa_output.pci-0000_01_00.1.hdmi-stereo mute"
-## Picture for desktop background
-#set $DESKTOP_BG /home/lap/Pictures/TentacloCalypse.jpg
-set $DESKTOP_BG /home/lap/Pictures/png_files/St_Louis_Sciamano.png
+set $brightness_up "$HOME/.config/helper.bash brightness_up"
+set $brightness_down "$HOME/.config/helper.bash brightness_down"
+## Commands to adjust sound volumE
+set $volume_up "bash $HOME/.config/helper.bash volume  raise"
+set $volume_down "bash $HOME/.config/helper.bash volume low"
+set $volume_mute "bash $HOME/.config/helper.bash volume mute"
+set $volume_hdmi_up "bash $HOME/.config/helper.bash -s alsa_output.pci-0000_01_00.1.hdmi-stereo volume raise"
+set $volume_hdmi_down "bash $HOME/.config/helper.bash -s alsa_output.pci-0000_01_00.1.hdmi-stereo volume low"
+set $volume_hdmi_mute "bash $HOME/.config/helper.bash -s alsa_output.pci-0000_01_00.1.hdmi-stereo volume mute"
 ## Tmux session
 set $TMUX "tmux new-session -s \"i3-tmux\" -n \"WorkSpace\" -A -D"
 ## Lock screen command
-set $LOCK_SCREEN "setxkbmap us && i3lock --ignore-empty-password --show-failed-attempts --image=/home/lap/Pictures/png_files/maximum_beat.png && setxkbmap -layout us,ru -option grp:alt_shift_toggle"
-## Exit i3 (logs you out of your X session)
-set $LOGOUT_I3 i3-nagbar --type=warning --message='Do you really want to exit i3? This will logout your X session.' --button 'Yes, exit i3' 'i3-msg exit'
+set $LOCK_SCREEN "bash $HOME/.config/helper.bash lock_screen"
 ## Layout setting commands
-set $SET_EN_RU_LAYOUT "setxkbmap -layout us,ru -option grp:alt_shift_toggle"
+set $SET_EN_RU_LAYOUT "bash $HOME/.config/helper.bash set_us_ru_keymap"
 ## Enable window compositor
 #FIXME it breaks firefox with i3-layout restoration
-#set $COMPOSITOR picom --backend glx --daemon
+#set $COMPOSITOR "bash $HOME/.config/helper.bash run_compositor"
 
 ##########################################################################
 ## Gaps for polybar
@@ -80,7 +69,7 @@ exec_always --no-startup-id $SET_EN_RU_LAYOUT
 exec_always --no-startup-id xset s off
 exec_always --no-startup-id xset s noblank
 ## Set background picture
-exec_always --no-startup-id feh --bg-fill $DESKTOP_BG
+exec_always --no-startup-id "bash $HOME/.config/helper.bash set_background"
 ## Restore layouts on workspaces from files
 exec --no-startup-id "i3-msg 'workspace 1; append_layout $WORKSPACES/workspace_1.json'"
 exec --no-startup-id "i3-msg 'workspace 2; append_layout $WORKSPACES/workspace_2.json'"
@@ -94,13 +83,11 @@ exec --no-startup-id quodlibet
 ## Mail client
 exec --no-startup-id thunderbird
 ## Status bar applets
-exec --no-startup-id "MONITOR=DP-2 polybar info --reload"
-exec --no-startup-id polybar primary --reload
+exec --no-startup-id "bash $HOME/.config/helper.bash polybar_start"
 exec --no-startup-id birdtray 
 exec --no-startup-id pasystray
 exec --no-startup-id blueman-applet
 exec --no-startup-id iwgtk -i
-# TODO add --command-critical-level "$LOCK_SCREEN; systemctl hibernate"
 exec --no-startup-id cbatticon --update-interval 5 --low-level 25 --critical-level 10 
 ## Set minimum brightness level and adjust comfortable brightness level
 exec_always --no-startup-id light -N 5
@@ -149,7 +136,7 @@ bindsym $mod+F5 exec keepass /home/lap/Major_git/Database.kdbx
 ## Keyboard layouts
 bindsym $mod+F12 exec $SET_EN_RU_LAYOUT
 bindsym $mod+Shift+F12 exec "bash /home/lap/.xsessionrc"
-bindsym $mod+F11 exec "setxkbmap -layout ge,us -option grp:alt_shift_toggle"
+bindsym $mod+F11 exec "bash $HOME/.config/helper.bash set_us_ge_keymap"
 ## Video-player
 # Open video by URL from clipboard
 bindsym $mod+Ctrl+v exec xsel -bo | xargs vlc
@@ -229,11 +216,10 @@ bindsym $mod+Shift+c reload
 ## Lock screen
 bindsym $mod+l exec --no-startup-id $LOCK_SCREEN 
 ## Set shutdown, restart and locking features
-set $mode_system (l)ock, (h)ibernate, (s)hutdown, (r)eboot (Shift+l)ogout, 
+set $mode_system (l)ock, (h)ibernate, (s)hutdown, (r)eboot 
 bindsym $mod+0 mode "$mode_system" 
 mode "$mode_system" {
     bindsym l exec --no-startup-id $LOCK_SCREEN, mode "default"
-    bindsym Shift+l exec --no-startup-id $LOGOUT_I3, mode "default"
     bindsym h exec --no-startup-id $LOCK_SCREEN & systemctl hibernate, mode "default"
     bindsym r exec --no-startup-id systemctl reboot, mode "default"
     bindsym s exec --no-startup-id systemctl poweroff,  mode "default"
@@ -322,7 +308,7 @@ no_focus [window_type="notification"]
 #no_focus [window_type="dialog"]
 #no_focus [all]
 ## Just mark urgent windows, but don't focus on them
-focus_on_window_activation urgent 
+focus_on_window_activation urgent
 ## With touchpad focus sometimes acts to randomly
 focus_follows_mouse no
 ## Configure popups

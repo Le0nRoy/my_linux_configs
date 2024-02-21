@@ -73,10 +73,12 @@ set exrc
 " Indentation settings according to personal preference.
 
 " Indentation settings for using 4 spaces instead of tabs.
-" Do not change 'tabstop' from its default value of 8 with this setup.
+" https://stackoverflow.com/questions/1878974/redefine-tab-as-4-spaces
 set shiftwidth=4
-set softtabstop=4
+set smarttab
 set expandtab
+set softtabstop=8
+set tabstop=8 
 
 " Indentation settings for using hard tabs for indent. Display tabs as
 " four characters wide.

@@ -1,0 +1,5 @@
+#!/bin/bash
+${HOME}/.config/helper.bash polybar_start
+
+i3-msg "workspace 3; move workspace to output HDMI-0; workspace back_and_forth"
+${HOME}/.config/helper.bash set_background
