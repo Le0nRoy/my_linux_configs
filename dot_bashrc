@@ -104,18 +104,11 @@ unset use_color safe_term match_lhs sh
 alias cp="cp -i"                          # confirm before overwriting something
 alias df='df -h'                          # human-readable sizes
 alias free='free -m'                      # show sizes in MB
-alias np='nano -w PKGBUILD'
-alias more=less
 alias zip='zip -q'
 alias unzip='unzip -q'
-alias upgrade='sudo pacman -Syu --ignore intellij-idea-community-edition'
 alias vim='vim -p'
 alias pwd='pwd -P'
 alias xprop_class='xprop | grep -i class'
-
-if [[ -e "$HOME/scripts/special_aliases.bash" ]]; then
-	source $HOME/scripts/special_aliases.bash
-fi
 
 xhost +local:root > /dev/null 2>&1
 
@@ -159,18 +152,23 @@ ex ()
   fi
 }
 
-VBOX_USB=usbfs
-EDITOR='vim'
-VISUAL='vim'
-PIPENV_VENV_IN_PROJECT=1
-JAVA_HOME=/usr/lib/jvm/java-11-openjdk/
+export VBOX_USB=usbfs
+export EDITOR='vim'
+export VISUAL='vim'
+# Create pipenv virtual environment inside project directory
+export PIPENV_VENV_IN_PROJECT=1
+export JAVA_HOME=/usr/lib/jvm/java-11-openjdk/
 export USE_GKE_GCLOUD_AUTH_PLUGIN=True
-alias gio_get_path="gio mount -li | grep activation_root | awk 'sub(\"^.*=\", \"\")'"
-alias gio_cd="cd /run/user/1000/gvfs/mtp\:host\=HUAWEI_HRY-LX1T_XELNW19423001614/Internal\ storage/"
-alias pdf_open="okular"
+# Suppress Python HTTP warnings when work with devenv
+export PYTHONWARNINGS="ignore:Unverified HTTPS request"
+
 alias gpg_encrypt="gpg --local-user Vadim_signature --sign --encrypt --armor --recipient" # Pass <recipent> and <file to encrypt>
 alias gpg_decrypt="gpg --decrypt reply.txt.asc | tee reply.txt | gpg --verify"
 alias adb_pull="adb pull /sdcard/Vk/Vkontakte/ /Data/vkDownloads/Music/"
 alias xev_get_codes="xev | awk -F'[ )]+' '/^KeyPress/ { a[NR+2] } NR in a { printf \"%-3s %s\n\", \$5, \$8 }'"
 alias rclone_to_hdd="rclone --log-level INFO --resync --ignore-checksum --no-update-modtime bisync --filters-file /Data/Everything/hdd-rclone-filtering.txt /Data/Everything/ /mnt/Everything/"
+
+if [[ -e "$HOME/.config/helper.bash" ]]; then
+    source $HOME/.config/helper.bash
+fi
 

@@ -1,31 +1,28 @@
 #!/bin/bash
 
-if [[ -e "$JOB_SETUP_FILE" ]]; then
-    source $JOB_SETUP_FILE
-fi
-
-# Evaluate the path to the script even if it runs through the symlink
-_SCRIPT_PATH="${BASH_SOURCE[0]}"
-_REAL_SCRIPT_PATH=$(readlink -f "${BASH_SOURCE[0]}")
-
+# Export job-related variables and functions
 JOB_MOUNT_DIR="/Job"
 JOB_SETUP_FILE="/Job/add_exports.bash"
 JOB_TEARDOWN_FILE="/Job/remove_exports.bash"
  
 DESKTOP_BG="/home/lap/Pictures/png_files/St_Louis_Sciamano.png"
 
-## Export section
-# Suppress Python HTTP warnings when work with devenv
-export PYTHONWARNINGS="ignore:Unverified HTTPS request"
+if [[ -e "$JOB_SETUP_FILE" ]]; then
+    source $JOB_SETUP_FILE
+fi
+
+# Evaluate the path to the script even if it runs through the symlink
+HOME_HELPER_UNIQ_SCRIPT_NAME="${BASH_SOURCE[0]##*/}"
+HOME_HELPER_UNIQ_SCRIPT_PATH=$(readlink -f "${BASH_SOURCE[0]}")
 
 ## Autocompletion for this script
 _helper_script() {
     local cur
     _init_completion || return
 
-    COMPREPLY=($(compgen -W '$(sed --sandbox -En "s/^\s+\"(.*)\"\)/\1/p" $_REAL_SCRIPT_PATH)' -- "$cur"))
+    COMPREPLY=($(compgen -W '$(sed --sandbox -En "s/^\s+\"(.*)\"\)/\1/p" $HOME_HELPER_UNIQ_SCRIPT_PATH)' -- "$cur"))
 } &&
-    complete -F _helper_script  "./$_SCRIPT_PATH" "$_REAL_SCRIPT_PATH"
+    complete -F _helper_script "$HOME_HELPER_UNIQ_SCRIPT_NAME" 
 
 show_error_and_usage() {
     if [[ -z $1 ]]; then
@@ -36,7 +33,7 @@ show_error_and_usage() {
     echo "Unknown command \"$1\""
     USAGE="Usage: $0 "
 
-    for cmd in $(sed --sandbox -En "s/^\s+\"(.*)\"\)/\1/p" $_REAL_SCRIPT_PATH); do
+    for cmd in $(sed --sandbox -En "s/^\s+\"(.*)\"\)/\1/p" $HOME_HELPER_UNIQ_SCRIPT_PATH); do
         USAGE="${USAGE}${cmd}|"
     done
 
@@ -82,7 +79,7 @@ function send_notification_volume () {
 
 function set_volume() {
     print_usage () {
-      echo "Usage: $_SCRIPT_PATH volume [-s pulseaudio_sink_name] action"
+      echo "Usage: $HOME_HELPER_UNIQ_SCRIPT_NAME volume [-s pulseaudio_sink_name] action"
       echo '    -s - to get available sinks execute "pactl list sinks | awk '/Name:/{print $2}'"'
       echo '         if not set, than "@DEFAULT_SINK is chosen@"'
       echo '    action - one of ['raise', 'low', 'mute']'
@@ -107,8 +104,43 @@ function set_volume() {
     esac
 }
 
+function gio_mount() {
+    PHONE_PATH=$(gio mount -li | grep activation_root | awk 'sub("^.*=", "")')
+    if ! gio info ${PHONE_PATH} > /dev/null 2>&1; then
+        gio mount ${PHONE_PATH}
+    fi
+    MOUNT_POINT=$(gio info ${PHONE_PATH} | awk '/local path/{print $3}')
+    cd ${MOUNT_POINT}
+}
+
+function gio_umount() {
+    PHONE_PATH=$(gio mount -li | grep activation_root | awk 'sub("^.*=", "")')
+    if ! gio info ${PHONE_PATH} > /dev/null 2>&1; then
+        MOUNT_POINT=$(gio info ${PHONE_PATH} | awk '/local path/{print $3}')
+        if [[ "${PWD}" == "${MOUNT_POINT}" ]]; then
+            cd ${HOME}
+        fi
+        gio mount -u ${PHONE_PATH}
+    fi
+}
+
+function job_mount() {
+    if [[ ! -f ${JOB_SETUP_FILE} ]]; then
+        sudo fscrypt unlock "$JOB_MOUNT_DIR" 
+        source $JOB_SETUP_FILE
+        $JOB_SETUP_FILE start
+    else
+        echo "$JOB_MOUNT_DIR is already mounted"
+    fi
+}
+
+function job_umount() {
+    source $JOB_TEARDOWN_FILE
+    sudo fscrypt lock "$JOB_MOUNT_DIR"
+}
+
 # Do not execute script if it was called with `source` command
-if [[ ! "$0" == "$_SCRIPT_PATH" && ! "$0" == "$_REAL_SCRIPT_PATH" ]]; then
+if [[ ! "$0" == "$HOME_HELPER_UNIQ_SCRIPT_NAME" && ! "$0" == "$HOME_HELPER_UNIQ_SCRIPT_PATH" ]]; then
     return
 fi
 
@@ -199,15 +231,6 @@ case "$1" in
     "run_compositor")
         picom --backend glx --daemon
         ;;
-    "job_mount")
-        sudo fscrypt unlock "$JOB_MOUNT_DIR" 
-        source $JOB_SETUP_FILE
-        $JOB_SETUP_FILE start
-        ;;
-    "job_umount")
-        source $JOB_TEARDOWN_FILE
-        sudo fscrypt lock "$JOB_MOUNT_DIR"
-        ;;
     "set_background")
         feh --bg-fill $DESKTOP_BG
         ;;
@@ -221,7 +244,7 @@ case "$1" in
         ;;
     "swagger-ui")
         if [[ -z "$2" ]]; then
-            echo "Usage: $_SCRIPT_PATH swagger </path/to/openapi.json>"
+            echo "Usage: $HOME_HELPER_UNIQ_SCRIPT_NAME swagger </path/to/openapi.json>"
             exit 1
         fi
         SWAGGER=$2

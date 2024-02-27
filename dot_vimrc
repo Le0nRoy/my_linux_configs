@@ -12,56 +12,74 @@ syntax on
 
 " Do not continue commentaries on next string
 autocmd FileType * setlocal formatoptions-=c formatoptions-=r formatoptions-=o
+
 " TODO Understand
 set hidden
+
 " Show current executing command
 set showcmd
+
 " Auto-completion settings
 set wildmode=longest,list
 set wildmenu
+
 " Use case insensitive search, except when using capital letters
 set ignorecase
 set smartcase
+
 " When opening a new line and no filetype-specific indenting is enabled, keep
 " " the same indent as the line you're currently on. Useful for READMEs, etc.
 set autoindent
+
 " Stop certain movements from always going to the first character of a line.
 " While this behaviour deviates from that of Vi, it does what most users
 " coming from other editors would expect.
 set nostartofline
+
 " Display the cursor position on the last line of the screen or in the status
 " line of a window
 set ruler
+set cul
+
 " Always display the status line, even if only one window is displayed
 set laststatus=2
+
 " Instead of failing a command because of unsaved changes, instead raise a
 " dialogue asking if you wish to save changed files.
 set confirm
+
 " Use visual bell instead of beeping when doing something wrong
 set visualbell
 " And reset the terminal code for the visual bell. If visualbell is set, and
 " this line is also included, vim will neither flash nor beep. If visualbell
 " is unset, this does nothing.
 set t_vb=
+
 " Enable use of the mouse for all modes
 set mouse=a
+
 " Set the command window height to 2 lines, to avoid many cases of having to
 " "press <Enter> to continue"
 "set cmdheight=2
+
 " Quickly time out on keycodes, but never time out on mappings
 set notimeout ttimeout ttimeoutlen=200
+
 " Use <F11> to toggle between 'paste' and 'nopaste'
 set pastetoggle=<F11>
+
+" TODO Understand
 set is
-set cul
 
 " Display line numbers on the left
 set nu
 highlight LineNr ctermfg=white
+
 "-----------------------------------------------------------
 " Options for local .vimrc files
 " Source .vimrc if it exists in directory
 set exrc
+
 " Restrict usage of some commands in non-default .vimrc files; commands that
 " write to file or execute shell commands are not allowed and map commands are
 " displayed.
@@ -96,5 +114,13 @@ map Y y$
 " Map <C-L> (redraw screen) to also turn off search highlighting until the
 " next search
 nnoremap <C-L> :nohl<CR><C-L>
+
 " Add syntax highlightng for .rasi files
 au BufNewFile,BufRead /*.rasi setf css
+
+
+" Jump to the last position when reopening a file
+if has("autocmd")
+    au BufReadPost * if line("'\"") > 0 && line("'\"") <= line("$")
+        \| exe "normal! g'\"" | endif
+endif
