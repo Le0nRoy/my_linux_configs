@@ -58,6 +58,26 @@ function send_notification_brightnes() {
             -h int:value:"$bright" "Brightness: ${bright}"
 }
 
+function polybar_start () {
+    # Primary display
+    if [[ -z "$(ps -C 'polybar' -o cmd | grep info | grep -v secondary)" ]]; then
+        MONITOR=$(xrandr | awk '/connected primary/{print $1}') polybar info --reload > /dev/null 2>&1 &
+    fi
+    if [[ -z "$(ps -C 'polybar' -o cmd | grep primary)" ]]; then
+        polybar primary --reload > /dev/null 2>&1 &
+    fi
+
+    # Secondary displays
+    for monitor in $(xrandr | awk '/ connected [1-9]/{print $1}'); do
+        if [[ -z "$(ps -C 'polybar' -o cmd | grep 'secondary$')" ]]; then
+                MONITOR=$monitor polybar --reload secondary > /dev/null 2>&1 &
+        fi
+        if [[ -z "$(ps -C 'polybar' -o cmd | grep 'secondary-info$')" ]]; then
+                MONITOR=$monitor polybar --log=warning --reload secondary-info > /dev/null 2>&1 &
+        fi
+    done
+}
+
 function send_notification_volume () {
     ## Send notification about current volume level using `dunstify`
 
@@ -192,23 +212,7 @@ case "$1" in
         send_notification_volume
         ;;
     "polybar_start")
-        # Primary display
-        if [[ -z "$(ps -C 'polybar' -o cmd | grep info | grep -v secondary)" ]]; then
-            MONITOR=$(xrandr | awk '/connected primary/{print $1}') polybar info --reload > /dev/null 2>&1 &
-        fi
-        if [[ -z "$(ps -C 'polybar' -o cmd | grep primary)" ]]; then
-            polybar primary --reload > /dev/null 2>&1 &
-        fi
-
-        # Secondary displays
-        for monitor in $(xrandr | awk '/ connected [1-9]/{print $1}'); do
-            if [[ -z "$(ps -C 'polybar' -o cmd | grep 'secondary$')" ]]; then
-                    MONITOR=$monitor polybar --reload secondary > /dev/null 2>&1 &
-            fi
-            if [[ -z "$(ps -C 'polybar' -o cmd | grep 'secondary-info$')" ]]; then
-                    MONITOR=$monitor polybar --log=warning --reload secondary-info > /dev/null 2>&1 &
-            fi
-        done
+        polybar_start
         ;;
     "set_us_ru_keymap")
         set_us_ru_layout

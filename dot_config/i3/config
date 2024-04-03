@@ -31,9 +31,9 @@ set $brightness_down "$HOME/.config/helper.bash brightness_down"
 set $volume_up "bash $HOME/.config/helper.bash volume  raise"
 set $volume_down "bash $HOME/.config/helper.bash volume low"
 set $volume_mute "bash $HOME/.config/helper.bash volume mute"
-set $volume_hdmi_up "bash $HOME/.config/helper.bash -s alsa_output.pci-0000_01_00.1.hdmi-stereo volume raise"
-set $volume_hdmi_down "bash $HOME/.config/helper.bash -s alsa_output.pci-0000_01_00.1.hdmi-stereo volume low"
-set $volume_hdmi_mute "bash $HOME/.config/helper.bash -s alsa_output.pci-0000_01_00.1.hdmi-stereo volume mute"
+set $volume_hdmi_up "bash $HOME/.config/helper.bash volume -s alsa_output.pci-0000_01_00.1.hdmi-stereo raise"
+set $volume_hdmi_down "bash $HOME/.config/helper.bash volume -s alsa_output.pci-0000_01_00.1.hdmi-stereo low"
+set $volume_hdmi_mute "bash $HOME/.config/helper.bash volume -s alsa_output.pci-0000_01_00.1.hdmi-stereo mute"
 ## Tmux session
 set $TMUX "tmux new-session -s \"i3-tmux\" -n \"WorkSpace\" -A -D"
 ## Lock screen command
@@ -278,6 +278,8 @@ assign [class="(?i)steam"] $ws5
 assign [title="(?i)steam"] $ws5
 assign [class="(?i)chromium"] $ws6
 assign [class="(?i)opera"] $ws6
+# Playwright from VS Code
+assign [class="(?i)Code-url-handler"] $ws6
 ## Open specific applications in floating mode
 # FIXME for now by some reason creates new workspace instead of sending to existing
 #for_window [class="(?i)firefox" title="[Linux]"] move to workspace $ws2 move left layout stacking
