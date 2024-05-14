@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Peek
+Exec=peek
+GenericName=Multiformat screen recorder
+Comment=Record screen to multiple formats
+Keywords=screencast;screen recorder;screen capture;GIF;WebM;APNG;
+Icon=com.uploadedlobster.peek
+Type=Application
+Categories=GTK;GNOME;Graphics;2DGraphics;AudioVideo;Video;Recorder;
+StartupNotify=true
+Terminal=false
+DBusActivatable=true
