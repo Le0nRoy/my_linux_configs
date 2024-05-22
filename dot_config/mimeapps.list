@@ -21,9 +21,9 @@ application/x-extension-ics=userapp-Thunderbird-32D2A2.desktop
 x-scheme-handler/webcals=userapp-Thunderbird-32D2A2.desktop
 x-scheme-handler/discord-402572971681644545=discord-402572971681644545.desktop
 inode/directory=pcmanfm.desktop
-image/*=feh.desktop
-image/jpeg=feh.desktop
-image/png=feh.desktop
+image/*=org.gnome.gThumb.desktop
+image/jpeg=org.gnome.gThumb.desktop
+image/png=org.gnome.gThumb.desktop
 image/webp=feh.desktop
 
 [Added Associations]
