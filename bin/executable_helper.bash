@@ -41,6 +41,24 @@ show_error_and_usage() {
     exit 1
 }
 
+function adb_pull_music() {
+    adb pull /sdcard/Vk/Vkontakte/ /Data/vkDownloads/Music/
+}
+
+function rclone_to_hdd() {
+    rclone --log-level INFO --auto-confirm --human-readable --modify-window 1d bisync --filters-file /Data/Everything/hdd-rclone-filtering.txt /Data/Everything/ /mnt/Everything/
+}
+
+function gpg_decrypt() {
+    shift
+    gpg --decrypt $1 | tee $2 | gpg --verify
+}
+
+function gpg_encrypt() {
+    shift
+    gpg --local-user Vadim_signature --sign --encrypt --armor --recipient $1
+}
+
 function set_us_ru_layout() {
     setxkbmap -layout us,ru -option grp:alt_shift_toggle
 }
@@ -60,7 +78,7 @@ function send_notification_brightnes() {
 function polybar_start () {
     # Primary display
     if [[ -z "$(ps -C 'polybar' -o cmd | grep info | grep -v secondary)" ]]; then
-        MONITOR=$(xrandr | awk '/connected primary/{print $1}') polybar info --reload > /dev/null 2>&1 &
+        MONITOR=$(polybar --list-monitors | awk -F ':' '/primary/{print $1}') polybar info --reload > /dev/null 2>&1 &
     fi
     if [[ -z "$(ps -C 'polybar' -o cmd | grep primary)" ]]; then
         polybar primary --reload > /dev/null 2>&1 &
@@ -70,7 +88,7 @@ function polybar_start () {
     kill $(ps -C 'polybar' -o pid,cmd | grep 'secondary$' | awk '{print $1}')
     kill $(ps -C 'polybar' -o pid,cmd | grep 'secondary-info$' | awk '{print $1}')
     # Secondary displays
-    for monitor in $(xrandr | awk '/ connected [1-9]/{print $1}'); do
+    for monitor in $(polybar --list-monitors | grep -v primary | awk -F ':' '{print $1}'); do
         MONITOR=$monitor polybar --reload secondary > /dev/null 2>&1 &
         MONITOR=$monitor polybar --log=warning --reload secondary-info > /dev/null 2>&1 &
     done
@@ -158,7 +176,9 @@ function job_umount() {
 }
 
 # Do not execute script if it was called with `source` command, just do mandatory exports
-if [[ ! "$0" == "$HOME_HELPER_UNIQ_SCRIPT_NAME" && ! "$0" == "$HOME_HELPER_UNIQ_SCRIPT_PATH" ]]; then
+EXEC_NAME=$0
+EXEC_NAME="${EXEC_NAME[0]##*/}"
+if [[ ! "$EXEC_NAME" == "$HOME_HELPER_UNIQ_SCRIPT_NAME"  ]]; then
     export PATH="$HOME/bin:$PATH"
 
     if [[ -e "$JOB_SETUP_FILE" ]]; then
@@ -168,7 +188,6 @@ if [[ ! "$0" == "$HOME_HELPER_UNIQ_SCRIPT_NAME" && ! "$0" == "$HOME_HELPER_UNIQ_
     return
 fi
 
-echo "$@"
 ## Main body of script
 case "$1" in
     "toggle_touchpad")
@@ -271,6 +290,12 @@ case "$1" in
         else
             /usr/bin/firefox "$@"
         fi
+        ;;
+    "firefox_docker")
+        FIREFOX_CONTAINER_NAME="secure_firefox"
+        docker run --rm -it --name="${FIREFOX_CONTAINER_NAME}" --shm-size=512m -p 6901:6901 -e VNC_PW=password kasmweb/firefox:1.14.0 | grep -A 1 'Paste this url in your browser:' 
+        #URL_TO_CONNECT="$(docker logs ${FIREFOX_CONTAINER_NAME} | grep -A 1 'Paste this url in your browser:' | tail -n 1)"
+        #echo "${URL_TO_CONNECT}"
         ;;
     *)
         show_error_and_usage "$@"
