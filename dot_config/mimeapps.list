@@ -25,6 +25,7 @@ image/*=org.gnome.gThumb.desktop
 image/jpeg=org.gnome.gThumb.desktop
 image/png=org.gnome.gThumb.desktop
 image/webp=feh.desktop
+x-scheme-handler/jetbrains=jetbrains-toolbox.desktop
 
 [Added Associations]
 x-scheme-handler/tg=userapp-Telegram Desktop-6LVWQ1.desktop;org.telegram.desktop.desktop;

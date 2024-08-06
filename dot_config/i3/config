@@ -64,10 +64,6 @@ workspace_layout stacking
 exec --no-startup-id nvidia-settings --load-config-only
 ## Set default layout
 exec_always --no-startup-id $SET_EN_RU_LAYOUT
-## Disable screen saver
-# FIXME does not work
-exec_always --no-startup-id xset s off
-exec_always --no-startup-id xset s noblank
 ## Set background picture
 exec_always --no-startup-id "bash $HOME/bin/helper.bash set_background"
 ## Restore layouts on workspaces from files
@@ -248,8 +244,8 @@ assign [class="jetbrains-.+"] $ws2
 assign [title="Android Emulator"] $ws2
 assign [class="Arduino IDE"] $ws2
 assign [class="(?i)code"] $ws2
-assign [class="(?i)zoom" title="(?i)Zoom"] $ws3
-assign [class="(?i)zoom" title="Chat"] $ws1
+assign [class="(?i)zoom" title="Meeting chat"] $ws1
+assign [class="(?i)zoom"] $ws3
 assign [class="(?i)skype"] $ws3
 assign [class="(?i)discord"] $ws3
 assign [class="(?i)quodlibet"] $ws4
@@ -257,33 +253,40 @@ assign [class="(?i)telegram-desktop|TelegramDesktop"] $ws4
 assign [class="(?i)vk"] $ws4
 assign [class="(?i)firefox$"] $ws4
 assign [class="(?i)todoist"] $ws4
-assign [class="(?i)steam"] $ws5
+assign [class="(?i)steam.*"] $ws5
 assign [title="(?i)steam"] $ws5
+assign [class="(?i)(minecraft-launcher)|(Minecraft Launcher)"] $ws5
 assign [class="(?i)chromium"] $ws6
 assign [class="(?i)opera"] $ws6
 ## Open specific applications in floating mode
+for_window [class="(?i)peek"] floating enable resize set 1918 870
+for_window [class="(?i)firefox$" title="Enter name of file to save to…"] floating enable resize set 900 600
 for_window [title="alsamixer"] floating enable border pixel 1
+for_window [class="(?i)nvidia-settings"] floating enable border pixel 1
 for_window [title="Media viewer" class="(?i)telegram-?desktop"] floating enable border pixel 1
 for_window [class="(?i)thunderbird|Mail"] floating disable 
 for_window [title="Create or select new Steam library folder" class="(?i)steam"] floating enable 
 for_window [title="News" class="(?i)steam"] floating enable resize set 600 400
 for_window [title="Friends List" class="(?i)steam"] floating enable resize set 600 400
-for_window [class="Pavucontrol"] floating enable
 for_window [class="(?i)virtualbox"] floating enable border normal
 for_window [class="(?i)galculator"] floating enable 
 for_window [title="Android Emulator"] floating enable 
-for_window [class="(?i)zoom" title="Zoom - Free Account"] floating disable
+for_window [class="(?i)zoom" title="Zoom Workplace - Free account"] floating disable
 for_window [class="(?i)zoom" title="Zoom Meeting"] floating disable
-for_window [class="(?i)zoom" title="Chat"] floating enable resize set 900 600
+for_window [class="(?i)zoom" title="Meeting chat"] floating enable resize set 900 600
 ## Keep zoom notifications floating
 for_window [class="(?i)zoom" title="zoom"] floating enable 
+for_window [class="(?i)slack" title="\(Canvas\)"] floating enable resize set 1200 900
+for_window [class="(?i)slack" title="\(List\)"] floating enable resize set 1200 900
 for_window [class="keepass2|KeePass2"] floating enable resize set 900 600 
-for_window [class="(?i)pavucontrol"] floating enable resize set 600 900
+for_window [class="(?i)pavucontrol"] floating enable resize set 900 900
 for_window [class="(?i)blueman-manager"] floating enable resize set 900 600
 for_window [class="(?i)iwgtk"] floating enable resize set 600 900
 ## Make all notifications and dialog windows floating
-for_window [window_type="dialog"] floating enabled
+for_window [window_type="dialog"] floating enabled 
 for_window [window_type="notification"] floating enabled
+## Make Picture-in-Picture windows switch together with workspace
+for_window [title="(?i)picture-in-picture"] sticky enable
 ## Configure focus options
 #no_focus [window_type="notification"]
 #no_focus [window_type="dialog"]

@@ -49,6 +49,25 @@ function rclone_to_hdd() {
     rclone --log-level INFO --auto-confirm --human-readable --modify-window 1d bisync --filters-file /Data/Everything/hdd-rclone-filtering.txt /Data/Everything/ /mnt/Everything/
 }
 
+function unzip_books() {
+    for file in *.fb2.zip; do 
+        unzip $file
+        rm $file
+    done
+    for book in $(ls | grep -E ".*\.[a-zA-Z0-9_\-]+\.[0-9]+\.fb2"); do
+        new_name=$(echo $book | sed -E 's/(.*)\.[a-zA-Z0-9_\-]+\.[0-9]+\.fb2/\1.fb2/')
+        mv $book $new_name
+    done
+}
+
+function cut_video() {
+    INPUT="$1"
+    CUT_START="$2"
+    CUT_DURATION="$3"
+    OUTPUT="$4"
+    ffmpeg -ss ${CUT_START} -i ${INPUT} -t ${CUT_DURATION} -vcodec copy -acodec copy ${OUTPUT}
+}
+
 function gpg_decrypt() {
     shift
     gpg --decrypt $1 | tee $2 | gpg --verify
@@ -293,6 +312,8 @@ case "$1" in
         ;;
     "firefox_docker")
         FIREFOX_CONTAINER_NAME="secure_firefox"
+        echo "username: kasm_user"
+        echo "password: password"
         docker run --rm -it --name="${FIREFOX_CONTAINER_NAME}" --shm-size=512m -p 6901:6901 -e VNC_PW=password kasmweb/firefox:1.14.0 | grep -A 1 'Paste this url in your browser:' 
         #URL_TO_CONNECT="$(docker logs ${FIREFOX_CONTAINER_NAME} | grep -A 1 'Paste this url in your browser:' | tail -n 1)"
         #echo "${URL_TO_CONNECT}"

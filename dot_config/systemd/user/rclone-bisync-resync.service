@@ -4,7 +4,7 @@ OnFailure=failure-notification@%n
 
 [Service]
 EnvironmentFile=%h/.config/environment.d/rclone-bisync.conf
-ExecStart=/usr/bin/rclone --log-systemd --log-level INFO --auto-confirm --human-readable --no-update-modtime --modify-window 1d bisync --resync --filters-file $BISYNC_FILTERS_FILE $BISYNC_SOURCE $BISYNC_TARGET
+ExecStart=/usr/bin/rclone --log-systemd --log-level INFO --auto-confirm --human-readable --modify-window 1d bisync --resync --filters-file $BISYNC_FILTERS_FILE $BISYNC_SOURCE $BISYNC_TARGET
 
 [Install]
 WantedBy=default.target

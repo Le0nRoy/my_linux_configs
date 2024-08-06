@@ -7,7 +7,7 @@ OnSuccess=success-notification@%n
 # if the launch fails the resync will be required (takes about an hour)
 # systemctl --user start rclone-bisync-resync.service
 EnvironmentFile=%h/.config/environment.d/rclone-bisync.conf
-ExecStart=/usr/bin/rclone --log-systemd --log-level INFO --auto-confirm --human-readable --no-update-modtime --modify-window 1d bisync --filters-file $BISYNC_FILTERS_FILE $BISYNC_SOURCE $BISYNC_TARGET
+ExecStart=/usr/bin/rclone --log-systemd --log-level INFO --auto-confirm --human-readable --modify-window 1d bisync --filters-file $BISYNC_FILTERS_FILE $BISYNC_SOURCE $BISYNC_TARGET
 
 [Install]
 WantedBy=default.target

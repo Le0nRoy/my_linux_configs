@@ -130,3 +130,19 @@ set splitright
 " Add command to show diff of the current unsaved buffer with its saved version
 command DiffOrig vert new | set bt=nofile | r ++edit # | 0d_ | diffthis | wincmd p | diffthis
 
+" Move to the next comma in visual block mode
+xnoremap <C-w> :<C-u>call MoveToNextComma()<CR>
+
+" Move to the previous comma in visual block mode
+xnoremap <C-b> :<C-u>call MoveToPrevComma()<CR>
+
+" Function to move the cursor to the next comma
+function! MoveToNextComma()
+    execute "normal! /,\<CR>lv"
+endfunction
+
+" Function to move the cursor to the previous comma
+function! MoveToPrevComma()
+    execute "normal! ?,\<CR>lh"
+endfunction
+
