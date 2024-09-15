@@ -1,0 +1,11 @@
+[Unit]
+Description=RClone bisync job (fix sync errors)
+OnFailure=failure-notification@%n
+OnSuccess=success-notification@%n
+
+[Service]
+EnvironmentFile=%h/.config/environment.d/rclone-backup-minecraft.conf
+ExecStart=/usr/bin/rclone --log-systemd --log-level INFO --auto-confirm --human-readable --modify-window 1d bisync --resync --filters-file $BISYNC_FILTERS_FILE $BISYNC_SOURCE $BISYNC_TARGET
+
+[Install]
+WantedBy=default.target

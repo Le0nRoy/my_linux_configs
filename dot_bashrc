@@ -66,14 +66,6 @@ match_lhs=""
 	&& match_lhs=$(dircolors --print-database)
 [[ $'\n'${match_lhs} == *$'\n'"TERM "${safe_term}* ]] && use_color=true
 
-# Function to get the current git branch
-git_branch() {
-    local branch
-    branch=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD 2>/dev/null)
-    if [ -n "$branch" ]; then
-        echo " ($branch)"
-    fi
-}
 
 if ${use_color} ; then
 	# Enable colors for ls, etc.  Prefer ~/.dir_colors #64489
@@ -96,7 +88,6 @@ if ${use_color} ; then
                 USER_AND_HOST="${BLUE_COLOR}\u${GREEN_COLOR}@${BLUE_COLOR}\h"
                 WORKDIR="${BLUE_COLOR}:${GREEN_COLOR}\w"
                 WORKSPACE="${BLUE_COLOR}\n\$${WHITE_COLOR} "
-                GIT_INFO=" ${WHITE_COLOR}(${RED_COLOR}$(git_branch)${WHITE_COLOR})"
 
 		PS1="${USER_AND_HOST}${WORKDIR}${WORKSPACE}"
 	fi
@@ -184,7 +175,7 @@ export PYTHONWARNINGS="ignore:Unverified HTTPS request"
 #alias adb_pull="adb pull /sdcard/Vk/Vkontakte/ /Data/vkDownloads/Music/"
 alias xev_get_codes="xev | awk -F'[ )]+' '/^KeyPress/ { a[NR+2] } NR in a { printf \"%-3s %s\n\", \$5, \$8 }'"
 #alias rclone_to_hdd="rclone --log-level INFO --auto-confirm --human-readable --modify-window 1d bisync --filters-file /Data/Everything/hdd-rclone-filtering.txt /Data/Everything/ /mnt/Everything/"
-alias git_cleanout="git gc; git fetch --prune --all; git remote prune origin; git branch --merged | xargs git branch -d"
+alias git_cleanout="git gc; git fetch --prune --all; git remote prune origin; git branch --merged | grep -E -v 'master|main' | grep -E -v '^\*' | xargs git branch -d"
 
 HELPERS="$HOME/bin/helper.bash"
 if [[ -e "${HELPERS}" ]]; then

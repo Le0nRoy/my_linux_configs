@@ -205,7 +205,7 @@ bindsym $mod+Shift+c reload
 ## Lock screen
 bindsym $mod+l exec --no-startup-id $LOCK_SCREEN 
 ## Switch displays
-bindsym $mod+F10 exec "nvidia-settings; $HOME/bin/helper.bash polybar_start"
+bindsym $mod+F10 exec $HOME/bin/helper.bash screens_settings
 ## Set shutdown, restart and locking features
 set $mode_system (l)ock, (h)ibernate, (s)hutdown, (r)eboot 
 bindsym $mod+0 mode "$mode_system" 
@@ -282,6 +282,7 @@ for_window [class="keepass2|KeePass2"] floating enable resize set 900 600
 for_window [class="(?i)pavucontrol"] floating enable resize set 900 900
 for_window [class="(?i)blueman-manager"] floating enable resize set 900 600
 for_window [class="(?i)iwgtk"] floating enable resize set 600 900
+for_window [class="(?i)matplotlib"] floating enable resize set 1600 900
 ## Make all notifications and dialog windows floating
 for_window [window_type="dialog"] floating enabled 
 for_window [window_type="notification"] floating enabled

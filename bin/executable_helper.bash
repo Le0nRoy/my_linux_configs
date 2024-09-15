@@ -318,6 +318,11 @@ case "$1" in
         #URL_TO_CONNECT="$(docker logs ${FIREFOX_CONTAINER_NAME} | grep -A 1 'Paste this url in your browser:' | tail -n 1)"
         #echo "${URL_TO_CONNECT}"
         ;;
+    "screens_settings")
+        nvidia-settings
+        polybar_start
+        set_us_ru_layout
+        ;;
     *)
         show_error_and_usage "$@"
         ;;
