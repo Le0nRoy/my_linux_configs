@@ -310,6 +310,10 @@ case "$1" in
             /usr/bin/firefox "$@"
         fi
         ;;
+    "firefox_personal")
+        shift
+        /usr/bin/firefox -P default-release "$@"
+        ;;
     "firefox_docker")
         FIREFOX_CONTAINER_NAME="secure_firefox"
         echo "username: kasm_user"
@@ -322,6 +326,7 @@ case "$1" in
         nvidia-settings
         polybar_start
         set_us_ru_layout
+        source "${HOME}/.xsessionrc"
         ;;
     *)
         show_error_and_usage "$@"
