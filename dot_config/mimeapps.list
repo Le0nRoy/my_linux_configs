@@ -26,6 +26,7 @@ image/jpeg=org.gnome.gThumb.desktop
 image/png=org.gnome.gThumb.desktop
 image/webp=feh.desktop
 x-scheme-handler/jetbrains=jetbrains-toolbox.desktop
+x-scheme-handler/tonsite=org.telegram.desktop.desktop
 
 [Added Associations]
 x-scheme-handler/tg=userapp-Telegram Desktop-6LVWQ1.desktop;org.telegram.desktop.desktop;
@@ -43,3 +44,4 @@ x-scheme-handler/mailto=userapp-Thunderbird-9NIEY1.desktop;userapp-Thunderbird-1
 x-scheme-handler/mid=userapp-Thunderbird-9NIEY1.desktop;userapp-Thunderbird-1RTLA2.desktop;
 x-scheme-handler/webcal=userapp-Thunderbird-75BAY1.desktop;userapp-Thunderbird-32D2A2.desktop;
 x-scheme-handler/webcals=userapp-Thunderbird-75BAY1.desktop;userapp-Thunderbird-32D2A2.desktop;
+x-scheme-handler/tonsite=org.telegram.desktop.desktop;

@@ -19,7 +19,7 @@ set $ws5 5
 set $ws6 6
 ## Font for window titles. Will also be used by the bar unless a different 
 ## font is used in the bar {} block below.
-font xft:URWGothic-Book 8
+font xft:URWGothic-Book 10
 ## Directory with worksapce presets
 set $WORKSPACES /home/lap/.config/i3/workspaces
 ## Commands to toggle touchpad state
@@ -47,7 +47,7 @@ set $SET_EN_RU_LAYOUT "bash $HOME/bin/helper.bash set_us_ru_keymap"
 ##########################################################################
 ## Gaps for polybar
 ##########################################################################
-gaps bottom 17
+#gaps bottom 17
 
 ##########################################################################
 ## Autostart applications
@@ -122,7 +122,7 @@ bindsym ctrl+XF86AudioRaiseVolume exec $volume_hdmi_up
 bindsym ctrl+XF86AudioLowerVolume exec $volume_hdmi_down
 bindsym ctrl+XF86AudioMute exec $volume_hdmi_mute
 ## Keepass
-bindsym $mod+F5 exec keepass /home/lap/Major_git/Database.kdbx
+bindsym $mod+F5 exec keepass /home/lap/Personal/Database.kdbx
 ## Keyboard layouts
 bindsym $mod+F12 exec $SET_EN_RU_LAYOUT
 bindsym $mod+Shift+F12 exec "bash /home/lap/.xsessionrc"

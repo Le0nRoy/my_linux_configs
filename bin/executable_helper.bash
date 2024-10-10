@@ -181,7 +181,7 @@ function gio_umount() {
 
 function job_mount() {
     if [[ ! -f ${JOB_SETUP_FILE} ]]; then
-        sudo fscrypt unlock "$JOB_MOUNT_DIR" 
+        fscrypt unlock "$JOB_MOUNT_DIR" 
         source $JOB_SETUP_FILE
         $JOB_SETUP_FILE start
     else
@@ -191,7 +191,7 @@ function job_mount() {
 
 function job_umount() {
     source $JOB_TEARDOWN_FILE
-    sudo fscrypt lock "$JOB_MOUNT_DIR"
+    fscrypt lock "$JOB_MOUNT_DIR"
 }
 
 # Do not execute script if it was called with `source` command, just do mandatory exports
@@ -327,6 +327,11 @@ case "$1" in
         polybar_start
         set_us_ru_layout
         source "${HOME}/.xsessionrc"
+        ;;
+    "vnc_over_ssh")
+        SSH_ROUTE="$1"
+        PORT="${2:-5901}"
+        vncviewer -via "${SSH_ROUTE}" "localhost::${PORT}"
         ;;
     *)
         show_error_and_usage "$@"
