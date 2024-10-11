@@ -96,11 +96,12 @@ function send_notification_brightnes() {
 
 function polybar_start () {
     # Primary display
+    PRIMARY_MONITOR=$(polybar --list-monitors | awk -F ':' '/primary/{print $1}')
     if [[ -z "$(ps -C 'polybar' -o cmd | grep info | grep -v secondary)" ]]; then
-        MONITOR=$(polybar --list-monitors | awk -F ':' '/primary/{print $1}') polybar info --reload > /dev/null 2>&1 &
+        MONITOR="${PRIMARY_MONITOR}" polybar info --reload > /dev/null 2>&1 &
     fi
     if [[ -z "$(ps -C 'polybar' -o cmd | grep primary)" ]]; then
-        polybar primary --reload > /dev/null 2>&1 &
+        MONITOR="${PRIMARY_MONITOR}" polybar primary --reload > /dev/null 2>&1 &
     fi
 
     # Kill polybar instances on secondary displays
@@ -329,18 +330,10 @@ case "$1" in
         source "${HOME}/.xsessionrc"
         ;;
     "vnc_over_ssh")
+        shift
         SSH_ROUTE="$1"
         PORT="${2:-5901}"
         vncviewer -via "${SSH_ROUTE}" "localhost::${PORT}"
-        ;;
-    "expose_display_over_vnc")
-        # https://wiki.archlinux.org/title/X11vnc#Usage
-        VNC_DISPLAY="${1:-":0"}"
-        VNC_LOG_FILE="/var/log/x11vnc.log"
-        if [[ ! -f "${VNC_LOG_FILE}" ]]; then
-            sudo touch "${VNC_LOG_FILE}"
-        fi
-        x11vnc -wait 50 -noxdamage -usepw -display "${VNC_DISPLAY}" -N -localhost -forever -o "${VNC_LOG_FILE}" -bg
         ;;
     *)
         show_error_and_usage "$@"
