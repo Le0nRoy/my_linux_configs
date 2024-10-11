@@ -333,6 +333,15 @@ case "$1" in
         PORT="${2:-5901}"
         vncviewer -via "${SSH_ROUTE}" "localhost::${PORT}"
         ;;
+    "expose_display_over_vnc")
+        # https://wiki.archlinux.org/title/X11vnc#Usage
+        VNC_DISPLAY="${1:-":0"}"
+        VNC_LOG_FILE="/var/log/x11vnc.log"
+        if [[ ! -f "${VNC_LOG_FILE}" ]]; then
+            sudo touch "${VNC_LOG_FILE}"
+        fi
+        x11vnc -wait 50 -noxdamage -usepw -display "${VNC_DISPLAY}" -N -localhost -forever -o "${VNC_LOG_FILE}" -bg
+        ;;
     *)
         show_error_and_usage "$@"
         ;;
