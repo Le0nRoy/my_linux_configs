@@ -175,7 +175,6 @@ export PYTHONWARNINGS="ignore:Unverified HTTPS request"
 #alias adb_pull="adb pull /sdcard/Vk/Vkontakte/ /Data/vkDownloads/Music/"
 alias xev_get_codes="xev | awk -F'[ )]+' '/^KeyPress/ { a[NR+2] } NR in a { printf \"%-3s %s\n\", \$5, \$8 }'"
 #alias rclone_to_hdd="rclone --log-level INFO --auto-confirm --human-readable --modify-window 1d bisync --filters-file /Data/Everything/hdd-rclone-filtering.txt /Data/Everything/ /mnt/Everything/"
-alias git_cleanout="git gc; git fetch --prune --all; git remote prune origin; git branch --merged | grep -E -v 'master|main' | grep -E -v '^\*' | xargs git branch -d"
 
 HELPERS="$HOME/bin/helper.bash"
 if [[ -e "${HELPERS}" ]]; then

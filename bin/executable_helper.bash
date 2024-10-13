@@ -41,6 +41,13 @@ show_error_and_usage() {
     exit 1
 }
 
+function git_cleanout() {
+    git gc 
+    git fetch --prune --all
+    git remote prune origin
+    git branch --merged | grep -E -v 'master|main' | grep -E -v '^\*' | xargs git branch -d
+}
+
 function adb_pull_music() {
     adb pull /sdcard/Vk/Vkontakte/ /Data/vkDownloads/Music/
 }
