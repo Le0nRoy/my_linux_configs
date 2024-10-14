@@ -1,3 +1,9 @@
+if [[ -f "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env" ]]; then
+    source "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env"
+else
+    source "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env.template"
+fi
+
 ## Disable screensaver
 xset s off
 xset s noblank
@@ -6,10 +12,8 @@ xset -dpms
 eval `ssh-agent`
 
 ## Enable touchpad
-# HP
-#xinput --set-prop 'SynPS/2 Synaptics TouchPad' 'libinput Tapping Enabled' 1
-#xinput --set-prop 'SynPS/2 Synaptics TouchPad' 'libinput Natural Scrolling Enabled' 1
-# ASUS
-xinput --set-prop 'ASUE120D:00 04F3:31FB Touchpad' 'libinput Tapping Enabled' 1
-xinput --set-prop 'ASUE120D:00 04F3:31FB Touchpad' 'libinput Natural Scrolling Enabled' 1
+for touchpad in "$(xinput list --name-only | grep -i 'Touchpad')"; do
+    xinput --set-prop "${touchpad}" 'libinput Tapping Enabled' 1
+    xinput --set-prop "${touchpad}" 'libinput Natural Scrolling Enabled' 1
+done
 

@@ -1,10 +1,21 @@
 #!/bin/bash
 
+# Evaluate the path to the script even if it runs through the symlink
+HOME_HELPER_UNIQ_SCRIPT_NAME="${BASH_SOURCE[0]##*/}"
+HOME_HELPER_UNIQ_SCRIPT_PATH=$(readlink -f "${BASH_SOURCE[0]}")
+HOME_HELPER_UNIQ_SCRIPT_DIR=${HOME_HELPER_UNIQ_SCRIPT_PATH%/*}
+
 # Export job-related variables and functions
 JOB_MOUNT_DIR="/Job"
 JOB_SETUP_FILE="/Job/add_exports.bash"
 JOB_TEARDOWN_FILE="/Job/remove_exports.bash"
  
+if [[ -f "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env" ]]; then
+    source "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env"
+else
+    source "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env.template"
+fi
+
 PORT_SWAGGER_UI=8081
 PORT_SWAGGER_EDITOR=8082
 
@@ -42,6 +53,10 @@ show_error_and_usage() {
     exit 1
 }
 
+function chezmoi_add() {
+    chezmoi add "$@"
+    chezmoi update
+}
 function git_cleanout() {
     git gc 
     git fetch --prune --all
