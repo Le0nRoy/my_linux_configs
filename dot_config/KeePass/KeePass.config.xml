@@ -8,44 +8,6 @@
 		<DpiFactorY>1</DpiFactorY>
 	</Meta>
 	<Application>
-		<LastUsedFile>
-			<Path>../../../home/lap/Personal/Database.kdbx</Path>
-			<CredProtMode>Obf</CredProtMode>
-			<CredSaveMode>NoSave</CredSaveMode>
-		</LastUsedFile>
-		<MostRecentlyUsed>
-			<MaxItemCount>12</MaxItemCount>
-			<Items>
-				<ConnectionInfo>
-					<Path>../../../home/lap/Personal/Database.kdbx</Path>
-					<CredProtMode>Obf</CredProtMode>
-					<CredSaveMode>NoSave</CredSaveMode>
-				</ConnectionInfo>
-				<ConnectionInfo>
-					<Path>../../../home/lap/Major_git/Database.kdbx</Path>
-					<CredProtMode>Obf</CredProtMode>
-					<CredSaveMode>NoSave</CredSaveMode>
-				</ConnectionInfo>
-				<ConnectionInfo>
-					<Path>../../../home/lap/Downloads/Telegram Desktop/Database.kdbx</Path>
-					<CredProtMode>Obf</CredProtMode>
-					<CredSaveMode>NoSave</CredSaveMode>
-				</ConnectionInfo>
-				<ConnectionInfo>
-					<Path>../../../Data/Everything/Major_git/Database.kdbx.bak</Path>
-					<CredProtMode>Obf</CredProtMode>
-					<CredSaveMode>NoSave</CredSaveMode>
-				</ConnectionInfo>
-				<ConnectionInfo>
-					<Path>../../../home/lap/Downloads/Telegram Desktop/Database (2).kdbx</Path>
-					<CredProtMode>Obf</CredProtMode>
-					<CredSaveMode>NoSave</CredSaveMode>
-				</ConnectionInfo>
-			</Items>
-		</MostRecentlyUsed>
-		<WorkingDirectories>
-			<Item>Database@../../../Data/Everything/Major_git</Item>
-		</WorkingDirectories>
 		<Start>
 			<CheckForUpdate>false</CheckForUpdate>
 			<CheckForUpdateConfigured>true</CheckForUpdateConfigured>
@@ -173,29 +135,7 @@
 	</Search>
 	<Defaults>
 		<OptionsTabIndex>0</OptionsTabIndex>
-		<KeySources>
-			<Association>
-				<DatabasePath>../../../home/lap/Major_git/Database.kdbx</DatabasePath>
-				<Password>true</Password>
-			</Association>
-			<Association>
-				<DatabasePath>../../../home/lap/Downloads/Telegram Desktop/Database (2).kdbx</DatabasePath>
-				<Password>true</Password>
-			</Association>
-			<Association>
-				<DatabasePath>../../../Data/Everything/Major_git/Database.kdbx.bak</DatabasePath>
-				<Password>true</Password>
-			</Association>
-			<Association>
-				<DatabasePath>../../../home/lap/Downloads/Telegram Desktop/Database.kdbx</DatabasePath>
-				<Password>true</Password>
-			</Association>
-			<Association>
-				<DatabasePath>../../../home/lap/Personal/Database.kdbx</DatabasePath>
-				<Password>true</Password>
-			</Association>
-		</KeySources>
-		<Duplication />
+                <Duplication />
 		<Print>
 			<MainFont>
 				<Family>Microsoft Sans Serif</Family>

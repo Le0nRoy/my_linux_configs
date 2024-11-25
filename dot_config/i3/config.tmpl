@@ -29,9 +29,15 @@ set $brightness_down "$HOME/bin/helper.bash brightness_down"
 set $volume_up "bash $HOME/bin/helper.bash volume  raise"
 set $volume_down "bash $HOME/bin/helper.bash volume low"
 set $volume_mute "bash $HOME/bin/helper.bash volume mute"
+{{ if eq .chezmoi.hostname "dragonlady" -}}
 set $volume_hdmi_up "bash $HOME/bin/helper.bash volume -s alsa_output.pci-0000_01_00.1.hdmi-stereo raise"
 set $volume_hdmi_down "bash $HOME/bin/helper.bash volume -s alsa_output.pci-0000_01_00.1.hdmi-stereo low"
 set $volume_hdmi_mute "bash $HOME/bin/helper.bash volume -s alsa_output.pci-0000_01_00.1.hdmi-stereo mute"
+{{ else if eq .chezmoi.hostname "dragoncave" -}}
+set $volume_hdmi_up "bash $HOME/bin/helper.bash volume -s alsa_output.pci-0000_06_00.1.hdmi-stereo raise"
+set $volume_hdmi_down "bash $HOME/bin/helper.bash volume -s alsa_output.pci-0000_06_00.1.hdmi-stereo low"
+set $volume_hdmi_mute "bash $HOME/bin/helper.bash volume -s alsa_output.pci-0000_06_00.1.hdmi-stereo mute"
+{{ end -}}
 ## Tmux session
 set $TMUX "tmux new-session -s \"i3-tmux\" -n \"WorkSpace\" -A -D"
 ## Lock screen command
@@ -65,9 +71,9 @@ exec_always --no-startup-id $SET_EN_RU_LAYOUT
 ## Set background picture
 exec_always --no-startup-id "bash $HOME/bin/helper.bash set_background"
 ## Restore layouts on workspaces from files
-#exec --no-startup-id "i3-msg 'workspace 1; append_layout $HOME.config/i3/workspaces/workspace_1.json'"
-#exec --no-startup-id "i3-msg 'workspace 2; append_layout $HOME.config/i3/workspaces/workspace_2.json'"
-exec --no-startup-id "i3-msg 'workspace 4; append_layout $HOME.config/i3/workspaces/workspace_4.json'"
+#exec --no-startup-id "i3-msg 'workspace 1; append_layout $HOME/.config/i3/workspaces/workspace_1.json'"
+#exec --no-startup-id "i3-msg 'workspace 2; append_layout $HOME/.config/i3/workspaces/workspace_2.json'"
+exec --no-startup-id "i3-msg 'workspace 4; append_layout $HOME/.config/i3/workspaces/workspace_4.json'"
 ## Start applications for workspaces
 exec --no-startup-id firefox
 exec --no-startup-id alacritty -e "$TMUX"
@@ -123,7 +129,7 @@ bindsym ctrl+XF86AudioMute exec $volume_hdmi_mute
 bindsym $mod+F5 exec keepass "$HOME/Personal/Database.kdbx"
 ## Keyboard layouts
 bindsym $mod+F12 exec $SET_EN_RU_LAYOUT
-bindsym $mod+Shift+F12 exec "bash '$HOME.xsessionrc'"
+bindsym $mod+Shift+F12 exec "bash '$HOME/.xsessionrc'"
 bindsym $mod+F11 exec "bash $HOME/bin/helper.bash set_us_ge_keymap"
 ## Video-player
 # Open video by URL from clipboard
@@ -209,7 +215,6 @@ set $mode_system (l)ock, (h)ibernate, (s)hutdown, (r)eboot
 bindsym $mod+0 mode "$mode_system" 
 mode "$mode_system" {
     bindsym l exec --no-startup-id $LOCK_SCREEN, mode "default"
-    bindsym h exec --no-startup-id $LOCK_SCREEN & systemctl hibernate, mode "default"
     bindsym r exec --no-startup-id systemctl reboot, mode "default"
     bindsym s exec --no-startup-id systemctl poweroff,  mode "default"
     # Exit system mode: "Enter" or "Escape"
