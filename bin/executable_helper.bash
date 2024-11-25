@@ -8,7 +8,8 @@ JOB_TEARDOWN_FILE="/Job/remove_exports.bash"
 PORT_SWAGGER_UI=8081
 PORT_SWAGGER_EDITOR=8082
 
-DESKTOP_BG="/home/lap/Pictures/png_files/St_Louis_Sciamano.png"
+DESKTOP_BG="${HOME}/Pictures/png_files/St_Louis_Sciamano.png"
+LOCK_SCREEN_IMAGE="${HOME}/Pictures/png_files/maximum_beat.png"
 
 # Evaluate the path to the script even if it runs through the symlink
 HOME_HELPER_UNIQ_SCRIPT_NAME="${BASH_SOURCE[0]##*/}"
@@ -273,7 +274,7 @@ case "$1" in
         ;;
     "lock_screen")
         setxkbmap us 
-        i3lock --ignore-empty-password --show-failed-attempts --image=/home/lap/Pictures/png_files/maximum_beat.png 
+        i3lock --ignore-empty-password --show-failed-attempts --image="${LOCK_SCREEN_IMAGE}"
         set_us_ru_layout
         ;;
     "i3_restart")

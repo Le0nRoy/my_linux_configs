@@ -1,6 +1,7 @@
 ## Disable screensaver
 xset s off
 xset s noblank
+xset -dpms
 ## Enable ssh-agent
 eval `ssh-agent`
 
