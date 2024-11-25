@@ -4,7 +4,7 @@ Name=Firefox Web Browser
 Comment=Browse the World Wide Web
 GenericName=Web Browser
 Keywords=Internet;WWW;Browser;Web;Explorer
-Exec=/home/lap/bin/helper.bash firefox %u
+Exec={{ .chezmoi.homeDir }}/bin/helper.bash firefox %u
 Icon=firefox
 Terminal=false
 Type=Application
@@ -17,11 +17,11 @@ StartupWMClass=firefox
 
 [Desktop Action new-window]
 Name=Open a New Window
-Exec=/home/lap/bin/helper.bash firefox --new-window %u
+Exec={{ .chezmoi.homeDir }}/bin/helper.bash firefox --new-window %u
 
 [Desktop Action new-private-window]
 Name=Open a New Private Window
-Exec=/home/lap/bin/helper.bash firefox --private-window %u
+Exec={{ .chezmoi.homeDir }}/bin/helper.bash firefox --private-window %u
 
 [Desktop Action profile-manager-window]
 Name=Open the Profile Manager

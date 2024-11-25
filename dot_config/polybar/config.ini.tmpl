@@ -16,7 +16,7 @@
 ;
 ;==========================================================
 ; Add all machine related configurations to the .config/polybar/config-env.ini file
-include-file = config-env.ini
+include-file = config-{{ .chezmoi.hostname }}.ini
 
 [settings]
 screenchange-reload = true
