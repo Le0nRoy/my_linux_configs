@@ -39,6 +39,7 @@ set $volume_hdmi_down "bash $HOME/bin/helper.bash volume -s alsa_output.pci-0000
 set $volume_hdmi_mute "bash $HOME/bin/helper.bash volume -s alsa_output.pci-0000_06_00.1.hdmi-stereo mute"
 {{ end -}}
 ## Tmux session
+#set $TMUX "bash $HOME/bin/helper.bash tmux_session"
 set $TMUX "tmux new-session -s \"i3-tmux\" -n \"WorkSpace\" -A -D"
 ## Lock screen command
 set $LOCK_SCREEN "bash $HOME/bin/helper.bash lock_screen"
@@ -80,6 +81,9 @@ exec --no-startup-id alacritty -e "$TMUX"
 exec --no-startup-id telegram-desktop
 exec --no-startup-id "$HOME/Applications/Todoist.AppImage"
 exec --no-startup-id quodlibet
+{{ if eq .chezmoi.hostname "dragoncave" -}}
+exec --no-startup-id qbittorrent
+{{ end -}}
 ## Mail client
 exec --no-startup-id thunderbird
 ## Status bar applets
