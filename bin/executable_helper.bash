@@ -53,8 +53,21 @@ function adb_pull_music() {
     adb pull /sdcard/Vk/Vkontakte/ /Data/vkDownloads/Music/
 }
 
-function rclone_to_hdd() {
-    rclone --log-level INFO --auto-confirm --human-readable --modify-window 1d bisync --filters-file /Data/Everything/hdd-rclone-filtering.txt /Data/Everything/ /mnt/Everything/
+function rclone_to_backup() {
+    FILTERS_FILE="$1"
+    SOURCE="$2"
+    DESTINATION="$3"
+    if [[ ! -f "${FILTERS_FILE}" ]]; then
+        echo "Usage: rclone_to_backup <filters_file> <source_directory> <dest_directorry>"
+        exit 1
+    fi
+    if [[ ! -d "${SOURCE}" || ! -d "${DESTINATION}" ]]; then
+        echo "Usage: rclone_to_backup <filters_file> <source_directory> <dest_directorry>"
+        exit 1
+    fi
+    # In order to do resync use flag:
+    # --resync-mode newer
+    rclone --log-level INFO --auto-confirm --human-readable --modify-window 24h bisync --filters-file "${FILTERS_FILE}" "${SOURCE}" "${DESTINATION}"
 }
 
 function unzip_books() {
