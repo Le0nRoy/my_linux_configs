@@ -1,0 +1,14 @@
+[Unit]
+Description=RClone bisync job
+OnFailure=failure-notification@%n
+OnSuccess=success-notification@%n
+After=rclone-backup-minecraft
+
+[Service]
+# if the launch fails the resync will be required (takes about an hour)
+# systemctl --user start rclone-bisync-resync.service
+EnvironmentFile=%h/.config/environment.d/rclone-bisync.conf
+ExecStart=/usr/bin/bash ${HOME}/bin/helper.bash rclone_bisync --filters-file "${BISYNC_CLOUD_FILTERS_FILE}" "${BISYNC_CLOUD_SOURCE}" "${BISYNC_CLOUD_TARGET}"
+
+[Install]
+WantedBy=default.target

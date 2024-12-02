@@ -6,8 +6,8 @@ OnSuccess=success-notification@%n
 [Service]
 # if the launch fails the resync will be required (takes about an hour)
 # systemctl --user start rclone-bisync-minecraft.service
-EnvironmentFile=%h/.config/environment.d/rclone-backup-minecraft.conf
-ExecStart=/usr/bin/rclone --log-systemd --log-level INFO --auto-confirm --human-readable --modify-window 1d bisync --filters-file $BISYNC_FILTERS_FILE $BISYNC_SOURCE $BISYNC_TARGET
+EnvironmentFile=%h/.config/environment.d/rclone-bisync.conf
+ExecStart=/usr/bin/bash ${HOME}/bin/helper.bash rclone_bisync --filters-file "${BISYNC_LOCAL_MINECRAFT_FILTERS_FILE}" "${BISYNC_LOCAL_MINECRAFT_SOURCE}" "${BISYNC_LOCAL_MINECRAFT_TARGET}"
 
 [Install]
 WantedBy=default.target
