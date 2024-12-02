@@ -22,10 +22,6 @@ PORT_SWAGGER_EDITOR=8082
 DESKTOP_BG="${HOME}/Pictures/png_files/St_Louis_Sciamano.png"
 LOCK_SCREEN_IMAGE="${HOME}/Pictures/png_files/maximum_beat.png"
 
-# Evaluate the path to the script even if it runs through the symlink
-HOME_HELPER_UNIQ_SCRIPT_NAME="${BASH_SOURCE[0]##*/}"
-HOME_HELPER_UNIQ_SCRIPT_PATH=$(readlink -f "${BASH_SOURCE[0]}")
-
 ## Autocompletion for this script
 _helper_script() {
     local cur
@@ -53,6 +49,10 @@ show_error_and_usage() {
     exit 1
 }
 
+function get_display() {
+    echo $DISPLAY
+}
+
 function chezmoi_add() {
     chezmoi add "$@"
     chezmoi update
@@ -68,6 +68,9 @@ function adb_pull_music() {
     adb pull /sdcard/Vk/Vkontakte/ /Data/vkDownloads/Music/
 }
 
+function rclone_systemd() {
+    rclone --log-systemd --log-level INFO --auto-confirm --human-readable --modify-window 1d bisync "$@"
+}
 function rclone_to_backup() {
     FILTERS_FILE="$1"
     SOURCE="$2"
@@ -370,6 +373,13 @@ case "$1" in
         SSH_ROUTE="$1"
         PORT="${2:-5901}"
         vncviewer -via "${SSH_ROUTE}" "localhost::${PORT}"
+        ;;
+    "rclone_bisync")
+        shift
+        rclone_systemd "$@"
+        ;;
+    "tmux_session")
+        tmux new-session -s "${TMUX_SESSION}" -n "WorkSpace" -A -D
         ;;
     *)
         show_error_and_usage "$@"
