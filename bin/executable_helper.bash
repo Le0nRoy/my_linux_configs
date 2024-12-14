@@ -69,7 +69,7 @@ function adb_pull_music() {
 }
 
 function rclone_systemd() {
-    rclone --log-systemd --log-level INFO --auto-confirm --human-readable --modify-window 1d bisync "$@"
+    rclone --log-systemd --log-level INFO --auto-confirm --human-readable --modify-window 24h bisync "$@"
 }
 function rclone_to_backup() {
     FILTERS_FILE="$1"

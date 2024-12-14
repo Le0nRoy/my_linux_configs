@@ -7,7 +7,7 @@ OnSuccess=success-notification@%n
 # if the launch fails the resync will be required (takes about an hour)
 # systemctl --user start rclone-bisync-resync.service
 EnvironmentFile=%h/.config/environment.d/rclone-bisync.conf
-ExecStart=/usr/bin/bash ${HOME}/bin/helper.bash rclone_bisync --resync --filters-file "${BISYNC_CLOUD_FILTERS_FILE}" "${BISYNC_CLOUD_SOURCE}" "${BISYNC_CLOUD_TARGET}"
+ExecStart=/usr/bin/bash ${HOME}/bin/helper.bash rclone_bisync --resync-mode newer --filters-file "${BISYNC_CLOUD_FILTERS_FILE}" "${BISYNC_CLOUD_SOURCE}" "${BISYNC_CLOUD_TARGET}"
 
 [Install]
 WantedBy=default.target
