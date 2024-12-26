@@ -378,6 +378,10 @@ case "$1" in
         shift
         rclone_systemd "$@"
         ;;
+    "rclone_to_backup")
+        shift
+        rclone_to_backup "$@"
+        ;;
     "tmux_session")
         tmux new-session -s "${TMUX_SESSION}" -n "WorkSpace" -A -D
         ;;
