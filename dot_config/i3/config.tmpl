@@ -19,11 +19,7 @@ set $ws5 5
 set $ws6 6
 ## Font for window titles. Will also be used by the bar unless a different 
 ## font is used in the bar {} block below.
-{{ if eq .chezmoi.hostname "dragonlady" -}}
-font pango:Hack 12
-{{ else if eq .chezmoi.hostname "dragoncave" -}}
 font pango:Hack 8
-{{ end -}}
 ## Commands to toggle touchpad state
 set $touchpad_toggle "$HOME/bin/helper.bash toggle_touchpad"
 ## Commands to adjust screen brightness (add user to `video` group to allow changes without sudo)
