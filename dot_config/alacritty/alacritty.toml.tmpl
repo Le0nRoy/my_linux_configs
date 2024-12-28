@@ -1,5 +1,9 @@
 [font]
+{{ if eq .chezmoi.hostname "dragonlady" -}}
+size = 10.0
+{{ else if eq .chezmoi.hostname "dragoncave" -}}
 size = 11.0
+{{ end -}}
 
 [font.bold]
 family = "terminus"
