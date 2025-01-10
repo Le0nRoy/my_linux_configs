@@ -83,9 +83,15 @@ function rclone_to_backup() {
         echo "Usage: rclone_to_backup <filters_file> <source_directory> <dest_directorry>"
         exit 1
     fi
+
+    read -p "Do resync? [y/n]" do_resync
+    ADDITIONAL_FLAGS=()
+    if [[ "$do_resync" == [yY] ]]; then
+        ADDITIONAL_FLAGS=("${ADDITIONAL_FLAGS[@]}" --resync-mode newer)
+    fi
     # In order to do resync use flag:
     # --resync-mode newer
-    rclone --log-level INFO --auto-confirm --human-readable --modify-window 24h bisync --filters-file "${FILTERS_FILE}" "${SOURCE}" "${DESTINATION}"
+    rclone --log-level INFO --auto-confirm --human-readable --modify-window 24h bisync "${ADDITIONAL_FLAGS[@]}" --filters-file "${FILTERS_FILE}" "${SOURCE}" "${DESTINATION}"
 }
 
 function unzip_books() {
