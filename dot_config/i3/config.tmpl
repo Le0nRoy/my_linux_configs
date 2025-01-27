@@ -18,9 +18,15 @@ set $ws4 4
 set $ws5 5
 set $ws6 6
 set $ws7 7
+
 ## Font for window titles. Will also be used by the bar unless a different 
 ## font is used in the bar {} block below.
+{{ if eq .chezmoi.hostname "dragonlady" -}}
 font pango:Hack 6
+{{ else if eq .chezmoi.hostname "dragoncave" -}}
+font pango:Hack 8
+{{ end -}
+
 ## Commands to toggle touchpad state
 set $touchpad_toggle "$HOME/bin/helper.bash toggle_touchpad"
 ## Commands to adjust screen brightness (add user to `video` group to allow changes without sudo)
@@ -30,9 +36,17 @@ set $brightness_down "$HOME/bin/helper.bash brightness_down"
 set $volume_up "bash $HOME/bin/helper.bash volume  raise"
 set $volume_down "bash $HOME/bin/helper.bash volume low"
 set $volume_mute "bash $HOME/bin/helper.bash volume mute"
+
+{{ if eq .chezmoi.hostname "dragonlady" -}}
 set $volume_hdmi_up "bash $HOME/bin/helper.bash volume -s alsa_output.pci-0000_01_00.1.hdmi-stereo raise"
 set $volume_hdmi_down "bash $HOME/bin/helper.bash volume -s alsa_output.pci-0000_01_00.1.hdmi-stereo low"
 set $volume_hdmi_mute "bash $HOME/bin/helper.bash volume -s alsa_output.pci-0000_01_00.1.hdmi-stereo mute"
+{{ else if eq .chezmoi.hostname "dragoncave" -}}
+set $volume_hdmi_up "bash $HOME/bin/helper.bash volume -s alsa_output.pci-0000_06_00.1.hdmi-stereo raise"
+set $volume_hdmi_down "bash $HOME/bin/helper.bash volume -s alsa_output.pci-0000_06_00.1.hdmi-stereo low"
+set $volume_hdmi_mute "bash $HOME/bin/helper.bash volume -s alsa_output.pci-0000_06_00.1.hdmi-stereo mute"
+{{ end -}}
+
 ## Tmux session
 set $TMUX "bash $HOME/bin/helper.bash tmux_session"
 ## Lock screen command
@@ -73,23 +87,34 @@ exec --no-startup-id "i3-msg 'workspace 4; append_layout $HOME/.config/i3/worksp
 ## Start applications for workspaces
 exec --no-startup-id firefox
 exec --no-startup-id alacritty -e "$TMUX"
-exec --no-startup-id telegram-desktop
-exec --no-startup-id "$HOME/Applications/Todoist.AppImage"
+
+{{ if eq .chezmoi.hostname "dragonlady" -}}
 exec --no-startup-id quodlibet
+exec --no-startup-id telegram-desktop
+exec --no-startup-id "$HOME/bin/helper.bash todoist"
 ## Mail client
 exec --no-startup-id thunderbird
+{{ else if eq .chezmoi.hostname "dragoncave" -}}
+exec --no-startup-id qbittorrent
+{{ end -}}
+
 ## Status bar applets
 exec --no-startup-id "bash $HOME/bin/helper.bash polybar_start"
-exec --no-startup-id birdtray 
 exec --no-startup-id pasystray
+
+{{ if eq .chezmoi.hostname "dragonlady" -}}
+exec --no-startup-id cbatticon --update-interval 5 --low-level 25 --critical-level 10 
+exec --no-startup-id birdtray 
 exec --no-startup-id blueman-applet
 exec --no-startup-id iwgtk -i
-exec --no-startup-id cbatticon --update-interval 5 --low-level 25 --critical-level 10 
+
 ## Set minimum brightness level and adjust comfortable brightness level
 exec_always --no-startup-id light -N 5
 exec --no-startup-id light -S 70
 ## Start redshift daemon to have dynamical screen color and temperature adjustment
 exec_always --no-startup-id redshift -P -l 42:45 -t 4000:3500
+{{ end -}}
+
 ## Enable pulseaudio
 exec --no-startup-id start-pulseaudio-x11
 
@@ -99,7 +124,6 @@ exec --no-startup-id start-pulseaudio-x11
 ## Kill focused window
 bindsym $mod+Shift+q kill
 ## Program launcher
-#bindsym $mod+d exec dmenu_run_history -i #-fn 'iso01-12x22'
 bindsym $mod+ctrl+d exec rofi -show run
 bindsym $mod+d exec rofi -show drun
 ## Terminal
@@ -122,7 +146,7 @@ bindsym ctrl+XF86AudioRaiseVolume exec $volume_hdmi_up
 bindsym ctrl+XF86AudioLowerVolume exec $volume_hdmi_down
 bindsym ctrl+XF86AudioMute exec $volume_hdmi_mute
 ## Keepass
-bindsym $mod+F5 exec keepass "$HOME/Personal/Database.kdbx"
+bindsym $mod+F5 exec keepass 
 ## Keyboard layouts
 bindsym $mod+F12 exec $SET_EN_RU_LAYOUT
 bindsym $mod+Shift+F12 exec "bash '$HOME/.xsessionrc'"
