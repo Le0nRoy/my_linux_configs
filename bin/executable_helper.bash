@@ -6,9 +6,9 @@ HOME_HELPER_UNIQ_SCRIPT_PATH=$(readlink -f "${BASH_SOURCE[0]}")
 HOME_HELPER_UNIQ_SCRIPT_DIR=${HOME_HELPER_UNIQ_SCRIPT_PATH%/*}
 
 # Export job-related variables and functions
-JOB_MOUNT_DIR="/Job"
-JOB_SETUP_FILE="/Job/add_exports.bash"
-JOB_TEARDOWN_FILE="/Job/remove_exports.bash"
+JOB_MOUNT_DIR="/Data/Job"
+JOB_SETUP_FILE="/Data/Job/add_exports.bash"
+JOB_TEARDOWN_FILE="/Data/Job/remove_exports.bash"
  
 if [[ -f "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env" ]]; then
     source "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env"
@@ -83,15 +83,9 @@ function rclone_to_backup() {
         echo "Usage: rclone_to_backup <filters_file> <source_directory> <dest_directorry>"
         exit 1
     fi
-
-    read -p "Do resync? [y/n]" do_resync
-    ADDITIONAL_FLAGS=()
-    if [[ "$do_resync" == [yY] ]]; then
-        ADDITIONAL_FLAGS=("${ADDITIONAL_FLAGS[@]}" --resync-mode newer)
-    fi
     # In order to do resync use flag:
     # --resync-mode newer
-    rclone --log-level INFO --auto-confirm --human-readable --modify-window 24h bisync "${ADDITIONAL_FLAGS[@]}" --filters-file "${FILTERS_FILE}" "${SOURCE}" "${DESTINATION}"
+    rclone --log-level INFO --auto-confirm --human-readable --modify-window 24h bisync --filters-file "${FILTERS_FILE}" "${SOURCE}" "${DESTINATION}"
 }
 
 function unzip_books() {
@@ -279,6 +273,12 @@ case "$1" in
         light -U 5
         send_notification_brightnes
         ;;
+    "kbd_brightness_up")
+        light -s sysfs/leds/asus::kbd_backlight -A 5
+        ;;
+    "kbd_brightness_down")
+        light -s sysfs/leds/asus::kbd_backlight -U 5
+        ;;
     "volume")
         shift
         while getopts "h:s:" arg; do
@@ -377,7 +377,7 @@ case "$1" in
     "vnc_over_ssh")
         shift
         SSH_ROUTE="$1"
-        PORT="${2:-5901}"
+        PORT="${2:-5900}"
         vncviewer -via "${SSH_ROUTE}" "localhost::${PORT}"
         ;;
     "rclone_bisync")
