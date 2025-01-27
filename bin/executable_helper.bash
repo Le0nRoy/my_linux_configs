@@ -391,6 +391,10 @@ case "$1" in
     "tmux_session")
         tmux new-session -s "${TMUX_SESSION}" -n "WorkSpace" -A -D
         ;;
+    "todoist")
+        EXECUTABLE="$(find "${HOME}/Applications/" -name "Todoist*")"
+        "${EXECUTABLE}"
+        ;;
     *)
         show_error_and_usage "$@"
         ;;
