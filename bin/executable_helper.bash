@@ -69,6 +69,12 @@ function adb_pull_music() {
 }
 
 function rclone_systemd() {
+    for remote in $(rclone listremotes); do
+        if ! rclone about "${remote}" > /dev/null 2>&1; then
+            echo "Remote '${remote}' is not accessible. Aborting..."
+            exit 1
+        fi
+    done
     rclone --log-systemd --log-level INFO --auto-confirm --human-readable --modify-window 24h bisync "$@"
 }
 function rclone_to_backup() {
