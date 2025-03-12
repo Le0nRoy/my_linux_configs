@@ -292,33 +292,40 @@ assign [class="(?i)opera"] $ws6
 
 assign [class="(?i)zoom"] $ws7
 ## Open specific applications in floating mode
+# Make all notifications and dialog windows floating
+for_window [window_type="dialog"] floating enabled 
+for_window [window_type="notification"] floating enabled
+
 for_window [class="(?i)peek"] floating enable resize set 1918 870
 for_window [class="(?i)firefox$" title="Enter name of file to save to…"] floating enable resize set 900 600
 for_window [title="alsamixer"] floating enable border pixel 1
 for_window [class="(?i)nvidia-settings"] floating enable border pixel 1
 for_window [title="Media viewer" class="(?i)telegram-?desktop"] floating enable border pixel 1
 for_window [class="(?i)thunderbird|Mail"] floating disable 
+# Steam
 for_window [title="Create or select new Steam library folder" class="(?i)steam"] floating enable 
 for_window [title="News" class="(?i)steam"] floating enable resize set 600 400
 for_window [title="Friends List" class="(?i)steam"] floating enable resize set 600 400
+
 for_window [class="(?i)virtualbox"] floating enable border normal
 for_window [class="(?i)galculator"] floating enable 
 for_window [title="Android Emulator"] floating enable 
+# Zoom
 for_window [class="(?i)zoom" title="Zoom Workplace - Free account"] floating disable
 for_window [class="(?i)zoom" title="Zoom Meeting"] floating disable
 for_window [class="(?i)zoom" title="Meeting chat"] floating enable resize set 900 600
-## Keep zoom notifications floating
+# keep zoom notifications floating
 for_window [class="(?i)zoom" title="zoom"] floating enable 
+
+# Slack
 for_window [class="(?i)slack" title="\(Canvas\)"] floating enable resize set 1200 900
 for_window [class="(?i)slack" title="\(List\)"] floating enable resize set 1200 900
+
 for_window [class="keepass2|KeePass2"] floating enable resize set 900 600 
 for_window [class="(?i)pavucontrol"] floating enable resize set 900 900
 for_window [class="(?i)blueman-manager"] floating enable resize set 900 600
 for_window [class="(?i)iwgtk"] floating enable resize set 600 900
 for_window [class="(?i)matplotlib"] floating enable resize set 1600 900
-## Make all notifications and dialog windows floating
-for_window [window_type="dialog"] floating enabled 
-for_window [window_type="notification"] floating enabled
 ## Make Picture-in-Picture windows switch together with workspace
 for_window [title="(?i)picture-in-picture"] sticky enable
 ## Configure focus options
