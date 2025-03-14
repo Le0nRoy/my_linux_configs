@@ -274,7 +274,11 @@ assign [title="Android Emulator"] $ws2
 assign [class="Arduino IDE"] $ws2
 assign [class="(?i)code"] $ws2
 
+{{ if eq .chezmoi.hostname "dragonlady" -}}
 assign [class="(?i)alacritty"] $ws3
+{{ else if eq .chezmoi.hostname "dragoncave" -}}
+assign [class="(?i)alacritty"] $ws4
+{{ end -}}
 
 assign [class="(?i)quodlibet"] $ws4
 assign [class="(?i)telegram-desktop|TelegramDesktop"] $ws4
