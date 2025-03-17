@@ -1,3 +1,0 @@
-export TMUX_SESSION="i3-tmux-${DISPLAY#*:}"
-DESKTOP_BG="${DESKTOP_BG:-"${HOME}/Pictures/png_files/St_Louis_Sciamano.png"}"
-
