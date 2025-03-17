@@ -1,4 +1,10 @@
 export TMUX_SESSION="i3-tmux-${DISPLAY#*:}"
+
+{{ if eq .chezmoi.hostname "dragonlady" -}}
+DESKTOP_BG="${HOME}/Pictures/png_files/St_Louis_Sciamano.png"
+LOCK_SCREEN_IMAGE="${HOME}/Pictures/png_files/maximum_beat.png"
+{{ else if eq .chezmoi.hostname "dragoncave" -}}
 DESKTOP_BG="${DESKTOP_BG:-"${HOME}/Pictures/png_files/creepy_cars.png"}"
 LOCK_SCREEN_IMAGE="${HOME}/Pictures/png_files/merigold.png"
+{{ end -}}
 
