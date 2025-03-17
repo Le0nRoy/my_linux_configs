@@ -81,9 +81,11 @@ exec_always --no-startup-id $SET_EN_RU_LAYOUT
 ## Set background picture
 exec_always --no-startup-id "bash $HOME/bin/helper.bash set_background"
 ## Restore layouts on workspaces from files
-#exec --no-startup-id "i3-msg 'workspace 1; append_layout $HOME/.config/i3/workspaces/workspace_1.json'"
-#exec --no-startup-id "i3-msg 'workspace 2; append_layout $HOME/.config/i3/workspaces/workspace_2.json'"
-exec --no-startup-id "i3-msg 'workspace 4; append_layout $HOME/.config/i3/workspaces/workspace_4.json'"
+{{ if eq .chezmoi.hostname "dragonlady" -}}
+exec --no-startup-id "i3-msg 'workspace 4; append_layout ~/.config/i3/workspaces/workspace_4-dragonlady.json'"
+{{ else if eq .chezmoi.hostname "dragoncave" -}}
+exec --no-startup-id "i3-msg 'workspace 4; append_layout ~/.config/i3/workspaces/workspace_4-dragoncave.json'"
+{{ end -}}
 ## Start applications for workspaces
 exec --no-startup-id firefox
 exec --no-startup-id alacritty -e "$TMUX"
