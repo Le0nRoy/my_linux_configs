@@ -19,8 +19,8 @@ fi
 PORT_SWAGGER_UI=8081
 PORT_SWAGGER_EDITOR=8082
 
-DESKTOP_BG="${HOME}/Pictures/png_files/St_Louis_Sciamano.png"
-LOCK_SCREEN_IMAGE="${HOME}/Pictures/png_files/maximum_beat.png"
+DESKTOP_BG="${DESKTOP_BG:-"${HOME}/Pictures/png_files/St_Louis_Sciamano.png"}"
+LOCK_SCREEN_IMAGE="${LOCK_SCREEN_IMAGE:-"${HOME}/Pictures/png_files/maximum_beat.png"}"
 
 ## Autocompletion for this script
 _helper_script() {
