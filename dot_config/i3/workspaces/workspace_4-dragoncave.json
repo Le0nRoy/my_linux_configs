@@ -1,0 +1,85 @@
+{
+    "border": "normal",
+    "floating": "auto_off",
+    "layout": "stacked",
+    "marks": [],
+    "percent": 0.5,
+    "type": "con",
+    "nodes": [
+        {
+            "border": "normal",
+            "current_border_width": 2,
+            "floating": "auto_off",
+            "geometry": {
+               "height": 600,
+               "width": 800,
+               "x": 0,
+               "y": 0
+            },
+            "marks": [],
+            "name": "Alacritty",
+            "percent": 1,
+            "swallows": [
+               {
+                   "class": "^Alacritty$",
+                   "instance": "^Alacritty$"
+               }
+            ],
+            "type": "con"
+        }
+    ]
+}
+
+{
+    "border": "normal",
+    "floating": "auto_off",
+    "layout": "stacked",
+    "marks": [],
+    "percent": 0.5,
+    "type": "con",
+    "nodes": [
+        {
+            "border": "normal",
+            "current_border_width": 2,
+            "floating": "auto_off",
+            "geometry": {
+               "height": 484,
+               "width": 956,
+               "x": 962,
+               "y": 61
+            },
+            "marks": [],
+            "name": "qBittorrent",
+            "percent": 0.5,
+            "swallows": [
+               {
+                   "class": "^qBittorrent$",
+                   "instance": "^qbittorrent$"
+               }
+            ],
+            "type": "con"
+        },
+        {
+            "border": "normal",
+            "current_border_width": 2,
+            "floating": "auto_off",
+            "geometry": {
+               "height": 991,
+               "width": 956,
+               "x": 0,
+               "y": 0
+            },
+            "marks": [],
+            "name": "Mozilla Firefox",
+            "percent": 0.5,
+            "swallows": [
+               {
+                   "class": "^firefox$",
+                   "instance": "^Navigator$"
+               }
+            ],
+            "type": "con"
+        }
+    ]
+}
+
