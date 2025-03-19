@@ -82,9 +82,9 @@ exec_always --no-startup-id $SET_EN_RU_LAYOUT
 exec_always --no-startup-id "bash $HOME/bin/helper.bash set_background"
 ## Restore layouts on workspaces from files
 {{ if eq .chezmoi.hostname "dragonlady" -}}
-exec --no-startup-id "i3-msg 'workspace 4; append_layout ~/.config/i3/workspaces/workspace_4-dragonlady.json'"
+exec --no-startup-id "i3-msg 'workspace 4; append_layout ~/.config/i3/workspaces/workspace_4-dragonlady.json'; focus child"
 {{ else if eq .chezmoi.hostname "dragoncave" -}}
-exec --no-startup-id "i3-msg 'workspace 4; append_layout ~/.config/i3/workspaces/workspace_4-dragoncave.json'"
+exec --no-startup-id "i3-msg 'workspace 4; append_layout ~/.config/i3/workspaces/workspace_4-dragoncave.json'; focus child"
 {{ end -}}
 ## Start applications for workspaces
 exec --no-startup-id firefox
@@ -194,6 +194,8 @@ bindsym $mod+v split v;exec notify-send --urgency=low --expire-time=500 'tile ve
 bindsym $mod+Shift+s layout stacked
 ## Focus the parent container
 bindsym $mod+a focus parent
+## Focus the child container
+bindsym $mod+Shift+a focus parent
 ## Toggle tiling / floating
 #bindsym $mod+Shift+Space floating toggle
 bindcode $mod+Shift+65 floating toggle
