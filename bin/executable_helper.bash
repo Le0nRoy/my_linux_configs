@@ -53,6 +53,9 @@ function get_display() {
     echo $DISPLAY
 }
 
+function kill_civ6() {
+    kill -9 $(ps aux | grep -i civil | awk '{print $2}')
+}
 function chezmoi_add() {
     chezmoi add "$@"
     chezmoi update
