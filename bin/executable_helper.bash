@@ -63,6 +63,7 @@ function chezmoi_add() {
 function git_cleanout() {
     git gc 
     git fetch --prune --all
+    git pull
     git remote prune origin
     git branch --merged | grep -E -v 'master|main' | grep -E -v '^\*' | xargs git branch -d
 }
@@ -143,6 +144,8 @@ function send_notification_brightnes() {
 }
 
 function polybar_start () {
+    set -x
+    kill $(ps -C 'polybar' -o pid,cmd | awk '{print $1}')
     # Primary display
     PRIMARY_MONITOR=$(polybar --list-monitors | awk -F ':' '/primary/{print $1}')
     if [[ -z "$(ps -C 'polybar' -o cmd | grep info | grep -v secondary)" ]]; then
@@ -153,13 +156,17 @@ function polybar_start () {
     fi
 
     # Kill polybar instances on secondary displays
-    kill $(ps -C 'polybar' -o pid,cmd | grep 'secondary$' | awk '{print $1}')
-    kill $(ps -C 'polybar' -o pid,cmd | grep 'secondary-info$' | awk '{print $1}')
+#    kill $(ps -C 'polybar' -o pid,cmd | grep 'secondary$' | awk '{print $1}')
+#    kill $(ps -C 'polybar' -o pid,cmd | grep 'secondary-info$' | awk '{print $1}')
+    if [ "$(polybar --list-monitors | awk -F ':' '{print $1}' | wc -l)" -le 1 ]; then
+        return
+    fi
     # Secondary displays
     for monitor in $(polybar --list-monitors | grep -v primary | awk -F ':' '{print $1}'); do
         MONITOR=$monitor polybar --reload secondary > /dev/null 2>&1 &
         MONITOR=$monitor polybar --log=warning --reload secondary-info > /dev/null 2>&1 &
     done
+    set +x
 }
 
 function send_notification_volume () {
