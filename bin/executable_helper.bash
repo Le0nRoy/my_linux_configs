@@ -53,9 +53,6 @@ function get_display() {
     echo $DISPLAY
 }
 
-function kill_civ6() {
-    kill -9 $(ps aux | grep -i civil | awk '{print $2}')
-}
 function chezmoi_add() {
     chezmoi add "$@"
     chezmoi update
@@ -144,7 +141,6 @@ function send_notification_brightnes() {
 }
 
 function polybar_start () {
-    set -x
     kill $(ps -C 'polybar' -o pid,cmd | awk '{print $1}')
     # Primary display
     PRIMARY_MONITOR=$(polybar --list-monitors | awk -F ':' '/primary/{print $1}')
@@ -166,7 +162,6 @@ function polybar_start () {
         MONITOR=$monitor polybar --reload secondary > /dev/null 2>&1 &
         MONITOR=$monitor polybar --log=warning --reload secondary-info > /dev/null 2>&1 &
     done
-    set +x
 }
 
 function send_notification_volume () {
