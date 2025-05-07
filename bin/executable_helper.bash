@@ -78,6 +78,7 @@ function rclone_systemd() {
     done
     rclone --log-systemd --log-level INFO --auto-confirm --human-readable --modify-window 24h bisync "$@"
 }
+
 function rclone_to_backup() {
     FILTERS_FILE="$1"
     SOURCE="$2"
@@ -245,6 +246,10 @@ function job_umount() {
     fscrypt lock "$JOB_MOUNT_DIR"
 }
 
+function set_background() {
+    feh --bg-fill $DESKTOP_BG
+}
+
 # Do not execute script if it was called with `source` command, just do mandatory exports
 EXEC_NAME=$0
 EXEC_NAME="${EXEC_NAME[0]##*/}"
@@ -322,7 +327,20 @@ case "$1" in
         ;;
     "lock_screen")
         setxkbmap us 
-        i3lock --ignore-empty-password --show-failed-attempts --image="${LOCK_SCREEN_IMAGE}"
+        i3lock \
+            --ignore-empty-password \
+            --show-failed-attempts \
+            --image="${LOCK_SCREEN_IMAGE}" \
+            --fill \
+            --clock \
+            --pass-screen-keys \
+            --pass-volume-keys \
+            --screen=1 \
+            --time-pos="ix-450:iy-300" \
+            --date-pos="tx:ty+30" \
+            --verif-text="Verifying..." \
+            --wrong-text="Wrong!" \
+            --noinput-text="No input"
         set_us_ru_layout
         ;;
     "i3_restart")
@@ -336,7 +354,7 @@ case "$1" in
         picom --backend glx --daemon
         ;;
     "set_background")
-        feh --bg-fill $DESKTOP_BG
+        set_background
         ;;
     "mitmproxy")
         docker run --rm -it \
@@ -383,6 +401,7 @@ case "$1" in
         nvidia-settings
         polybar_start
         set_us_ru_layout
+        set_background
         source "${HOME}/.xsessionrc"
         ;;
     "vnc_over_ssh")

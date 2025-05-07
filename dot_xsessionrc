@@ -4,6 +4,8 @@ else
     source "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env.template"
 fi
 
+GDK_SCALE=1
+
 ## Disable screensaver
 xset s off
 xset s noblank
