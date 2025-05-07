@@ -228,8 +228,10 @@ bindsym $mod+Shift+5 move container to workspace $ws5; workspace $ws5
 bindsym $mod+Shift+6 move container to workspace $ws6; workspace $ws6
 bindsym $mod+Shift+7 move container to workspace $ws7; workspace $ws7
 ## Move workspace to different output
-bindsym $mod+Ctrl+greater move workspace to output right
-bindsym $mod+Ctrl+less move workspace to output left
+bindsym $mod+Ctrl+Left move workspace to output left
+bindsym $mod+Ctrl+Right move workspace to output right
+bindsym $mod+Ctrl+Up move workspace to output up
+bindsym $mod+Ctrl+Down move workspace to output down
 ## Reload the configuration file
 bindsym $mod+Shift+c reload
 ## Lock screen
@@ -335,7 +337,7 @@ for_window [class="(?i)blueman-manager"] floating enable resize set 900 600
 for_window [class="(?i)iwgtk"] floating enable resize set 600 900
 for_window [class="(?i)matplotlib"] floating enable resize set 1600 900
 ## Make Picture-in-Picture windows switch together with workspace
-for_window [title="(?i)picture-in-picture"] sticky enable
+for_window [title="(?i)picture-in-picture"] sticky enable resize set 400 225
 ## Configure focus options
 #no_focus [window_type="notification"]
 #no_focus [window_type="dialog"]
