@@ -142,6 +142,7 @@ function send_notification_brightnes() {
 }
 
 function polybar_start () {
+    kill $(ps aux | awk '/polybar-supervisor.bash/{print $2}')
     /bin/bash "${HOME}/bin/polybar-supervisor.bash"
 }
 
