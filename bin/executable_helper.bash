@@ -142,27 +142,7 @@ function send_notification_brightnes() {
 }
 
 function polybar_start () {
-    kill $(ps -C 'polybar' -o pid,cmd | awk '{print $1}')
-    # Primary display
-    PRIMARY_MONITOR=$(polybar --list-monitors | awk -F ':' '/primary/{print $1}')
-    if [[ -z "$(ps -C 'polybar' -o cmd | grep info | grep -v secondary)" ]]; then
-        MONITOR="${PRIMARY_MONITOR}" polybar info --reload > /dev/null 2>&1 &
-    fi
-    if [[ -z "$(ps -C 'polybar' -o cmd | grep primary)" ]]; then
-        MONITOR="${PRIMARY_MONITOR}" polybar primary --reload > /dev/null 2>&1 &
-    fi
-
-    # Kill polybar instances on secondary displays
-#    kill $(ps -C 'polybar' -o pid,cmd | grep 'secondary$' | awk '{print $1}')
-#    kill $(ps -C 'polybar' -o pid,cmd | grep 'secondary-info$' | awk '{print $1}')
-    if [ "$(polybar --list-monitors | awk -F ':' '{print $1}' | wc -l)" -le 1 ]; then
-        return
-    fi
-    # Secondary displays
-    for monitor in $(polybar --list-monitors | grep -v primary | awk -F ':' '{print $1}'); do
-        MONITOR=$monitor polybar --reload secondary > /dev/null 2>&1 &
-        MONITOR=$monitor polybar --log=warning --reload secondary-info > /dev/null 2>&1 &
-    done
+    /bin/bash "${HOME}/bin/polybar-supervisor.bash"
 }
 
 function send_notification_volume () {
