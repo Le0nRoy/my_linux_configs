@@ -319,6 +319,7 @@ case "$1" in
             --screen=1 \
             --time-pos="ix-450:iy-300" \
             --date-pos="tx:ty+30" \
+            --date-str="%A, %d.%m.%Y" \
             --verif-text="Verifying..." \
             --wrong-text="Wrong!" \
             --noinput-text="No input"
