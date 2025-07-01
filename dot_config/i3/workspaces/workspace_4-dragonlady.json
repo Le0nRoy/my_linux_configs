@@ -76,7 +76,6 @@
             "swallows": [
                {
                "class": "^TelegramDesktop$",
-               "instance": "^telegram\\-desktop$",
                "title": "^Telegram"
                }
             ],
