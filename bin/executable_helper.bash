@@ -307,6 +307,9 @@ case "$1" in
         setxkbmap -layout ge,us -option grp:alt_shift_toggle
         ;;
     "lock_screen")
+        # Pause notifications
+        dunstctl set-paused true
+
         setxkbmap us 
         i3lock \
             --ignore-empty-password \
@@ -324,6 +327,9 @@ case "$1" in
             --wrong-text="Wrong!" \
             --noinput-text="No input"
         set_us_ru_layout
+
+        # Resume notifications after unlock
+        dunstctl set-paused false
         ;;
     "i3_restart")
         i3-nagbar --type=warning --message='Do you really want to exit i3? This will logout your X session.' --button 'Yes, exit i3' 'i3-msg exit'
