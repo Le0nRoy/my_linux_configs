@@ -166,7 +166,7 @@ export EDITOR='vim'
 export VISUAL='vim'
 # Create pipenv virtual environment inside project directory
 export PIPENV_VENV_IN_PROJECT=1
-export JAVA_HOME=/usr/lib/jvm/java-11-openjdk/
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk/
 export USE_GKE_GCLOUD_AUTH_PLUGIN=True
 # Suppress Python HTTP warnings when work with devenv
 export PYTHONWARNINGS="ignore:Unverified HTTPS request"
