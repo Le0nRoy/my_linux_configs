@@ -106,7 +106,7 @@ monitor-strict = true
 ; Modules
 separator = |
 separator-foreground = ${colors.disabled}
-modules-left = filesystem
+modules-left = filesystem ytmp3usage
 modules-center = wlan eth type-c-eth
 modules-right = memory cpu 
 fixed-center = true
@@ -154,6 +154,12 @@ enable-ipc = true
 ; WM options
 wm-restack = i3
 override-redirect = false
+
+
+[module/ytmp3usage]
+type = custom/script
+exec = "${HOME}/bin/check_dir_usage.bash /Data/Downloads/DownloadedMusic/"
+interval = 300
 
 [module/i3]
 type = internal/i3
