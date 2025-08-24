@@ -1,0 +1,8 @@
+[Unit]
+Description=Download YouTube playlist as mp3
+OnFailure=failure-notification@%n
+OnSuccess=success-notification@%n
+
+[Service]
+Type=oneshot
+ExecStart=%h/bin/yt_playlist_mp3.bash
