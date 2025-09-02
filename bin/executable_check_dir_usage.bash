@@ -1,20 +1,25 @@
 #!/bin/bash
 
 DIR="$1"
-LIMIT=$((10*1024*1024*1024))
+DIR_NAME=$(basename "${DIR}")
 
-USAGE=$(du -sb "$DIR" | awk '{print $1}')
+LIMIT_SIZE=$((1*1024*1024*1024))  # 1 GB
+LIMIT_FILES=20
 
-if (( USAGE < 1024*1024*1024 )); then
-    USAGE_MB=$((USAGE / 1024 / 1024))
-    OUT="${USAGE_MB}MB"
+USAGE=$(du -sb "${DIR}" | awk '{print $1}')
+COUNT=$(find "${DIR}" -type f ! -path "*/.*" | wc -l)
+
+# форматированный размер
+if (( ${USAGE} < 1024*1024*1024 )); then
+    USAGE_HR=$(( ${USAGE} / 1024 / 1024 ))"MB"
 else
-    USAGE_GB=$(awk "BEGIN {printf \"%.2f\", $USAGE/1024/1024/1024}")
-    OUT="${USAGE_GB}GB"
+    USAGE_HR=$(awk "BEGIN {printf \"%.2fGB\", ${USAGE}/1024/1024/1024}")
 fi
 
-if (( USAGE > LIMIT )); then
-    echo "⚠ $OUT"
+# проверка лимитов
+if (( ${USAGE} > ${LIMIT_SIZE} || ${COUNT} > ${LIMIT_FILES} )); then
+    echo "⚠ ${DIR_NAME}/: ${USAGE_HR} per ${COUNT} files"
 else
-    echo "$OUT"
+    echo "${DIR_NAME}/: ${USAGE_HR} per ${COUNT} files"
 fi
+
