@@ -106,7 +106,7 @@ monitor-strict = true
 ; Modules
 separator = |
 separator-foreground = ${colors.disabled}
-modules-left = filesystem ytmp3usage
+modules-left = filesystem ytmp3usage chezmoi
 modules-center = wlan eth type-c-eth
 modules-right = memory cpu 
 fixed-center = true
@@ -155,6 +155,10 @@ enable-ipc = true
 wm-restack = i3
 override-redirect = false
 
+[module/chezmoi]
+type = custom/script
+exec = "${HOME}/bin/polybar_chezmoi_widget.sh"
+interval = 60
 
 [module/ytmp3usage]
 type = custom/script
