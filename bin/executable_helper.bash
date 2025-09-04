@@ -367,10 +367,48 @@ case "$1" in
         ;;
     "firefox")
         shift
-        if [[ -f "${JOB_SETUP_FILE}" ]]; then
-            "${JOB_SETUP_FILE}" firefox "$@"
+        LINK="${1}"
+        if [ -n "${LINK}" ]; then
+            # Format: "<win_id> <title>"
+            mapfile -t WINDOWS < <(wmctrl -lx | awk '/Navigator/ {print $1 " " substr($0, index($0,$5))}')
+            
+            CHOICES=()
+            
+            for window in "${WINDOWS[@]}"; do
+                WIN_ID=$(awk '{print $1}' <<<"${window}")
+                TITLE=$(awk '{$1=""; print substr($0,2)}' <<<"${window}")
+                CHOICES+=("${WIN_ID} ${TITLE}")
+            done
+            
+            # Show selection menu 
+            SELECTION=$(printf '%s\n' "${CHOICES[@]}" | rofi -dmenu -i -p "Open link with:")
+            
+            # Handle cancel 
+            [ -z "${SELECTION}" ] && exit 0
+            
+            WIN_ID=$(awk '{print $1}' <<<"${SELECTION}")
+            if [ -n "${WIN_ID}" ]; then
+                # Focus the window and send URL (if provided)
+                xdotool windowactivate "${WIN_ID}" 
+                xdotool key --window "${WIN_ID}" ctrl+t 
+                xdotool type --window "${WIN_ID}" --clearmodifiers "${LINK}"
+                xdotool key --window "${WIN_ID}" Return
+            fi
         else
-            /usr/bin/firefox "$@"
+            # Fallback to simple choose between profiles
+            PROFILES=("personal")
+            if [[ -f "${JOB_SETUP_FILE}" ]]; then
+                PROFILES+=("work")
+            fi
+
+            CHOICE=$(printf '%s\n' "${PROFILES[@]}" | rofi -dmenu -p "Open in profile:")
+            [ -z "$CHOICE" ] && exit 0
+
+            if [[ "${CHOICE}" == "work" ]]; then
+                "${JOB_SETUP_FILE}" firefox "$@"
+            else
+                /usr/bin/firefox "$@"
+            fi
         fi
         ;;
     "firefox_personal")
