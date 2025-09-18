@@ -313,6 +313,7 @@ for_window [title="alsamixer"] floating enable border pixel 1
 for_window [class="(?i)nvidia-settings"] floating enable border pixel 1
 for_window [title="Media viewer" class="(?i)telegram-?desktop"] floating enable border pixel 1
 for_window [class="(?i)thunderbird|Mail"] floating disable 
+for_window [class="(?iflameshot" title="Open With"] floating enable resize set 900 600
 # Steam
 for_window [title="Create or select new Steam library folder" class="(?i)steam"] floating enable 
 for_window [title="News" class="(?i)steam"] floating enable resize set 600 400
@@ -327,6 +328,9 @@ for_window [class="(?i)zoom" title="Zoom Meeting"] floating disable
 for_window [class="(?i)zoom" title="Meeting chat"] floating enable resize set 900 600
 # keep zoom notifications floating
 for_window [class="(?i)zoom" title="zoom"] floating enable 
+
+# gThumb
+for_window [class="(?i)gthumb"] floating enable
 
 # Slack
 for_window [class="(?i)slack" title="\(Canvas\)"] floating enable resize set 1200 900
