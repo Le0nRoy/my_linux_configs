@@ -1,3 +1,5 @@
+# ~/.zshrc
+
 # Lines configured by zsh-newuser-install
 HISTFILE=~/.zsh_history
 HISTSIZE=1000
@@ -5,9 +7,27 @@ SAVEHIST=1000
 unsetopt autocd beep extendedglob
 bindkey -v
 # End of lines configured by zsh-newuser-install
+
 # The following lines were added by compinstall
 zstyle :compinstall filename '/home/lap/.zshrc'
 
 autoload -Uz compinit
 compinit
 # End of lines added by compinstall
+
+# ----- Custom Prompt -----
+
+# Colors
+BLUE='%F{cyan}'
+GREEN='%F{green}'
+RED='%F{red}'
+RESET='%f'
+
+# Prompt pieces
+USER_AND_HOST="${BLUE}%n${GREEN}@${BLUE}%m"
+WORKDIR="${BLUE}:${GREEN}%~"
+
+# Final prompt: insert a real newline before the symbol
+PROMPT="${USER_AND_HOST}${WORKDIR}${RESET}
+${BLUE}%#${RESET} "
+

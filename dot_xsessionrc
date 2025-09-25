@@ -1,3 +1,5 @@
+HOME_HELPER_UNIQ_SCRIPT_DIR="${HOME_HELPER_UNIQ_SCRIPT_DIR:-${HOME}/bin}"
+
 if [[ -f "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env" ]]; then
     source "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env"
 else
@@ -18,4 +20,7 @@ for touchpad in "$(xinput list --name-only | grep -i 'Touchpad')"; do
     xinput --set-prop "${touchpad}" 'libinput Tapping Enabled' 1
     xinput --set-prop "${touchpad}" 'libinput Natural Scrolling Enabled' 1
 done
+
+"${HOME_HELPER_UNIQ_SCRIPT_DIR}/helper.bash" set_us_ru_keymap
+
 

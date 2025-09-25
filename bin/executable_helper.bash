@@ -49,14 +49,15 @@ show_error_and_usage() {
     exit 1
 }
 
+function upgrade_system () {
+    yay -Syu
+    sudo paccache -r
+}
+
 function get_display() {
     echo $DISPLAY
 }
 
-function chezmoi_add() {
-    chezmoi add "$@"
-    chezmoi update
-}
 function git_cleanout() {
     git gc 
     git fetch --prune --all
@@ -127,6 +128,7 @@ function gpg_encrypt() {
 
 function set_us_ru_layout() {
     setxkbmap -layout us,ru -option grp:alt_shift_toggle
+    kbdd
 }
 
 function send_notification_brightnes() {
