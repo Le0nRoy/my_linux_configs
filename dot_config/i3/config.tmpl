@@ -279,10 +279,10 @@ assign [class="jetbrains-.+"] $ws2
 assign [title="Android Emulator"] $ws2
 assign [class="Arduino IDE"] $ws2
 assign [class="(?i)code"] $ws2
-assign [class="(?i)cursor"] $ws2
 
+assign [class="(?i)cursor"] $ws3
 {{ if eq .chezmoi.hostname "dragonlady" -}}
-assign [class="(?i)alacritty"] $ws3
+assign [class="(?i)alacritty"] $ws1
 {{ else if eq .chezmoi.hostname "dragoncave" -}}
 assign [class="(?i)alacritty"] $ws4
 {{ end -}}
@@ -335,6 +335,7 @@ for_window [class="(?i)gthumb"] floating enable
 # Slack
 for_window [class="(?i)slack" title="\(Canvas\)"] floating enable resize set 1200 900
 for_window [class="(?i)slack" title="\(List\)"] floating enable resize set 1200 900
+for_window [class="(?i)slack"] floating enable resize set 400 200
 
 for_window [class="keepass2|KeePass2"] floating enable resize set 900 600 
 for_window [class="(?i)pavucontrol"] floating enable resize set 900 900
