@@ -382,8 +382,12 @@ case "$1" in
                 CHOICES+=("${WIN_ID} ${TITLE}")
             done
             
-            # Show selection menu 
-            SELECTION=$(printf '%s\n' "${CHOICES[@]}" | rofi -dmenu -i -p "Open link with:")
+            if [[ "${#CHOICES[@]}" -eq 1 ]]; then
+                SELECTION="${CHOICES[0]}"
+            else
+                # Show selection menu 
+                SELECTION=$(printf '%s\n' "${CHOICES[@]}" | rofi -dmenu -i -p "Open link with:")
+            fi
             
             # Handle cancel 
             [ -z "${SELECTION}" ] && exit 0
