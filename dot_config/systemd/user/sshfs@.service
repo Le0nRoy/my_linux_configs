@@ -1,0 +1,19 @@
+[Unit]
+Description=SSHFS mount for %I
+After=network-online.target
+Wants=network-online.target
+OnFailure=failure-notification@%n
+OnSuccess=success-notification@%n
+
+[Service]
+Type=simple
+
+ExecStart=%h/bin/sshfs-mount.sh start "%I"
+ExecStop=%h/bin/sshfs-mount.sh stop "%I"
+
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+

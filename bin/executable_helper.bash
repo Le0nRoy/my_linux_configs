@@ -49,6 +49,41 @@ show_error_and_usage() {
     exit 1
 }
 
+function sshfsctl () {
+    set -euo pipefail
+
+    local action="${1:-}"
+    local remote="${2:-}"
+    local local_path="${3:-}"
+
+    if [[ -z "${action}" || -z "${remote}" || -z "${local_path}" ]]; then
+        echo "Usage: sshfsctl <start|stop|status> <user@host:/remote/path> <local/path>"
+        return 1
+    fi
+
+    case "${action}" in
+        start|stop|status)
+            local instance="${remote}:${local_path}"
+            local escaped
+            escaped="$(systemd-escape "${instance}")"
+            echo "Running: systemctl --user ${action} sshfs@${escaped}"
+            systemctl --user "${action}" "sshfs@${escaped}"
+            ;;
+        journal)
+            local instance="${remote}:${local_path}"
+            local escaped
+            escaped="$(systemd-escape "${instance}")"
+            echo "Running: journalctl -f --user-unit=sshfs@${escaped}"
+            journalctl -f --user-unit=sshfs@${escaped}
+            ;;
+        *)
+            echo "Invalid action: ${action}"
+            echo "Usage: sshfsctl <start|stop|status> <user@host:/remote/path> <local/path>"
+            return 1
+            ;;
+    esac
+}
+
 function upgrade_system () {
     yay -Syu
     sudo paccache -r
