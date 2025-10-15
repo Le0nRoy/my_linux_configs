@@ -56,6 +56,8 @@ case "${ACTION}" in
 
         echo "Host disconnected or SSHFS process ended, unmounting ${LOCAL}"
         fusermount3 -u "${LOCAL}" 2>/dev/null || umount -f "${LOCAL}" || true
+
+        exit 1
         ;;
     stop)
         echo "Unmounting ${LOCAL}"

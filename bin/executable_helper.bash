@@ -49,36 +49,63 @@ show_error_and_usage() {
     exit 1
 }
 
-function sshfsctl () {
+function sshfsctl() {
     set -euo pipefail
 
+    local usage="Usage: sshfsctl [-h] [-r user@host] <start|stop|status|journal> <remote_path> <local_path>
+Options:
+  -h          Show this help message
+  -r ADDRESS  Remote host in format user@host (default: caveman@192.168.3.31)"
+
+    # Default values
+    local remote_host="caveman@192.168.3.31"
+
+    # Parse options
+    local OPTIND opt
+    while getopts ":hr:" opt; do
+        case "$opt" in
+            h)
+                echo "${usage}"
+                return 0
+                ;;
+            r)
+                remote_host="${OPTARG}"
+                ;;
+            *)
+                echo "${usage}"
+                return 1
+                ;;
+        esac
+    done
+    shift $((OPTIND -1))
+
+    # Positional arguments
     local action="${1:-}"
-    local remote="${2:-}"
+    local remote_path="${2:-}"
     local local_path="${3:-}"
 
-    if [[ -z "${action}" || -z "${remote}" || -z "${local_path}" ]]; then
-        echo "Usage: sshfsctl <start|stop|status> <user@host:/remote/path> <local/path>"
+    if [[ -z "${action}" || -z "${remote_path}" || -z "${local_path}" ]]; then
+        echo "${usage}"
         return 1
     fi
 
+    local remote="${remote_host}:${remote_path}"
+    local instance="${remote}:${local_path}"
+    local escaped
+    escaped="$(systemd-escape "${instance}")"
+
     case "${action}" in
         start|stop|status)
-            local instance="${remote}:${local_path}"
-            local escaped
-            escaped="$(systemd-escape "${instance}")"
             echo "Running: systemctl --user ${action} sshfs@${escaped}"
             systemctl --user "${action}" "sshfs@${escaped}"
             ;;
         journal)
-            local instance="${remote}:${local_path}"
-            local escaped
-            escaped="$(systemd-escape "${instance}")"
             echo "Running: journalctl -f --user-unit=sshfs@${escaped}"
             journalctl -f --user-unit=sshfs@${escaped}
             ;;
         *)
             echo "Invalid action: ${action}"
-            echo "Usage: sshfsctl <start|stop|status> <user@host:/remote/path> <local/path>"
+            echo "${usage}"
             return 1
             ;;
     esac
