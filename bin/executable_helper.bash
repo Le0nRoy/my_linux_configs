@@ -22,8 +22,6 @@ PORT_SWAGGER_EDITOR=8082
 DESKTOP_BG="${DESKTOP_BG:-"${HOME}/Pictures/png_files/St_Louis_Sciamano.png"}"
 LOCK_SCREEN_IMAGE="${LOCK_SCREEN_IMAGE:-"${HOME}/Pictures/png_files/maximum_beat.png"}"
 
-alias codex="${HOME}/bin/codex_wrapper.bash"
-
 ## Autocompletion for this script
 _helper_script() {
     local cur
