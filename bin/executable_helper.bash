@@ -115,6 +115,9 @@ function upgrade_system () {
     yay -Syu
     sudo paccache -r
     sudo npm install -g @openai/codex@latest
+    sudo npm install -g @anthropic-ai/claude-code@latest
+    sudo npm cache clean
+    npm outdated -g --depth=0
 }
 
 function get_display() {

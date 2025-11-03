@@ -1,6 +1,5 @@
 #!/bin/bash
 # Lightweight, minimal-privilege wrapper for codex CLI using bubblewrap.
-# - Network disabled by default. Use --allow-net to enable network for this run.
 # - Binds current working dir with same permissions.
 # - Restricts address space, CPU time, file descriptors, processes.
 

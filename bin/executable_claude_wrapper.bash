@@ -1,5 +1,5 @@
 #!/bin/bash
-# Lightweight, minimal-privilege wrapper for Cursor CLI using bubblewrap.
+# Lightweight, minimal-privilege wrapper for Claud CLI using bubblewrap.
 # - Binds current working dir with same permissions.
 # - Restricts address space, CPU time, file descriptors, processes.
 
@@ -40,9 +40,8 @@ setpriv --no-new-privs --inh-caps=-all \
     --proc /proc \
     --dev /dev \
     --bind "${WORKDIR}" "${WORKDIR}" \
-    --bind "${HOME_DIR}/.cursor" "${HOME_DIR}/.cursor" \
-    --bind "${HOME_DIR}/.config/cursor" "${HOME_DIR}/.config/cursor" \
-    --bind "${HOME_DIR}/.local/share/cursor-agent" "${HOME_DIR}/.local/share/cursor-agent" \
+    --bind "${HOME_DIR}/.claude" "${HOME_DIR}/.claude" \
+    --bind "${HOME_DIR}/.claude.json" "${HOME_DIR}/.claude.json" \
     --bind "${HOME_DIR}/Android" "${HOME_DIR}/Android" \
     --clearenv \
     --setenv HOME "${HOME_DIR}" \
@@ -50,5 +49,5 @@ setpriv --no-new-privs --inh-caps=-all \
     --setenv PATH "/usr/bin:/usr/sbin:/bin:/sbin" \
     --setenv LANG "${LANG:-en_US.UTF-8}" \
     --chdir "${WORKDIR}" \
-      cursor-agent "$@"
+      claude "$@"
 
