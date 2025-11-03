@@ -5,11 +5,11 @@
 # Source the universal wrapper
 source "$(dirname "${BASH_SOURCE[0]}")/ai_agent_universal_wrapper.bash"
 
-# Configurable rlimits (adjust as you like)
-export RLIMIT_AS=$((4 * 1024 * 1024 * 1024))   # 4 GiB
-export RLIMIT_CPU=60
-export RLIMIT_NOFILE=1024
-export RLIMIT_NPROC=60
+# Configurable rlimits (adjusted for test debugging with pytest-xdist and Playwright)
+export RLIMIT_AS=$((16 * 1024 * 1024 * 1024))   # 16 GiB (for browser instances)
+export RLIMIT_CPU=600                            # 600s = 10 minutes (for long test suites)
+export RLIMIT_NOFILE=4096                        # Higher limit for browsers and test files
+export RLIMIT_NPROC=256                          # For parallel test workers and browser processes
 
 # Run codex with its specific binds
 run_sandboxed_agent "codex" -- \

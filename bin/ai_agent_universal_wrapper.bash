@@ -170,6 +170,7 @@ run_sandboxed_agent() {
         --ro-bind /etc/ssl /etc/ssl
         --ro-bind /etc/hosts /etc/hosts
         --ro-bind /etc/resolv.conf /etc/resolv.conf
+        --ro-bind /etc/nsswitch.conf /etc/nsswitch.conf
         # Virtual filesystems
         --tmpfs /tmp
         --proc /proc
@@ -181,6 +182,13 @@ run_sandboxed_agent() {
     # Add default Android directory if it exists
     if [[ -d "${HOME_DIR}/Android" ]]; then
         bwrap_args+=(--bind "${HOME_DIR}/Android" "${HOME_DIR}/Android")
+    fi
+
+    # Add /run for network services and systemd-resolved (for localhost connectivity)
+    if [[ -d /run ]]; then
+        bwrap_args+=(--ro-bind /run /run)
+    elif [[ -d /var/run ]]; then
+        bwrap_args+=(--ro-bind /var/run /var/run)
     fi
 
     # Add extra bwrap flags (user-specified binds, etc.) - using validated flags

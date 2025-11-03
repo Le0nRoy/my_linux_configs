@@ -5,11 +5,11 @@
 # Source the universal wrapper
 source "$(dirname "${BASH_SOURCE[0]}")/ai_agent_universal_wrapper.bash"
 
-# Configurable rlimits (adjust as you like)
-export RLIMIT_AS=unlimited
-export RLIMIT_CPU=60
-export RLIMIT_NOFILE=1024
-export RLIMIT_NPROC=60
+# Configurable rlimits (adjusted for test debugging with pytest-xdist and Playwright)
+export RLIMIT_AS=unlimited                       # Unlimited for large models and WebAssembly
+export RLIMIT_CPU=600                            # 600s = 10 minutes (for long test suites)
+export RLIMIT_NOFILE=4096                        # Higher limit for browsers and test files
+export RLIMIT_NPROC=4096                         # High limit for parallel test workers and browser processes
 
 # Run claude with its specific binds
 # Note: Added prlimit (was missing in original), removed incorrect /opt/cursor-agent ro-bind, Android is now a default bind
