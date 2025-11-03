@@ -6,7 +6,9 @@
 source "$(dirname "${BASH_SOURCE[0]}")/ai_agent_universal_wrapper.bash"
 
 # Configurable rlimits (adjust as you like)
-export RLIMIT_AS=$((4 * 1024 * 1024 * 1024))   # 4 GiB
+# Note: cursor-agent needs unlimited address space for WebAssembly modules
+# We still limit CPU time and processes for security
+export RLIMIT_AS=unlimited
 export RLIMIT_CPU=60
 export RLIMIT_NOFILE=1024
 export RLIMIT_NPROC=60
