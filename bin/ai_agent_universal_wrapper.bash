@@ -201,8 +201,13 @@ run_sandboxed_agent() {
         --setenv USER "${USER}"
         --setenv PATH "/usr/bin:/usr/sbin:/bin:/sbin"
         --setenv LANG "${LANG:-en_US.UTF-8}"
+        --setenv TERM "${TERM:-xterm-256color}"
         --chdir "${WORKDIR}"
     )
+
+    # Pass through additional terminal-related variables if set (for better terminal support)
+    [[ -n "${COLORTERM}" ]] && bwrap_args+=(--setenv COLORTERM "${COLORTERM}")
+    [[ -n "${TERM_PROGRAM}" ]] && bwrap_args+=(--setenv TERM_PROGRAM "${TERM_PROGRAM}")
 
     # ===== EXECUTE WITH EXIT CODE TRANSLATION =====
 
