@@ -22,7 +22,7 @@ if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
     echo -n "Choose an option [1-3]: "
     read -r choice
 
-    case "$choice" in
+    case "${choice}" in
         2)
             # Resume with picker - using --resume flag (common pattern)
             run_sandboxed_agent "cursor-agent" -- \
@@ -31,6 +31,7 @@ if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
                 --bind "${HOME}/.config/cursor" "${HOME}/.config/cursor" \
                 --bind "${HOME}/.local/share/cursor-agent" "${HOME}/.local/share/cursor-agent" \
                 -- --resume
+            exit $?
             ;;
         3)
             # Resume last conversation - using --continue or similar flag
@@ -40,19 +41,20 @@ if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
                 --bind "${HOME}/.config/cursor" "${HOME}/.config/cursor" \
                 --bind "${HOME}/.local/share/cursor-agent" "${HOME}/.local/share/cursor-agent" \
                 -- --continue
+            exit $?
             ;;
         1|*)
             # Start new conversation (default)
-            # Run cursor-agent with its specific binds
-            # Note: Added prlimit (was missing in original), Android is now a default bind
-            run_sandboxed_agent "cursor-agent" -- \
-                --ro-bind /opt/cursor-agent /opt/cursor-agent \
-                --bind "${HOME}/.cursor" "${HOME}/.cursor" \
-                --bind "${HOME}/.config/cursor" "${HOME}/.config/cursor" \
-                --bind "${HOME}/.local/share/cursor-agent" "${HOME}/.local/share/cursor-agent" \
-                -- "$@"
-
             ;;
     esac
 fi
+
+# Run cursor-agent with its specific binds
+# Note: Added prlimit (was missing in original), Android is now a default bind
+run_sandboxed_agent "cursor-agent" -- \
+    --ro-bind /opt/cursor-agent /opt/cursor-agent \
+    --bind "${HOME}/.cursor" "${HOME}/.cursor" \
+    --bind "${HOME}/.config/cursor" "${HOME}/.config/cursor" \
+    --bind "${HOME}/.local/share/cursor-agent" "${HOME}/.local/share/cursor-agent" \
+    -- "$@"
 

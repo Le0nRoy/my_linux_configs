@@ -19,22 +19,25 @@ if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
     echo -n "Choose an option [1-2]: "
     read -r choice
 
-    case "$choice" in
+    case "${choice}" in
         2)
             # Resume with interactive picker
             run_sandboxed_agent "claude" -- \
                 --bind "${HOME}/.claude" "${HOME}/.claude" \
                 --bind "${HOME}/.claude.json" "${HOME}/.claude.json" \
                 -- --resume
+            exit $?
             ;;
         1|*)
-            # Run claude with its specific binds
-            # Note: Added prlimit (was missing in original), removed incorrect /opt/cursor-agent ro-bind, Android is now a default bind
-            run_sandboxed_agent "claude" -- \
-                --bind "${HOME}/.claude" "${HOME}/.claude" \
-                --bind "${HOME}/.claude.json" "${HOME}/.claude.json" \
-                -- "$@"
+            # Start new conversation (default)
             ;;
     esac
 fi
+
+# Run claude with its specific binds
+# Note: Added prlimit (was missing in original), removed incorrect /opt/cursor-agent ro-bind, Android is now a default bind
+run_sandboxed_agent "claude" -- \
+    --bind "${HOME}/.claude" "${HOME}/.claude" \
+    --bind "${HOME}/.claude.json" "${HOME}/.claude.json" \
+    -- "$@"
 

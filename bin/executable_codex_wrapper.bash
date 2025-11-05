@@ -20,25 +20,29 @@ if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
     echo -n "Choose an option [1-3]: "
     read -r choice
 
-    case "$choice" in
+    case "${choice}" in
         2)
             # Resume with picker
             run_sandboxed_agent "codex" -- \
                 --bind "${HOME}/.codex" "${HOME}/.codex" \
                 -- resume
+            exit $?
             ;;
         3)
             # Resume last conversation
             run_sandboxed_agent "codex" -- \
                 --bind "${HOME}/.codex" "${HOME}/.codex" \
                 -- resume --last
+            exit $?
             ;;
         1|*)
-            # Run codex with its specific binds
-            run_sandboxed_agent "codex" -- \
-                --bind "${HOME}/.codex" "${HOME}/.codex" \
-                -- "$@"
+            # Start new conversation (default)
             ;;
     esac
 fi
+
+# Run codex with its specific binds
+run_sandboxed_agent "codex" -- \
+    --bind "${HOME}/.codex" "${HOME}/.codex" \
+    -- "$@"
 
