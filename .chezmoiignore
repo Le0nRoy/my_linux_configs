@@ -1,0 +1,14 @@
+# AI agent runtime directories - these are created and managed by the agents themselves
+# and should not be tracked by chezmoi
+
+# Claude Code directories
+.claude
+.claude.json
+
+# Codex CLI directories
+.codex
+
+# Cursor Agent directories
+.cursor
+.config/cursor
+.local/share/cursor-agent

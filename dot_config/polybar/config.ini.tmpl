@@ -71,7 +71,7 @@ monitor-strict = true
 separator = |
 separator-foreground = ${colors.disabled}
 modules-left = i3 xwindow
-modules-center = backlight pulseaudio-default
+modules-center = backlight volume-all
 modules-right = xkeyboard date
 fixed-center = true
 ; Misc
@@ -144,7 +144,7 @@ monitor-strict = true
 separator = |
 separator-foreground = ${colors.disabled}
 modules-left = i3 xwindow
-modules-center = backlight pulseaudio-hdmi
+modules-center = backlight volume-all
 modules-right = xkeyboard date
 fixed-center = true
 ; Misc
@@ -242,36 +242,6 @@ inherit = network-base
 interface = eno2
 label-connected = %{F#EA7D08}%ifname%%{F-} %local_ip%
 
-[module/pulseaudio-default]
-type = internal/pulseaudio
-sink = alsa_output.pci-0000_00_1f.3.analog-stereo
-
-label-volume = %percentage%%
-label-volume-foreground = ${colors.white}
-format-volume-prefix = "Vol "
-format-volume-prefix-foreground = ${colors.primary}
-format-volume = <label-volume>
-
-label-muted = muted
-label-muted-foreground = ${colors.gray}
-
-click-right = pavucontrol
-
-[module/pulseaudio-hdmi]
-type = internal/pulseaudio
-sink = alsa_output.pci-0000_01_00.1.hdmi-stereo
-
-label-volume = %percentage%%
-label-volume-foreground = ${colors.white}
-format-volume-prefix = "Vol "
-format-volume-prefix-foreground = ${colors.primary}
-format-volume = <label-volume>
-
-label-muted = muted
-label-muted-foreground = ${colors.gray}
-
-click-right = pavucontrol
-
 [module/backlight]
 type = internal/backlight
 card = nvidia_0
@@ -290,6 +260,15 @@ blacklist-0 = num lock
 
 label-layout = %layout%
 label-layout-foreground = ${colors.primary}
+
+[module/volume-all]
+type = custom/script
+exec = "${HOME}/bin/polybar_volume_all.bash"
+interval = 0.1
+click-left = "${HOME}/bin/polybar_volume_all.bash left"
+click-right = "${HOME}/bin/polybar_volume_all.bash right"
+scroll-up = "${HOME}/bin/polybar_volume_all.bash scroll_up"
+scroll-down = "${HOME}/bin/polybar_volume_all.bash scroll_down"
 
 [module/date]
 type = internal/date
