@@ -36,6 +36,7 @@ fi
 
 # Run claude with its specific binds
 # Note: Added prlimit (was missing in original), removed incorrect /opt/cursor-agent ro-bind, Android is now a default bind
+# AI rules (AGENTS.md and CLAUDE.md) are bound by default in universal wrapper
 run_sandboxed_agent "claude" -- \
     --bind "${HOME}/.claude" "${HOME}/.claude" \
     --bind "${HOME}/.claude.json" "${HOME}/.claude.json" \

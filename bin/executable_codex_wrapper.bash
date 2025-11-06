@@ -42,6 +42,7 @@ if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
 fi
 
 # Run codex with its specific binds
+# AI rules (AGENTS.md and CLAUDE.md) are bound by default in universal wrapper
 run_sandboxed_agent "codex" -- \
     --bind "${HOME}/.codex" "${HOME}/.codex" \
     -- "$@"

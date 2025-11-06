@@ -51,6 +51,7 @@ fi
 
 # Run cursor-agent with its specific binds
 # Note: Added prlimit (was missing in original), Android is now a default bind
+# AI rules (AGENTS.md and CLAUDE.md) are bound by default in universal wrapper
 run_sandboxed_agent "cursor-agent" -- \
     --ro-bind /opt/cursor-agent /opt/cursor-agent \
     --bind "${HOME}/.cursor" "${HOME}/.cursor" \

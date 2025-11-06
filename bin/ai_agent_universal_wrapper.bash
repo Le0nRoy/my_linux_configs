@@ -191,6 +191,14 @@ run_sandboxed_agent() {
         bwrap_args+=(--bind "${HOME_DIR}/Android" "${HOME_DIR}/Android")
     fi
 
+    # Add system-wide AI agent rules (read-only) if they exist
+    if [[ -f "${HOME_DIR}/AGENTS.md" ]]; then
+        bwrap_args+=(--ro-bind "${HOME_DIR}/AGENTS.md" "${HOME_DIR}/AGENTS.md")
+    fi
+    if [[ -f "${HOME_DIR}/CLAUDE.md" ]]; then
+        bwrap_args+=(--ro-bind "${HOME_DIR}/CLAUDE.md" "${HOME_DIR}/CLAUDE.md")
+    fi
+
     # Add /run for network services and systemd-resolved (for localhost connectivity)
     if [[ -d /run ]]; then
         bwrap_args+=(--ro-bind /run /run)
