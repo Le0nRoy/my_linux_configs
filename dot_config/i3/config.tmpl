@@ -120,6 +120,9 @@ exec_always --no-startup-id redshift -P -l 42:45 -t 4000:3500
 ## Enable pulseaudio
 exec --no-startup-id start-pulseaudio-x11
 
+## Screen management - auto-configure on startup
+exec_always --no-startup-id "bash $HOME/bin/xrandr_manager.bash auto"
+
 ###############################################################################################
 ## Bindsym section (keybindings)
 ################################################################################################
@@ -149,6 +152,8 @@ bindsym ctrl+XF86AudioLowerVolume exec $volume_hdmi_down
 bindsym ctrl+XF86AudioMute exec $volume_hdmi_mute
 ## Keepass
 bindsym $mod+F5 exec keepass "${HOME}/Personal/Database.kdbx"
+## Screen management
+bindsym $mod+F9 exec "bash $HOME/bin/xrandr_manager.bash dmenu"
 ## Keyboard layouts
 bindsym $mod+F12 exec $SET_EN_RU_LAYOUT
 bindsym $mod+Shift+F12 exec "bash '$HOME/.xsessionrc'"
