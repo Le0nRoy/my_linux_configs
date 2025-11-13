@@ -180,6 +180,7 @@ run_sandboxed_agent() {
         --ro-bind /etc/nsswitch.conf /etc/nsswitch.conf
         # Virtual filesystems
         --tmpfs /tmp
+        --tmpfs /var
         --proc /proc
         --dev /dev
         # Working directory (read-write)
@@ -199,11 +200,59 @@ run_sandboxed_agent() {
         bwrap_args+=(--ro-bind "${HOME_DIR}/CLAUDE.md" "${HOME_DIR}/CLAUDE.md")
     fi
 
-    # Add /run for network services and systemd-resolved (for localhost connectivity)
+    # Add /run for network services, systemd-resolved, and Docker
+    # Note: Docker socket needs write access, so we bind specific paths
     if [[ -d /run ]]; then
-        bwrap_args+=(--ro-bind /run /run)
+        # Create tmpfs for /run and bind specific needed subdirs
+        bwrap_args+=(--tmpfs /run)
+
+        # Create /var/run as symlink to /run (Docker compatibility)
+        bwrap_args+=(--symlink /run /var/run)
+
+        # Bind systemd-resolved for DNS
+        if [[ -d /run/systemd/resolve ]]; then
+            bwrap_args+=(--ro-bind /run/systemd/resolve /run/systemd/resolve)
+        fi
+
+        # Bind Docker socket with write access if it exists
+        if [[ -S /run/docker.sock ]]; then
+            bwrap_args+=(--bind /run/docker.sock /run/docker.sock)
+        fi
+
+        # Bind Docker runtime directory for container management
+        if [[ -d /run/docker ]]; then
+            bwrap_args+=(--bind /run/docker /run/docker)
+        fi
+
+        # Bind Docker containerd socket if it exists
+        if [[ -S /run/containerd/containerd.sock ]]; then
+            bwrap_args+=(--bind /run/containerd/containerd.sock /run/containerd/containerd.sock)
+        fi
+
+        # Bind user runtime directory if it exists
+        if [[ -n "${XDG_RUNTIME_DIR}" && -d "${XDG_RUNTIME_DIR}" ]]; then
+            bwrap_args+=(--bind "${XDG_RUNTIME_DIR}" "${XDG_RUNTIME_DIR}")
+            bwrap_args+=(--setenv XDG_RUNTIME_DIR "${XDG_RUNTIME_DIR}")
+        fi
     elif [[ -d /var/run ]]; then
-        bwrap_args+=(--ro-bind /var/run /var/run)
+        bwrap_args+=(--tmpfs /var/run)
+
+        if [[ -S /var/run/docker.sock ]]; then
+            bwrap_args+=(--bind /var/run/docker.sock /var/run/docker.sock)
+        fi
+    fi
+
+    # Add Docker data directories for container filesystem access
+    # This allows agents to interact with running containers and their volumes
+    if [[ -d /var/lib/docker ]]; then
+        # Need to create parent directory structure since /var is tmpfs
+        bwrap_args+=(--dir /var/lib)
+        bwrap_args+=(--bind /var/lib/docker /var/lib/docker)
+    fi
+
+    # Add Docker compose data if it exists
+    if [[ -d "${HOME_DIR}/.docker" ]]; then
+        bwrap_args+=(--bind "${HOME_DIR}/.docker" "${HOME_DIR}/.docker")
     fi
 
     # Add extra bwrap flags (user-specified binds, etc.) - using validated flags
@@ -223,6 +272,11 @@ run_sandboxed_agent() {
     # Pass through additional terminal-related variables if set (for better terminal support)
     [[ -n "${COLORTERM}" ]] && bwrap_args+=(--setenv COLORTERM "${COLORTERM}")
     [[ -n "${TERM_PROGRAM}" ]] && bwrap_args+=(--setenv TERM_PROGRAM "${TERM_PROGRAM}")
+
+    # Pass through Docker environment variables if set
+    [[ -n "${DOCKER_HOST}" ]] && bwrap_args+=(--setenv DOCKER_HOST "${DOCKER_HOST}")
+    [[ -n "${DOCKER_CONFIG}" ]] && bwrap_args+=(--setenv DOCKER_CONFIG "${DOCKER_CONFIG}")
+    [[ -n "${DOCKER_CERT_PATH}" ]] && bwrap_args+=(--setenv DOCKER_CERT_PATH "${DOCKER_CERT_PATH}")
 
     # ===== EXECUTE WITH EXIT CODE TRANSLATION =====
 
