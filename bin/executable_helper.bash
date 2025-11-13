@@ -2,8 +2,8 @@
 
 # Evaluate the path to the script even if it runs through the symlink
 HOME_HELPER_UNIQ_SCRIPT_NAME="${BASH_SOURCE[0]##*/}"
-HOME_HELPER_UNIQ_SCRIPT_PATH=$(readlink -f "${BASH_SOURCE[0]}")
-HOME_HELPER_UNIQ_SCRIPT_DIR=${HOME_HELPER_UNIQ_SCRIPT_PATH%/*}
+HOME_HELPER_UNIQ_SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+HOME_HELPER_UNIQ_SCRIPT_DIR="${HOME_HELPER_UNIQ_SCRIPT_PATH%/*}"
 
 # Export job-related variables and functions
 JOB_MOUNT_DIR="/Data/Job"
@@ -27,25 +27,25 @@ _helper_script() {
     local cur
     _init_completion || return
 
-    COMPREPLY=($(compgen -W '$(sed --sandbox -En "s/^\s+\"(.*)\"\)/\1/p" $HOME_HELPER_UNIQ_SCRIPT_PATH)' -- "$cur"))
+    COMPREPLY=($(compgen -W '$(sed --sandbox -En "s/^\s+\"(.*)\"\)/\1/p" "${HOME_HELPER_UNIQ_SCRIPT_PATH}")' -- "${cur}"))
 } &&
     complete -F _helper_script "$HOME_HELPER_UNIQ_SCRIPT_NAME" 
 
 show_error_and_usage() {
-    if [[ -z $1 ]]; then
+    if [[ -z "${1}" ]]; then
         echo "First parameter can't be empty"
         exit 1
     fi
 
-    echo "Unknown command \"$1\""
-    USAGE="Usage: $0 "
+    echo "Unknown command \"${1}\""
+    local usage="Usage: ${0} "
 
-    for cmd in $(sed --sandbox -En "s/^\s+\"(.*)\"\)/\1/p" $HOME_HELPER_UNIQ_SCRIPT_PATH); do
-        USAGE="${USAGE}${cmd}|"
+    for cmd in $(sed --sandbox -En "s/^\s+\"(.*)\"\)/\1/p" "${HOME_HELPER_UNIQ_SCRIPT_PATH}"); do
+        usage="${usage}${cmd}|"
     done
 
-    USAGE="${USAGE::-1}"
-    echo "$USAGE"
+    usage="${usage::-1}"
+    echo "${usage}"
     exit 1
 }
 
@@ -164,32 +164,33 @@ function rclone_to_backup() {
 }
 
 function unzip_books() {
-    for file in *.fb2.zip; do 
-        unzip $file
-        rm $file
+    for file in *.fb2.zip; do
+        unzip "${file}"
+        rm "${file}"
     done
     for book in $(ls | grep -E ".*\.[a-zA-Z0-9_\-]+\.[0-9]+\.fb2"); do
-        new_name=$(echo $book | sed -E 's/(.*)\.[a-zA-Z0-9_\-]+\.[0-9]+\.fb2/\1.fb2/')
-        mv $book $new_name
+        local new_name
+        new_name="$(echo "${book}" | sed -E 's/(.*)\.[a-zA-Z0-9_\-]+\.[0-9]+\.fb2/\1.fb2/')"
+        mv "${book}" "${new_name}"
     done
 }
 
 function cut_video() {
-    INPUT="$1"
-    CUT_START="$2"
-    CUT_DURATION="$3"
-    OUTPUT="$4"
-    ffmpeg -ss ${CUT_START} -i ${INPUT} -t ${CUT_DURATION} -vcodec copy -acodec copy ${OUTPUT}
+    local input="${1}"
+    local cut_start="${2}"
+    local cut_duration="${3}"
+    local output="${4}"
+    ffmpeg -ss "${cut_start}" -i "${input}" -t "${cut_duration}" -vcodec copy -acodec copy "${output}"
 }
 
 function gpg_decrypt() {
     shift
-    gpg --decrypt $1 | tee $2 | gpg --verify
+    gpg --decrypt "${1}" | tee "${2}" | gpg --verify
 }
 
 function gpg_encrypt() {
     shift
-    gpg --local-user Vadim_signature --sign --encrypt --armor --recipient $1
+    gpg --local-user Vadim_signature --sign --encrypt --armor --recipient "${1}"
 }
 
 function set_us_ru_layout() {
@@ -199,14 +200,15 @@ function set_us_ru_layout() {
 
 function send_notification_brightnes() {
     # Arbitrary but unique message tag
-    msgTag="Brightness"
+    local msg_tag="Brightness"
 
     # Query light for current brightness level
+    local bright
     bright="$(light -G)"
 
     # Show the light notification
-    dunstify -a "changeBrightness" -u low -i audio-volume-high -h string:x-dunst-stack-tag:$msgTag \
-            -h int:value:"$bright" "Brightness: ${bright}"
+    dunstify -a "changeBrightness" -u low -i audio-volume-high -h string:x-dunst-stack-tag:"${msg_tag}" \
+            -h int:value:"${bright}" "Brightness: ${bright}"
 }
 
 function polybar_start () {
@@ -218,40 +220,42 @@ function send_notification_volume () {
     ## Send notification about current volume level using `dunstify`
 
     # Arbitrary but unique message tag
-    msgTag="Volume"
+    local msg_tag="Volume"
 
     # Query pactl for the current volume and whether or not the speaker is muted
-    volume="$(pactl get-sink-volume $SINK_NAME | awk '{print $5}' | head -n 1)"
-    mute="$(pactl get-sink-mute $SINK_NAME | awk '{print $2}')"
-    if [[ $volume == "0%" || "$mute" == "yes" ]]; then
+    local volume
+    local mute
+    volume="$(pactl get-sink-volume "${SINK_NAME}" | awk '{print $5}' | head -n 1)"
+    mute="$(pactl get-sink-mute "${SINK_NAME}" | awk '{print $2}')"
+    if [[ "${volume}" == "0%" || "${mute}" == "yes" ]]; then
         # Show the sound muted notification
-        dunstify -a "changeVolume" -u low -i audio-volume-muted -h string:x-dunst-stack-tag:$msgTag "Volume is muted" 
+        dunstify -a "changeVolume" -u low -i audio-volume-muted -h string:x-dunst-stack-tag:"${msg_tag}" "Volume is muted"
     else
         # Show the volume notification
-        dunstify -a "changeVolume" -u low -i audio-volume-high -h string:x-dunst-stack-tag:$msgTag \
-            -h int:value:"$volume" "Volume: ${volume}"
+        dunstify -a "changeVolume" -u low -i audio-volume-high -h string:x-dunst-stack-tag:"${msg_tag}" \
+            -h int:value:"${volume}" "Volume: ${volume}"
     fi
 }
 
 function set_volume() {
     print_usage () {
-      echo "Usage: $HOME_HELPER_UNIQ_SCRIPT_NAME volume [-s pulseaudio_sink_name] action"
-      echo '    -s - to get available sinks execute "pactl list sinks | awk '/Name:/{print $2}'"'
+      echo "Usage: ${HOME_HELPER_UNIQ_SCRIPT_NAME} volume [-s pulseaudio_sink_name] action"
+      echo '    -s - to get available sinks execute "pactl list sinks | awk '\''/Name:/{print $2}'\''"'
       echo '         if not set, than "@DEFAULT_SINK is chosen@"'
-      echo '    action - one of ['raise', 'low', 'mute']'
+      echo '    action - one of ['\'raise\'', '\''low\'', '\''mute\'']'
     }
 
-    case "$ACTION" in
+    case "${ACTION}" in
         "mute")
-            pactl set-sink-mute $SINK_NAME toggle
+            pactl set-sink-mute "${SINK_NAME}" toggle
             ;;
         "raise")
-            pactl set-sink-mute $SINK_NAME false
-            pactl set-sink-volume $SINK_NAME +5%
+            pactl set-sink-mute "${SINK_NAME}" false
+            pactl set-sink-volume "${SINK_NAME}" +5%
             ;;
         "low")
-            pactl set-sink-mute $SINK_NAME false
-            pactl set-sink-volume $SINK_NAME -5%
+            pactl set-sink-mute "${SINK_NAME}" false
+            pactl set-sink-volume "${SINK_NAME}" -5%
             ;;
         *)
             print_usage
@@ -261,42 +265,90 @@ function set_volume() {
 }
 
 function gio_mount() {
-    PHONE_PATH=$(gio mount -li | grep activation_root | awk 'sub("^.*=", "")')
-    if ! gio info ${PHONE_PATH} > /dev/null 2>&1; then
-        gio mount ${PHONE_PATH}
+    local phone_path
+    phone_path="$(gio mount -li | grep activation_root | awk 'sub("^.*=", "")')"
+    if ! gio info "${phone_path}" > /dev/null 2>&1; then
+        gio mount "${phone_path}"
     fi
-    MOUNT_POINT=$(gio info ${PHONE_PATH} | awk '/local path/{print $3}')
-    cd ${MOUNT_POINT}
+    local mount_point
+    mount_point="$(gio info "${phone_path}" | awk '/local path/{print $3}')"
+    cd "${mount_point}" || exit 1
 }
 
 function gio_umount() {
-    PHONE_PATH=$(gio mount -li | grep activation_root | awk 'sub("^.*=", "")')
-    if ! gio info ${PHONE_PATH} > /dev/null 2>&1; then
-        MOUNT_POINT=$(gio info ${PHONE_PATH} | awk '/local path/{print $3}')
-        if [[ "${PWD}" == "${MOUNT_POINT}" ]]; then
-            cd ${HOME}
+    local phone_path
+    phone_path="$(gio mount -li | grep activation_root | awk 'sub("^.*=", "")')"
+    if ! gio info "${phone_path}" > /dev/null 2>&1; then
+        local mount_point
+        mount_point="$(gio info "${phone_path}" | awk '/local path/{print $3}')"
+        if [[ "${PWD}" == "${mount_point}" ]]; then
+            cd "${HOME}" || exit 1
         fi
-        gio mount -u ${PHONE_PATH}
+        gio mount -u "${phone_path}"
     fi
 }
 
 function job_mount() {
-    if [[ ! -f ${JOB_SETUP_FILE} ]]; then
-        fscrypt unlock "$JOB_MOUNT_DIR" 
-        source $JOB_SETUP_FILE
-        $JOB_SETUP_FILE start
+    if [[ ! -f "${JOB_SETUP_FILE}" ]]; then
+        fscrypt unlock "${JOB_MOUNT_DIR}"
+        source "${JOB_SETUP_FILE}"
+        "${JOB_SETUP_FILE}" start
     else
-        echo "$JOB_MOUNT_DIR is already mounted"
+        echo "${JOB_MOUNT_DIR} is already mounted"
     fi
 }
 
 function job_umount() {
-    source $JOB_TEARDOWN_FILE
-    fscrypt lock "$JOB_MOUNT_DIR"
+    source "${JOB_TEARDOWN_FILE}"
+    fscrypt lock "${JOB_MOUNT_DIR}"
 }
 
 function set_background() {
-    feh --bg-fill $DESKTOP_BG
+    feh --bg-fill "${DESKTOP_BG}"
+}
+
+function tmux_ide_session() {
+    # Create or attach to IDE-focused tmux session
+    # Session name is based on current working directory
+    local session_name
+    session_name="$(basename "${PWD}")"
+
+    # Check if session already exists
+    if tmux has-session -t "${session_name}" 2>/dev/null; then
+        # Attach to existing session
+        tmux attach-session -t "${session_name}"
+        return 0
+    fi
+
+    # Create new session with first window "ai-agents"
+    tmux new-session -d -s "${session_name}" -n "ai-agents"
+
+    # Split first window vertically (two panes side by side)
+    tmux split-window -h -t "${session_name}:ai-agents"
+
+    # Set pane titles and prepare commands
+    tmux select-pane -t "${session_name}:ai-agents.0" -T "claude"
+    tmux send-keys -t "${session_name}:ai-agents.0" "${HOME}/bin/claude_wrapper.bash" C-m
+
+    tmux select-pane -t "${session_name}:ai-agents.1" -T "cursor"
+    tmux send-keys -t "${session_name}:ai-agents.1" "${HOME}/bin/cursor_agent_wrapper.bash" C-m
+
+    # Create second window "dev"
+    tmux new-window -t "${session_name}" -n "dev"
+
+    # Split second window vertically
+    tmux split-window -h -t "${session_name}:dev"
+
+    # Set pane titles for second window
+    tmux select-pane -t "${session_name}:dev.0" -T "bash"
+    tmux select-pane -t "${session_name}:dev.1" -T "git"
+
+    # Select first window and first pane
+    tmux select-window -t "${session_name}:ai-agents"
+    tmux select-pane -t "${session_name}:ai-agents.0"
+
+    # Attach to the session
+    tmux attach-session -t "${session_name}"
 }
 
 # Do not execute script if it was called with `source` command, just do mandatory exports
@@ -518,6 +570,9 @@ case "$1" in
         ;;
     "tmux_session")
         tmux new-session -s "${TMUX_SESSION}" -n "WorkSpace" -A -D
+        ;;
+    "tmux_ide_session")
+        tmux_ide_session
         ;;
     "todoist")
         EXECUTABLE="$(find "${HOME}/Applications/" -name "Todoist*")"
