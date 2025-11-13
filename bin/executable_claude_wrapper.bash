@@ -11,6 +11,13 @@ export RLIMIT_CPU=600                            # 600s = 10 minutes (for long t
 export RLIMIT_NOFILE=4096                        # Higher limit for browsers and test files
 export RLIMIT_NPROC=4096                         # High limit for parallel test workers and browser processes
 
+# --bind "/Data/Job/secrets/kuber/dot_kube_devenv" "${HOME}/.kube" \
+CLAUDE_FLAGS=( \
+    --bind "${HOME}/.claude" "${HOME}/.claude" \
+    --bind "${HOME}/.claude.json" "${HOME}/.claude.json" \
+    --bind "/Data/Job/secrets/kuber/dot_kube_devenv" "${HOME}/.kube" \
+)
+
 # Interactive session selection (only if no arguments provided and stdin/stdout are terminals)
 if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
     echo "Claude CLI - Session Options:"
@@ -22,10 +29,7 @@ if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
     case "${choice}" in
         2)
             # Resume with interactive picker
-            run_sandboxed_agent "claude" -- \
-                --bind "${HOME}/.claude" "${HOME}/.claude" \
-                --bind "${HOME}/.claude.json" "${HOME}/.claude.json" \
-                -- --resume
+            run_sandboxed_agent "claude" -- "${CLAUDE_FLAGS[@]}" -- --resume
             exit $?
             ;;
         1|*)
@@ -37,8 +41,5 @@ fi
 # Run claude with its specific binds
 # Note: Added prlimit (was missing in original), removed incorrect /opt/cursor-agent ro-bind, Android is now a default bind
 # AI rules (AGENTS.md and CLAUDE.md) are bound by default in universal wrapper
-run_sandboxed_agent "claude" -- \
-    --bind "${HOME}/.claude" "${HOME}/.claude" \
-    --bind "${HOME}/.claude.json" "${HOME}/.claude.json" \
-    -- "$@"
+run_sandboxed_agent "claude" -- "${CLAUDE_FLAGS[@]}" -- "$@"
 

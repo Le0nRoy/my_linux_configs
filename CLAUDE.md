@@ -162,7 +162,59 @@ bash -c 'source script.bash'
 - Use standard formatters if available
 - Maintain consistency
 
-### 4. Working in Different Project Types
+### 4. Docker and Kubernetes Access
+
+AI agents have full access to Docker and can create Kubernetes clusters using kind (Kubernetes IN Docker).
+
+#### Docker Usage
+```bash
+# Docker is fully accessible
+docker ps
+docker run --rm alpine echo "Hello from sandbox"
+docker build -t myapp .
+docker-compose up -d
+```
+
+All Docker commands work seamlessly. See `DOCKER_AI_AGENTS.md` for details.
+
+#### kind (Kubernetes IN Docker) Setup
+**First time in a new sandbox session**:
+```bash
+# Check if kind is installed
+if ! command -v kind &>/dev/null; then
+    echo "Installing kind and kubectl..."
+    ~/bin/setup_kind.bash
+fi
+
+# Verify installation
+kind version
+kubectl version --client
+```
+
+**Create and use Kubernetes clusters**:
+```bash
+# Create cluster
+kind create cluster --name dev
+
+# Use kubectl
+kubectl get nodes
+kubectl get pods -A
+
+# Deploy applications
+kubectl create deployment nginx --image=nginx
+kubectl expose deployment nginx --port=80 --type=NodePort
+
+# Delete cluster when done
+kind delete cluster --name dev
+```
+
+**Important notes**:
+- kind clusters are Docker containers running Kubernetes
+- Clusters persist until explicitly deleted
+- Multiple clusters can run simultaneously with different names
+- Each cluster is isolated with its own kubeconfig context
+
+### 5. Working in Different Project Types
 
 #### Python Projects
 ```bash
@@ -199,7 +251,7 @@ cargo test
 - Check README for build instructions
 - Follow existing patterns
 
-### 5. Special Case: Chezmoi Dotfiles Repository
+### 6. Special Case: Chezmoi Dotfiles Repository
 
 **When working in** `~/.local/share/chezmoi/`:
 
@@ -276,7 +328,7 @@ export RLIMIT_NOFILE=4096      # file descriptors
 export RLIMIT_NPROC=4096       # processes
 ```
 
-### 6. Configuration File Formats
+### 7. Configuration File Formats
 
 #### TOML
 ```toml
@@ -335,7 +387,7 @@ list:
 - Use lists and formatting for readability
 - For documents with many headers use Table of Contents
 
-### 7. Git Workflow
+### 8. Git Workflow
 
 **User's Git Settings**:
 - Default branch: `main`
@@ -376,7 +428,7 @@ git add file1 file2
 git commit -m "type: description"
 ```
 
-### 8. Testing and Validation
+### 9. Testing and Validation
 
 #### Always Validate Before Completing
 
@@ -421,7 +473,7 @@ yamllint file.yaml
 # Check app docs for validation commands
 ```
 
-### 9. Communication Style
+### 10. Communication Style
 
 #### When Reporting Changes
 
@@ -454,7 +506,7 @@ git diff
 - Be clear about what you don't understand
 - Propose a solution and ask for confirmation
 
-### 10. Task Management
+### 11. Task Management
 
 Use TodoWrite tool for complex tasks:
 ```xml
@@ -477,7 +529,7 @@ Use TodoWrite tool for complex tasks:
 - Mark complete IMMEDIATELY after finishing
 - Don't mark complete if errors occurred
 
-### 11. Security and Safety
+### 12. Security and Safety
 
 #### Sandboxed Environment
 You (Claude Code) run in a bubblewrap sandbox with:
@@ -508,7 +560,7 @@ You (Claude Code) run in a bubblewrap sandbox with:
 - Ask before risky operations
 - Preserve security features
 
-### 12. Common Patterns and Shortcuts
+### 13. Common Patterns and Shortcuts
 
 #### Error Handling (Bash)
 ```bash
@@ -544,7 +596,7 @@ echo_log "ERROR" "Something failed"
 file_abs="$(realpath "${file}")"
 ```
 
-### 13. Typical Workflow Examples
+### 14. Typical Workflow Examples
 
 #### Example 1: Fixing a Bug
 1. **Understand**: Read the buggy file completely
@@ -576,7 +628,7 @@ file_abs="$(realpath "${file}")"
 4. **Remind**: User needs to run `chezmoi apply`
 5. **Suggest**: `chezmoi diff` to preview changes
 
-### 14. Environment-Specific Information
+### 15. Environment-Specific Information
 
 #### User Preferences
 - **Editor**: vim (not nano, not emacs)
@@ -603,7 +655,7 @@ Common aliases in use (from .bashrc):
 - `vim='vim -p'`
 - `xclip='xclip -selection clipboard'`
 
-### 15. Quick Reference
+### 16. Quick Reference
 
 #### File Type → Validation
 - `.bash`, `.sh` → `bash -n file.bash`

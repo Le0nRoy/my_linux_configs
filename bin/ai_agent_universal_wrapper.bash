@@ -250,9 +250,19 @@ run_sandboxed_agent() {
         bwrap_args+=(--bind /var/lib/docker /var/lib/docker)
     fi
 
-    # Add Docker compose data if it exists
-    if [[ -d "${HOME_DIR}/.docker" ]]; then
-        bwrap_args+=(--bind "${HOME_DIR}/.docker" "${HOME_DIR}/.docker")
+    # Add kind configuration directory if it exists
+    if [[ -d "${HOME_DIR}/.kind" ]]; then
+        bwrap_args+=(--bind "${HOME_DIR}/.kind" "${HOME_DIR}/.kind")
+    fi
+
+    # Add kubectl configuration directory if it exists
+    if [[ -d "${HOME_DIR}/kind_dot_kube" ]]; then
+        bwrap_args+=(--bind "${HOME_DIR}/kind_dot_kube" "${HOME_DIR}/.kube")
+    fi
+
+    # Add ~/bin directory if it exists (for kind, kubectl, and other user binaries)
+    if [[ -d "${HOME_DIR}/bin" ]]; then
+        bwrap_args+=(--bind "${HOME_DIR}/bin" "${HOME_DIR}/bin")
     fi
 
     # Add extra bwrap flags (user-specified binds, etc.) - using validated flags
@@ -263,7 +273,7 @@ run_sandboxed_agent() {
         --clearenv
         --setenv HOME "${HOME_DIR}"
         --setenv USER "${USER}"
-        --setenv PATH "/usr/bin:/usr/sbin:/bin:/sbin"
+        --setenv PATH "${HOME_DIR}/bin:/usr/bin:/usr/sbin:/bin:/sbin"
         --setenv LANG "${LANG:-en_US.UTF-8}"
         --setenv TERM "${TERM:-xterm-256color}"
         --chdir "${WORKDIR}"
@@ -277,6 +287,10 @@ run_sandboxed_agent() {
     [[ -n "${DOCKER_HOST}" ]] && bwrap_args+=(--setenv DOCKER_HOST "${DOCKER_HOST}")
     [[ -n "${DOCKER_CONFIG}" ]] && bwrap_args+=(--setenv DOCKER_CONFIG "${DOCKER_CONFIG}")
     [[ -n "${DOCKER_CERT_PATH}" ]] && bwrap_args+=(--setenv DOCKER_CERT_PATH "${DOCKER_CERT_PATH}")
+
+    # Pass through Kubernetes/kind environment variables if set
+    [[ -n "${KUBECONFIG}" ]] && bwrap_args+=(--setenv KUBECONFIG "${KUBECONFIG}")
+    [[ -n "${KIND_EXPERIMENTAL_PROVIDER}" ]] && bwrap_args+=(--setenv KIND_EXPERIMENTAL_PROVIDER "${KIND_EXPERIMENTAL_PROVIDER}")
 
     # ===== EXECUTE WITH EXIT CODE TRANSLATION =====
 

@@ -99,6 +99,54 @@ bash -c 'source script.bash'
 - Use language-standard formatters if available
 - Maintain consistency with existing code
 
+## Docker and Kubernetes Access
+
+AI agents have full access to Docker and can create local Kubernetes clusters using kind.
+
+### Docker
+All Docker commands are available:
+```bash
+docker ps
+docker run --rm alpine echo "Hello from sandbox"
+docker build -t myapp:latest .
+docker-compose up -d
+```
+
+Full documentation: `DOCKER_AI_AGENTS.md`
+
+### kind (Kubernetes IN Docker)
+
+**Setup (first time in new sandbox)**:
+```bash
+# Check if installed
+if ! command -v kind &>/dev/null; then
+    ~/bin/setup_kind.bash
+fi
+
+# Verify
+kind version
+kubectl version --client
+```
+
+**Usage**:
+```bash
+# Create cluster
+kind create cluster --name dev
+
+# Use kubectl
+kubectl get nodes
+kubectl create deployment nginx --image=nginx
+
+# Delete cluster
+kind delete cluster --name dev
+```
+
+**Key points**:
+- Clusters are Docker containers running Kubernetes
+- Multiple clusters can run with different names
+- Clusters persist until deleted
+- Each has isolated kubeconfig context
+
 ## File Type Guidelines
 
 ### Configuration Files
