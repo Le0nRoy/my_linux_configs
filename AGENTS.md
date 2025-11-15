@@ -16,13 +16,53 @@ This document contains rules and guidelines for AI agents (Claude, Codex, Cursor
 
 ## General Principles
 
-### 1. Read Before Writing
+### 1. Task Management and TODO File
+
+**CRITICAL**: Always check and update `TODO.md` when working on tasks.
+
+**Before starting any task**:
+```bash
+# Read the TODO file
+cat TODO.md
+
+# Check if your task is already documented
+grep -i "task name" TODO.md
+```
+
+**When decomposing tasks**:
+- Update `TODO.md` with subtasks immediately
+- Add yourself as assignee and current date
+- Document decisions and approach
+- Link related tasks together
+
+**When making progress**:
+- Update task status in `TODO.md`
+- Document blockers and findings
+- Add notes about implementation decisions
+
+**When completing a task**:
+1. Mark task as "Completed" in `TODO.md`
+2. Create documentation file: `docs/completed/YYYY-MM-DD-task-name.md`
+3. Move full task description and all notes to docs file
+4. Leave brief summary in `TODO.md` with link to completed docs
+5. Update related configuration files (AGENTS.md, CLAUDE.md, etc.)
+
+**Example completed task entry in TODO.md**:
+```markdown
+### ✅ Task Name (Completed 2025-11-14)
+Brief one-line summary.
+See: [docs/completed/2025-11-14-task-name.md](docs/completed/2025-11-14-task-name.md)
+```
+
+**Note**: The `docs/` directory is ignored by chezmoi (see `.chezmoiignore`), so completed task documentation won't be deployed to home directory.
+
+### 2. Read Before Writing
 - **ALWAYS** read files completely before modifying them
 - Understand context, patterns, and existing conventions
 - Check for related files that might be affected
-- Look for documentation (README, CONTRIBUTING, comments)
+- Look for documentation (README, CONTRIBUTING, comments, TODO.md)
 
-### 2. Preserve User Preferences
+### 3. Preserve User Preferences
 - Respect existing code style and formatting
 - Maintain indentation style (tabs vs spaces)
 - Keep user customizations intact

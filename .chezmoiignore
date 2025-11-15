@@ -12,3 +12,6 @@
 .cursor
 .config/cursor
 .local/share/cursor-agent
+
+# Documentation for completed tasks (managed separately from dotfiles)
+docs/

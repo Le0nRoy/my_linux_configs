@@ -28,7 +28,47 @@ You can be invoked from **any directory** on this system. You might be working o
 
 ## Core Principles for Claude Code
 
-### 1. Context-Aware Operation
+### 1. Task Management and TODO File
+
+**CRITICAL**: Always check and update `TODO.md` when working on tasks.
+
+**Before starting any task**:
+```bash
+# Read the TODO file
+cat TODO.md
+
+# Check if your task is already documented
+grep -i "task name" TODO.md
+```
+
+**When decomposing tasks**:
+- Update `TODO.md` with subtasks immediately
+- Add yourself as assignee and current date
+- Document decisions and approach
+- Link related tasks together
+
+**When making progress**:
+- Update task status in `TODO.md`
+- Document blockers and findings
+- Add notes about implementation decisions
+
+**When completing a task**:
+1. Mark task as "Completed" in `TODO.md`
+2. Create documentation file: `docs/completed/YYYY-MM-DD-task-name.md`
+3. Move full task description and all notes to docs file
+4. Leave brief summary in `TODO.md` with link to completed docs
+5. Update related configuration files (AGENTS.md, CLAUDE.md, etc.)
+
+**Example completed task entry in TODO.md**:
+```markdown
+### ✅ Task Name (Completed 2025-11-14)
+Brief one-line summary.
+See: [docs/completed/2025-11-14-task-name.md](docs/completed/2025-11-14-task-name.md)
+```
+
+**Note**: The `docs/` directory is ignored by chezmoi (see `.chezmoiignore`), so completed task documentation won't be deployed to home directory.
+
+### 2. Context-Aware Operation
 
 **First Action in Any Task**: Understand where you are
 ```bash
@@ -56,8 +96,9 @@ fi
 - Understand existing patterns and conventions
 - Check for project-specific guidelines
 - Look for configuration files (.editorconfig, .prettierrc, etc.)
+- Check `TODO.md` for related tasks
 
-### 2. Tool Usage Pattern
+### 3. Tool Usage Pattern
 
 **Reading Files** - ALWAYS use Read tool first:
 ```xml
@@ -105,7 +146,7 @@ fi
 - Chain related commands with `&&`
 - Run independent commands in parallel (multiple Bash calls)
 
-### 3. Code Quality Standards
+### 4. Code Quality Standards
 
 #### Bash Scripts
 **This user strongly prefers**:
@@ -162,7 +203,7 @@ bash -c 'source script.bash'
 - Use standard formatters if available
 - Maintain consistency
 
-### 4. Docker and Kubernetes Access
+### 5. Docker and Kubernetes Access
 
 AI agents have full access to Docker and can create Kubernetes clusters using kind (Kubernetes IN Docker).
 
@@ -214,7 +255,7 @@ kind delete cluster --name dev
 - Multiple clusters can run simultaneously with different names
 - Each cluster is isolated with its own kubeconfig context
 
-### 5. Working in Different Project Types
+### 6. Working in Different Project Types
 
 #### Python Projects
 ```bash
@@ -251,7 +292,7 @@ cargo test
 - Check README for build instructions
 - Follow existing patterns
 
-### 6. Special Case: Chezmoi Dotfiles Repository
+### 7. Special Case: Chezmoi Dotfiles Repository
 
 **When working in** `~/.local/share/chezmoi/`:
 
@@ -328,7 +369,7 @@ export RLIMIT_NOFILE=4096      # file descriptors
 export RLIMIT_NPROC=4096       # processes
 ```
 
-### 7. Configuration File Formats
+### 8. Configuration File Formats
 
 #### TOML
 ```toml
@@ -387,7 +428,7 @@ list:
 - Use lists and formatting for readability
 - For documents with many headers use Table of Contents
 
-### 8. Git Workflow
+### 9. Git Workflow
 
 **User's Git Settings**:
 - Default branch: `main`
@@ -428,7 +469,7 @@ git add file1 file2
 git commit -m "type: description"
 ```
 
-### 9. Testing and Validation
+### 10. Testing and Validation
 
 #### Always Validate Before Completing
 
@@ -473,7 +514,7 @@ yamllint file.yaml
 # Check app docs for validation commands
 ```
 
-### 10. Communication Style
+### 11. Communication Style
 
 #### When Reporting Changes
 
@@ -506,7 +547,7 @@ git diff
 - Be clear about what you don't understand
 - Propose a solution and ask for confirmation
 
-### 11. Task Management
+### 12. Task Management (TodoWrite Tool)
 
 Use TodoWrite tool for complex tasks:
 ```xml
@@ -529,7 +570,9 @@ Use TodoWrite tool for complex tasks:
 - Mark complete IMMEDIATELY after finishing
 - Don't mark complete if errors occurred
 
-### 12. Security and Safety
+**Note**: This TodoWrite tool is for session-specific tasks. For longer-term project tasks, use `TODO.md` (see section 1).
+
+### 13. Security and Safety
 
 #### Sandboxed Environment
 You (Claude Code) run in a bubblewrap sandbox with:
@@ -560,7 +603,7 @@ You (Claude Code) run in a bubblewrap sandbox with:
 - Ask before risky operations
 - Preserve security features
 
-### 13. Common Patterns and Shortcuts
+### 14. Common Patterns and Shortcuts
 
 #### Error Handling (Bash)
 ```bash
@@ -596,7 +639,7 @@ echo_log "ERROR" "Something failed"
 file_abs="$(realpath "${file}")"
 ```
 
-### 14. Typical Workflow Examples
+### 15. Typical Workflow Examples
 
 #### Example 1: Fixing a Bug
 1. **Understand**: Read the buggy file completely
@@ -628,7 +671,7 @@ file_abs="$(realpath "${file}")"
 4. **Remind**: User needs to run `chezmoi apply`
 5. **Suggest**: `chezmoi diff` to preview changes
 
-### 15. Environment-Specific Information
+### 16. Environment-Specific Information
 
 #### User Preferences
 - **Editor**: vim (not nano, not emacs)
@@ -655,7 +698,7 @@ Common aliases in use (from .bashrc):
 - `vim='vim -p'`
 - `xclip='xclip -selection clipboard'`
 
-### 16. Quick Reference
+### 17. Quick Reference
 
 #### File Type → Validation
 - `.bash`, `.sh` → `bash -n file.bash`
