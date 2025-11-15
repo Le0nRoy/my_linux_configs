@@ -191,6 +191,12 @@ This file tracks ongoing development tasks for the dotfiles system and AI agent 
 
 **Decision Needed**: Discuss with user which approach is preferred
 
+### 9. Create a fully sandboxed environment for AI agents
+
+**Status**: Not started
+**Priority**: Low
+**Description**: Instead of current sandbox system with access to the host network create a sandbox, which still gets host directories mounted, however has own network, with own docker daemon running. Access to the internet should persist in the sandbox. Sandbox should consume as low resources, as possible, but must have 0 possibility to harm host system. Also while developing this feature need always double check, that no secrets are mounted to the sandboxes (instead of development/testing secrets).
+
 ---
 
 ## Task Management Rules
