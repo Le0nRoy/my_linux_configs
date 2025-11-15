@@ -5,13 +5,24 @@
 # Source the universal wrapper
 source "$(dirname "${BASH_SOURCE[0]}")/ai_agent_universal_wrapper.bash"
 
-# Configurable rlimits (adjusted for test debugging with pytest-xdist and Playwright)
-# Note: cursor-agent needs unlimited address space for WebAssembly modules
-# We still limit CPU time and processes for security
-export RLIMIT_AS=unlimited
-export RLIMIT_CPU=600                            # 600s = 10 minutes (for long test suites)
+# No resource limits - agent is already sandboxed and should have full access within sandbox
+export RLIMIT_AS=unlimited                       # Unlimited address space
+export RLIMIT_CPU=unlimited                      # Unlimited CPU time
 export RLIMIT_NOFILE=4096                        # Higher limit for browsers and test files
-export RLIMIT_NPROC=256                          # For parallel test workers and browser processes
+export RLIMIT_NPROC=4096                         # High limit for parallel test workers and browser processes
+
+# Bubblewrap (sandbox) flags - filesystem bindings
+WRAPPER_FLAGS=( \
+    --ro-bind /opt/cursor-agent /opt/cursor-agent \
+    --bind "${HOME}/.cursor" "${HOME}/.cursor" \
+    --bind "${HOME}/.config/cursor" "${HOME}/.config/cursor" \
+    --bind "${HOME}/.local/share/cursor-agent" "${HOME}/.local/share/cursor-agent" \
+)
+
+# Cursor Agent CLI flags - full autonomy within sandbox (no approvals needed)
+CURSOR_FLAGS=( \
+    --force \
+)
 
 # Interactive session selection (only if no arguments provided and stdin/stdout are terminals)
 if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
@@ -25,22 +36,12 @@ if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
     case "${choice}" in
         2)
             # Resume with picker - using --resume flag (common pattern)
-            run_sandboxed_agent "cursor-agent" -- \
-                --ro-bind /opt/cursor-agent /opt/cursor-agent \
-                --bind "${HOME}/.cursor" "${HOME}/.cursor" \
-                --bind "${HOME}/.config/cursor" "${HOME}/.config/cursor" \
-                --bind "${HOME}/.local/share/cursor-agent" "${HOME}/.local/share/cursor-agent" \
-                -- --resume
+            run_sandboxed_agent "cursor-agent" -- "${WRAPPER_FLAGS[@]}" -- "${CURSOR_FLAGS[@]}" --resume
             exit $?
             ;;
         3)
             # Resume last conversation - using --continue or similar flag
-            run_sandboxed_agent "cursor-agent" -- \
-                --ro-bind /opt/cursor-agent /opt/cursor-agent \
-                --bind "${HOME}/.cursor" "${HOME}/.cursor" \
-                --bind "${HOME}/.config/cursor" "${HOME}/.config/cursor" \
-                --bind "${HOME}/.local/share/cursor-agent" "${HOME}/.local/share/cursor-agent" \
-                -- --continue
+            run_sandboxed_agent "cursor-agent" -- "${WRAPPER_FLAGS[@]}" -- "${CURSOR_FLAGS[@]}" --continue
             exit $?
             ;;
         1|*)
@@ -52,10 +53,5 @@ fi
 # Run cursor-agent with its specific binds
 # Note: Added prlimit (was missing in original), Android is now a default bind
 # AI rules (AGENTS.md and CLAUDE.md) are bound by default in universal wrapper
-run_sandboxed_agent "cursor-agent" -- \
-    --ro-bind /opt/cursor-agent /opt/cursor-agent \
-    --bind "${HOME}/.cursor" "${HOME}/.cursor" \
-    --bind "${HOME}/.config/cursor" "${HOME}/.config/cursor" \
-    --bind "${HOME}/.local/share/cursor-agent" "${HOME}/.local/share/cursor-agent" \
-    -- "$@"
+run_sandboxed_agent "cursor-agent" -- "${WRAPPER_FLAGS[@]}" -- "${CURSOR_FLAGS[@]}" "$@"
 
