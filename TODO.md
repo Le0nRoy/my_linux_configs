@@ -2,7 +2,7 @@
 
 This file tracks ongoing development tasks for the dotfiles system and AI agent configuration.
 
-**Last Updated**: 2025-11-14
+**Last Updated**: 2025-11-17
 
 ---
 
@@ -31,7 +31,136 @@ This file tracks ongoing development tasks for the dotfiles system and AI agent 
 
 ---
 
-### 2. Refactor helper.bash
+### 2. Complete xrandr Screen Management System
+
+**Status**: In progress
+**Priority**: High
+**Branch**: `xrandr_config`
+**Description**: Implement comprehensive Xorg display management with automatic detection, configuration saving/loading, and dmenu interface
+
+**All work for this task must be done in the `xrandr_config` branch.**
+
+#### Requirements - Screen Configuration Management (3.1)
+
+**Save multiple configurations with descriptions:**
+- Support multiple named configurations (not just one)
+- When saving, ask user which configuration is default
+- Provide visual or text description of display positions
+- Store configuration with metadata (name, description, date, which display is where)
+
+#### Requirements - Auto-Detection (3.2)
+
+**Detect all connections and disconnections:**
+- Monitor for any display connection event
+- Monitor for any display disconnection event
+- Trigger appropriate actions automatically
+- Update state tracking correctly
+
+#### Requirements - Auto-Apply Configuration (3.3)
+
+**Apply saved config when displays reconnect:**
+- When a saved display connects, apply its saved settings
+- Adjust positions to remove gaps between displays
+- Align displays so middle axes match
+- Keep displays close together with no gaps
+- Preserve relative positions as much as possible
+
+#### Requirements - Disconnection Handling (3.4)
+
+**Smart disconnection behavior:**
+- Move primary status from disconnected display to default display (DP-2)
+- If default display was disconnected and was primary, set next clockwise display as primary
+- Rearrange remaining displays to be close together (no gaps)
+- Preserve relative positions of remaining displays
+- Align middle axes of all displays
+
+#### Requirements - dmenu UI
+
+**Keybinding:**
+- Use `$mod+Shift+F10` in i3 config (NOT `$mod+F9`)
+
+**Per-display operations:**
+- For each connected display, allow:
+  - Load configuration for this display
+  - Unload configuration for this display
+
+**Menu behavior:**
+- After any action, reopen dmenu in initial state
+- All submenus must have "Back" button
+- Main menu options:
+  - Save current configuration
+  - Load configuration (with submenu for available configs)
+  - Per-display settings (submenu)
+  - Open nvidia-settings
+  - Back/Exit
+
+#### Code Quality Requirements
+
+**Function decomposition (AGENTS.md/CLAUDE.md compliance):**
+- Each function should be small (max 20-30 lines)
+- Single responsibility per function
+- Extract these functions from current monolithic code:
+  - `parse_xrandr_output()` - Parse xrandr output
+  - `extract_mode()` - Extract display mode
+  - `extract_position()` - Extract display position
+  - `get_display_dimensions()` - Get width/height
+  - `calculate_middle_axis()` - Calculate display center
+  - `build_xrandr_command()` - Build xrandr command from config
+  - `handle_disconnection()` - Handle single display disconnect
+  - `rearrange_displays()` - Remove gaps and align displays
+  - `find_next_clockwise()` - Find next display clockwise
+  - `apply_config_for_display()` - Apply config to one display
+  - `dmenu_main_menu()` - Main menu
+  - `dmenu_load_config_menu()` - Load config submenu
+  - `dmenu_display_settings_menu()` - Per-display submenu
+  - Other small, focused functions
+
+**Code style:**
+- Quote all variables: `"${var}"`
+- Use `[[ ]]` for conditions
+- Validate inputs
+- Proper error handling
+- Clear function names (snake_case)
+
+#### Current Status (from review of xrandr_config branch)
+
+**Completed:**
+- ✅ Basic xrandr wrapper functions
+- ✅ Single config save/load
+- ✅ Basic disconnection detection
+- ✅ Simple dmenu interface
+- ✅ i3 integration (but wrong keybinding)
+
+**Issues to Fix:**
+- ❌ Only saves ONE configuration (need multiple named configs)
+- ❌ No default configuration selection
+- ❌ No visual/text descriptions of layouts
+- ❌ Does NOT detect new connections automatically
+- ❌ Does NOT apply config when displays reconnect
+- ❌ No gap removal or alignment logic
+- ❌ No "next clockwise display" logic
+- ❌ Wrong keybinding (`$mod+F9` instead of `$mod+Shift+F10`)
+- ❌ No per-display load/unload in dmenu
+- ❌ No "Back" buttons in submenus
+- ❌ Does NOT reopen dmenu after actions
+- ❌ No nvidia-settings option
+- ❌ Functions are too large (50-60 lines) - violates code style
+
+**Next Steps:**
+1. Refactor existing functions into smaller units
+2. Implement multiple configuration support
+3. Add configuration naming and descriptions
+4. Implement connection detection (not just disconnection)
+5. Add auto-apply on reconnect logic
+6. Implement gap removal and alignment algorithms
+7. Add clockwise display selection
+8. Rebuild dmenu interface with all required features
+9. Fix i3 keybinding
+10. Test all scenarios thoroughly
+
+---
+
+### 3. Refactor helper.bash
 
 **Status**: Not started
 **Priority**: Medium
@@ -55,7 +184,7 @@ This file tracks ongoing development tasks for the dotfiles system and AI agent 
 
 ---
 
-### 3. Unrestricted Sandbox Access
+### 4. Unrestricted Sandbox Access
 
 **Status**: Partially complete
 **Priority**: High
@@ -82,7 +211,7 @@ This file tracks ongoing development tasks for the dotfiles system and AI agent 
 
 ---
 
-### 4. GitLab CI Integration
+### 5. GitLab CI Integration
 
 **Status**: Not started
 **Priority**: Medium
@@ -103,7 +232,7 @@ This file tracks ongoing development tasks for the dotfiles system and AI agent 
 
 ---
 
-### 5. Neovim Configuration
+### 6. Neovim Configuration
 
 **Status**: Not started
 **Priority**: Low
@@ -127,7 +256,7 @@ This file tracks ongoing development tasks for the dotfiles system and AI agent 
 
 ---
 
-### 6. System Installation Script
+### 7. System Installation Script
 
 **Status**: Not started
 **Priority**: Medium
@@ -150,7 +279,7 @@ This file tracks ongoing development tasks for the dotfiles system and AI agent 
 
 ---
 
-### 7. Automate upgrade_system Function
+### 8. Automate upgrade_system Function
 
 **Status**: Not started
 **Priority**: Low
@@ -173,7 +302,7 @@ This file tracks ongoing development tasks for the dotfiles system and AI agent 
 
 ---
 
-### 8. Unify AI Agent Rules
+### 9. Unify AI Agent Rules
 
 **Status**: Not started
 **Priority**: Low
@@ -191,7 +320,9 @@ This file tracks ongoing development tasks for the dotfiles system and AI agent 
 
 **Decision Needed**: Discuss with user which approach is preferred
 
-### 9. Create a fully sandboxed environment for AI agents
+---
+
+### 10. Create a fully sandboxed environment for AI agents
 
 **Status**: Not started
 **Priority**: Low
