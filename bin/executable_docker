@@ -1,0 +1,4 @@
+#!/bin/bash
+# Symlink to docker_wrapper.bash
+# This allows 'docker' command to be intercepted
+exec "$(dirname "${BASH_SOURCE[0]}")/docker_wrapper.bash" "$@"

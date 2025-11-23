@@ -16,3 +16,6 @@
 # Documentation for completed tasks (managed separately from dotfiles)
 TODO.md
 docs/
+
+# Installer scripts (not deployed to home directory)
+installators/
