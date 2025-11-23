@@ -2,7 +2,7 @@
 
 This file tracks ongoing development tasks for the dotfiles system and AI agent configuration.
 
-**Last Updated**: 2025-11-18
+**Last Updated**: 2025-11-24
 
 ---
 
@@ -191,28 +191,51 @@ This file tracks ongoing development tasks for the dotfiles system and AI agent 
 
 ### 4. Unrestricted Sandbox Access
 
-**Status**: Partially complete
+**Status**: ✅ Security Testing Complete (2025-11-24)
 **Priority**: High
+**Branch**: `security_docker_hardening`
 **Description**: Allow AI agents full access within their sandboxes while maintaining sandbox security
 
 **Completed**:
 - ✅ Set all RLIMIT_* to unlimited in wrapper scripts
 - ✅ Docker access enabled
 - ✅ kind/Kubernetes access enabled
+- ✅ Comprehensive security testing completed
+- ✅ Critical vulnerability identified and mitigated
+- ✅ Complete security documentation
+
+**Security Testing Results**:
+- ✅ Test filesystem isolation - **PASS**: Cannot access outside binds
+- ✅ Test process isolation - **CRITICAL FINDING**: Containers with `--pid=host` can see ALL 307 host processes
+- ⏳ Test network isolation options - Deferred (network access required by design)
+- ✅ Verify Docker-in-Docker security - **FAIL**: `--pid=host` allows host process visibility
+- ⏳ Test resource exhaustion scenarios - Deferred (unlimited resources by design)
+- ✅ Document security model - **COMPLETE**: Comprehensive documentation created
+
+**Critical Security Finding (2025-11-24)**:
+- 🔴 **CRITICAL**: Containers with `--pid=host` can see ALL host processes (307 processes visible)
+- 🔴 **HIGH**: Container can send signals to host processes (tested: can signal PID 1)
+- 📄 **Documented**: `docs/security_test_results_docker_pid_host.md`
+- 🔧 **Mitigation**: Two-layer defense implemented
+
+**Mitigation Implementation**:
+- ✅ **Layer 1**: Wrapper script blocks `--pid` flags in AI sandbox (`bin/executable_docker_wrapper.bash`)
+- ✅ **Layer 2**: Automated OPA installer for system-wide daemon hardening (`installators/install_opa_docker.bash`)
+- ✅ **Documentation**: Complete security architecture in `docs/SECURITY_MODEL.md`
+- ✅ **Guides**: Installation and testing guides created
+
+**Security Documentation**:
+- `docs/SECURITY_MODEL.md` - Complete security architecture and threat model
+- `docs/docker_daemon_hardening.md` - Daemon-level hardening options (OPA, AppArmor, Seccomp)
+- `docs/INSTALL_OPA.md` - Automated OPA installation guide
+- `docs/security_test_results_docker_pid_host.md` - Vulnerability findings and proof-of-concept
+- `docs/security_test_docker_pid_blocking.md` - Test plan for mitigation verification
+- `docs/security_testing_guide.md` - Security testing procedures
 
 **Remaining**:
-- Security testing of sandbox isolation
-- Verify namespace isolation works correctly
-- Test escape scenarios (security audit)
-- Document security boundaries
-
-**Security Testing Tasks**:
-- [ ] Test filesystem isolation (can't access outside binds)
-- [ ] Test process isolation (can't see/kill host processes)
-- [ ] Test network isolation options
-- [ ] Verify Docker-in-Docker security
-- [ ] Test resource exhaustion scenarios
-- [ ] Document security model
+- ⏳ Optional: Install OPA for system-wide hardening (fully automated installer available)
+- ⏳ Optional: Implement network namespace isolation (requires redesign)
+- ⏳ Optional: Add resource monitoring and alerting
 
 ---
 
