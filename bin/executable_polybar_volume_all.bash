@@ -1,7 +1,7 @@
 #!/bin/bash
 # Polybar script to display volume for all audio sinks with sink selection
 # Shows: Jack: 50% | HDMI-1: muted | HDMI-2: 100% | BT-1: 20%
-# Chosen sink is highlighted (like focused i3 workspace)
+# Chosen sink is highlighted (like focused i3 workspace) and set as @DEFAULT_SINK@
 
 # State file to track chosen sink
 STATE_FILE="${XDG_RUNTIME_DIR:-/tmp}/polybar_volume_chosen_sink"
@@ -28,10 +28,12 @@ get_chosen_sink() {
     fi
 }
 
-# Set chosen sink
+# Set chosen sink and make it the PulseAudio default
 set_chosen_sink() {
     local sink="${1}"
     echo "${sink}" > "${STATE_FILE}"
+    # Set as PulseAudio default sink (@DEFAULT_SINK@)
+    pactl set-default-sink "${sink}"
 }
 
 # Get next sink in the list (cycle through)
@@ -233,21 +235,21 @@ handle_click() {
 
     case "${1}" in
         left)
-            # Left click - toggle mute on CHOSEN sink (not default)
+            # Left click - toggle mute on chosen sink (@DEFAULT_SINK@)
             pactl set-sink-mute "${chosen_sink}" toggle
             ;;
         right)
-            # Right click - cycle to next sink (default sink remains unchanged)
+            # Right click - cycle to next sink and set it as @DEFAULT_SINK@
             local next_sink
             next_sink="$(get_next_sink "${chosen_sink}")"
             set_chosen_sink "${next_sink}"
             ;;
         scroll_up)
-            # Scroll up - increase volume on CHOSEN sink
+            # Scroll up - increase volume on chosen sink (@DEFAULT_SINK@)
             pactl set-sink-volume "${chosen_sink}" +5%
             ;;
         scroll_down)
-            # Scroll down - decrease volume on CHOSEN sink
+            # Scroll down - decrease volume on chosen sink (@DEFAULT_SINK@)
             pactl set-sink-volume "${chosen_sink}" -5%
             ;;
     esac

@@ -320,9 +320,11 @@ for_window [title="Media viewer" class="(?i)telegram-?desktop"] floating enable 
 for_window [class="(?i)thunderbird|Mail"] floating disable 
 for_window [class="(?iflameshot" title="Open With"] floating enable resize set 900 600
 # Steam
-for_window [title="Create or select new Steam library folder" class="(?i)steam"] floating enable 
+for_window [title="Create or select new Steam library folder" class="(?i)steam"] floating enable
 for_window [title="News" class="(?i)steam"] floating enable resize set 600 400
 for_window [title="Friends List" class="(?i)steam"] floating enable resize set 600 400
+# Steam chat/small popup windows (steamwebhelper windows that are not the main Steam window)
+for_window [class="(?i)steam" instance="steamwebhelper" title="^(?!Steam$)"] floating enable resize set 600 800
 
 for_window [class="(?i)virtualbox"] floating enable border normal
 for_window [class="(?i)galculator"] floating enable 

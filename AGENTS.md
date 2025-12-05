@@ -16,13 +16,53 @@ This document contains rules and guidelines for AI agents (Claude, Codex, Cursor
 
 ## General Principles
 
-### 1. Read Before Writing
+### 1. Task Management and TODO File
+
+**CRITICAL**: Always check and update `TODO.md` when working on tasks.
+
+**Before starting any task**:
+```bash
+# Read the TODO file
+cat TODO.md
+
+# Check if your task is already documented
+grep -i "task name" TODO.md
+```
+
+**When decomposing tasks**:
+- Update `TODO.md` with subtasks immediately
+- Add yourself as assignee and current date
+- Document decisions and approach
+- Link related tasks together
+
+**When making progress**:
+- Update task status in `TODO.md`
+- Document blockers and findings
+- Add notes about implementation decisions
+
+**When completing a task**:
+1. Mark task as "Completed" in `TODO.md`
+2. Create documentation file: `docs/completed/YYYY-MM-DD-task-name.md`
+3. Move full task description and all notes to docs file
+4. Leave brief summary in `TODO.md` with link to completed docs
+5. Update related configuration files (AGENTS.md, CLAUDE.md, etc.)
+
+**Example completed task entry in TODO.md**:
+```markdown
+### ✅ Task Name (Completed 2025-11-14)
+Brief one-line summary.
+See: [docs/completed/2025-11-14-task-name.md](docs/completed/2025-11-14-task-name.md)
+```
+
+**Note**: The `docs/` directory is ignored by chezmoi (see `.chezmoiignore`), so completed task documentation won't be deployed to home directory.
+
+### 2. Read Before Writing
 - **ALWAYS** read files completely before modifying them
 - Understand context, patterns, and existing conventions
 - Check for related files that might be affected
-- Look for documentation (README, CONTRIBUTING, comments)
+- Look for documentation (README, CONTRIBUTING, comments, TODO.md)
 
-### 2. Preserve User Preferences
+### 3. Preserve User Preferences
 - Respect existing code style and formatting
 - Maintain indentation style (tabs vs spaces)
 - Keep user customizations intact
@@ -98,6 +138,54 @@ bash -c 'source script.bash'
 - Follow project-specific conventions first
 - Use language-standard formatters if available
 - Maintain consistency with existing code
+
+## Docker and Kubernetes Access
+
+AI agents have full access to Docker and can create local Kubernetes clusters using kind.
+
+### Docker
+All Docker commands are available:
+```bash
+docker ps
+docker run --rm alpine echo "Hello from sandbox"
+docker build -t myapp:latest .
+docker-compose up -d
+```
+
+Full documentation: `DOCKER_AI_AGENTS.md`
+
+### kind (Kubernetes IN Docker)
+
+**Setup (first time in new sandbox)**:
+```bash
+# Check if installed
+if ! command -v kind &>/dev/null; then
+    ~/bin/setup_kind.bash
+fi
+
+# Verify
+kind version
+kubectl version --client
+```
+
+**Usage**:
+```bash
+# Create cluster
+kind create cluster --name dev
+
+# Use kubectl
+kubectl get nodes
+kubectl create deployment nginx --image=nginx
+
+# Delete cluster
+kind delete cluster --name dev
+```
+
+**Key points**:
+- Clusters are Docker containers running Kubernetes
+- Multiple clusters can run with different names
+- Clusters persist until deleted
+- Each has isolated kubeconfig context
 
 ## File Type Guidelines
 
