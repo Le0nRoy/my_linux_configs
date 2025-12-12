@@ -248,6 +248,28 @@ list:
 
 ## Git Workflow
 
+### CRITICAL: Commit and Staging Policy
+
+**NEVER commit or stage changes unless explicitly instructed by user.**
+
+**Rules**:
+1. **No automatic commits**: Never run `git commit` unless user explicitly says "commit", "make a commit", or similar
+2. **No automatic staging**: Never run `git add` - let user review and stage changes themselves
+3. **Show changes instead**: After making changes, suggest `git diff` or `git status` for user to review
+4. **Ask before committing**: If task seems complete and commit might be expected, ask: "Would you like me to commit these changes?"
+
+**Rationale**: User wants to review all changes before they are staged or committed. This prevents unwanted changes from entering git history.
+
+**Example workflow**:
+```bash
+# After making changes, DO NOT run:
+# git add file.py        # NO - don't stage
+# git commit -m "..."    # NO - don't commit
+
+# Instead, inform user:
+# "Changes complete. Run `git diff` to review, then stage and commit as desired."
+```
+
 ### User's Git Configuration
 - Default branch: `main`
 - Editor: vim
@@ -433,17 +455,16 @@ fi
 #### Create Project-Specific AI Rules
 **When starting work on a project without `AGENT.md` or AI agent-specific config files**:
 
-1. **Create project-specific rules**: Based on `~/AGENTS.md` and `~/CLAUDE.md`, create:
+1. **Create project-specific rules**: Based on `~/AGENTS.md`, create:
    - `AGENT.md` in project root - Project-specific rules for all AI agents
-   - `CLAUDE.md` (or similar) - Claude-specific rules if needed
    - Document project structure, conventions, build commands
    - Include testing procedures and validation steps
 
-2. **Leave unstaged for review**: Even if doing commits, leave these new AI config files unstaged:
+2. **Do NOT stage or commit**: Let user review the new files:
    ```bash
-   # Stage other files but not AI configs
-   git add file1.py file2.py
-   git restore --staged AGENT.md CLAUDE.md
+   # Inform user about new files
+   git status
+   # User reviews and decides what to commit
    ```
 
 3. **Let user review**: User should review and adjust AI rules before committing them
@@ -480,12 +501,10 @@ This project follows general rules from ~/AGENTS.md with these additions/overrid
 #### Refactoring and Code Review Tasks
 **When asked to perform refactoring or code review**:
 
-1. **Propose a separate branch**: Create a dedicated branch for applying AI agent rules. Ask user if JIRA ticket should be assigned to the branch:
+1. **Suggest a separate branch**: Recommend user creates a dedicated branch:
    ```bash
-   # Suggest this to user
+   # Suggest this to user (DO NOT run automatically)
    git checkout -b refactor/apply-ai-agent-rules
-   # Or if JIRA ticket is provided
-   git checkout -b refactor/jira-id-apply-ai-agent-rules
    ```
 
 2. **Create/update AGENT.md**: Document the style and rules being applied:
@@ -501,14 +520,12 @@ This project follows general rules from ~/AGENTS.md with these additions/overrid
    - Mark places for optimization with TODOs
    - Review for common mistakes
 
-4. **Leave AI rules unstaged**: Even when committing refactored code:
+4. **Do NOT stage or commit**: Let user review all changes first:
    ```bash
-   # Commit refactored code
-   git add src/
-   git commit -m "refactor: Apply AI agent style rules"
-
-   # Leave AGENT.md unstaged for user review
-   git restore --staged AGENT.md CLAUDE.md
+   # Inform user to review changes
+   git status
+   git diff
+   # User decides what to stage and commit
    ```
 
 5. **Create comprehensive summary**: In AGENT.md or separate REFACTORING.md:
@@ -576,20 +593,18 @@ python -m py_compile script.py
    Reason: [If provided by user]
    ```
 
-3. **Leave changes unstaged**: Even if doing commits, leave updated AI rule files unstaged:
+3. **Do NOT stage or commit**: Let user review and decide:
    ```bash
-   # Commit code with new style
-   git add src/
-   git commit -m "style: Apply user-requested formatting changes"
-
-   # Leave all AI rule files unstaged for user review
-   git restore --staged AGENT.md CLAUDE.md 
+   # Inform user about changes
+   git status
+   git diff
+   # User reviews and commits as they see fit
    ```
 
 4. **Warn user about conflicts**:
    - Notify that changes conflict with system-wide rules
    - Explain implications (other projects, other agents)
-   - Suggest reviewing updated rule files before committing
+   - Suggest reviewing updated rule files
 
 5. **Apply consistently**: Once user confirms, apply new style rules consistently across the project
 
@@ -599,9 +614,8 @@ User: "Use 2 spaces for indentation in bash scripts instead of tabs"
 Agent:
 - Updates all bash scripts with 2-space indentation
 - Updates AGENT.md to document this override
-- Leaves all *AGENT*.md files unstaged
-- Notifies user: "Style rules updated to use 2 spaces. Please review
-  AGENT.md before committing these rule changes."
+- Does NOT stage or commit anything
+- Notifies user: "Changes complete. Run `git diff` to review all changes."
 ```
 
 ## Communication Guidelines
@@ -625,6 +639,7 @@ Agent:
 ## Prohibited Actions
 
 **NEVER unless these rules are removed from this file**:
+- **Stage or commit changes without explicit user instruction**
 - Remove security features or validations
 - Commit secrets, credentials, or API keys
 - Make untested changes to critical system configs
