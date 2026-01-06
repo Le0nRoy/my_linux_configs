@@ -47,6 +47,16 @@ extract_mode() {
     '
 }
 
+# Get all available modes for an output
+get_available_modes() {
+    local output="${1}"
+    xrandr --query | awk -v out="${output}" '
+        $0 ~ "^"out" connected" {found=1; next}
+        found && /^[^ ]/ {exit}
+        found && /^   / {print $1}
+    ' | sort -t'x' -k1 -rn | uniq
+}
+
 # Get position string (WxH+X+Y) for an output
 extract_position() {
     local output="${1}"
@@ -83,6 +93,89 @@ is_output_enabled() {
     [[ -n "${position}" ]]
 }
 
+# Get human-readable display name from EDID
+get_display_name() {
+    local output="${1}"
+    local name=""
+
+    # Try to get monitor name from xrandr --props (EDID)
+    name=$(xrandr --props 2>/dev/null | awk -v out="${output}" '
+        $0 ~ "^"out" connected" {found=1; next}
+        found && /^[^ ]/ {exit}
+        found && /EDID:/ {edid=1; next}
+        edid && /^\t\t[0-9a-f]/ {
+            # Look for display name in EDID (starts with 00 00 00 fc 00)
+            if ($0 ~ /00.*fc.*00/) {
+                # Extract ASCII name after fc 00
+                gsub(/.*fc.*00/, "")
+                gsub(/0a.*/, "")
+                # Convert hex to ASCII
+                n = split($0, hex, " ")
+                name = ""
+                for (i=1; i<=n; i++) {
+                    if (hex[i] != "" && hex[i] != "00" && hex[i] != "0a" && hex[i] != "20") {
+                        cmd = "printf \"\\x" hex[i] "\""
+                        cmd | getline c
+                        close(cmd)
+                        name = name c
+                    }
+                }
+                if (name != "") print name
+            }
+        }
+    ' | head -1)
+
+    # Fallback: use simple mapping for common outputs
+    if [[ -z "${name}" ]]; then
+        case "${output}" in
+            DP-*)    name="DisplayPort" ;;
+            HDMI-*)  name="HDMI" ;;
+            DVI-*)   name="DVI" ;;
+            VGA-*)   name="VGA" ;;
+            eDP-*)   name="Internal" ;;
+            LVDS-*)  name="Laptop" ;;
+            *)       name="${output}" ;;
+        esac
+    fi
+
+    echo "${name}"
+}
+
+# Get formatted display label (human name + interface)
+get_display_label() {
+    local output="${1}"
+    local name
+    name="$(get_display_name "${output}")"
+
+    if [[ "${name}" != "${output}" ]]; then
+        echo "${name} (${output})"
+    else
+        echo "${output}"
+    fi
+}
+
+# =============================================================================
+# Desktop Environment Integration
+# =============================================================================
+
+# Reload polybar and other desktop components after display changes
+reload_desktop_environment() {
+    # Reload polybar
+    if pgrep -x polybar &>/dev/null || pgrep -f polybar-supervisor &>/dev/null; then
+        # Kill existing polybar supervisor and restart
+        pkill -f "polybar-supervisor.bash" 2>/dev/null || true
+        sleep 0.2
+        if [[ -x "${HOME}/bin/polybar-supervisor.bash" ]]; then
+            nohup "${HOME}/bin/polybar-supervisor.bash" &>/dev/null &
+        fi
+    fi
+
+    # Set background
+    if command -v feh &>/dev/null && [[ -n "${DESKTOP_BG:-}" ]]; then
+        feh --bg-fill "${DESKTOP_BG}" 2>/dev/null || true
+    fi
+}
+
 # =============================================================================
 # Configuration Management - Multiple Named Configs
 # =============================================================================
@@ -100,7 +193,9 @@ list_configs() {
             configs+=("${name}|${description}")
         done < <(find "${CONFIGS_DIR}" -name "*.conf" -type f | sort)
     fi
-    printf '%s\n' "${configs[@]}"
+    # Only print if array has elements (avoid unbound variable error)
+    [[ ${#configs[@]} -gt 0 ]] && printf '%s\n' "${configs[@]}"
+    return 0
 }
 
 # Get default configuration name
@@ -134,7 +229,7 @@ generate_layout_description() {
     done < <(get_connected_outputs)
 
     # Sort by X position and format
-    printf '%s\n' "${displays[@]}" | sort -t@ -k2 -n | tr '\n' ' '
+    [[ ${#displays[@]} -gt 0 ]] && printf '%s\n' "${displays[@]}" | sort -t@ -k2 -n | tr '\n' ' '
     echo ""
 }
 
@@ -194,6 +289,7 @@ load_config() {
     fi
 
     apply_config_file "${config_file}"
+    reload_desktop_environment
 }
 
 # Delete configuration by name
@@ -314,7 +410,7 @@ get_displays_left_to_right() {
         display_data+=("${x_offset}|${output}|${position}")
     done < <(get_connected_outputs)
 
-    printf '%s\n' "${display_data[@]}" | sort -t'|' -k1 -n
+    [[ ${#display_data[@]} -gt 0 ]] && printf '%s\n' "${display_data[@]}" | sort -t'|' -k1 -n
 }
 
 # Find next display clockwise from current primary
@@ -323,7 +419,7 @@ find_next_clockwise() {
     local -a sorted_displays=()
 
     while IFS='|' read -r _ output _; do
-        sorted_displays+=("${output}")
+        [[ -n "${output}" ]] && sorted_displays+=("${output}")
     done < <(get_displays_left_to_right)
 
     local count="${#sorted_displays[@]}"
@@ -380,6 +476,7 @@ rearrange_displays() {
     done
 
     execute_xrandr_command "${xrandr_args[@]}"
+    reload_desktop_environment
 }
 
 # =============================================================================
@@ -532,23 +629,23 @@ list_outputs() {
 # Format output information for display
 format_output_info() {
     local output="${1}"
-    local primary_mark=""
-    local status_mark="[DISABLED]"
+    local label primary_mark="" status_mark="[DISABLED]"
 
+    label="$(get_display_label "${output}")"
     is_primary_output "${output}" && primary_mark=" (PRIMARY)"
 
     local position
     position="$(extract_position "${output}")"
     [[ -n "${position}" ]] && status_mark="${position} [ENABLED]"
 
-    echo "  ${output}${primary_mark}: ${status_mark}"
+    echo "  ${label}${primary_mark}: ${status_mark}"
 }
 
 # =============================================================================
-# dmenu Interface
+# Rofi Interface
 # =============================================================================
 
-# Main dmenu menu
+# Main rofi menu
 dmenu_main_menu() {
     while true; do
         local choice
@@ -560,7 +657,10 @@ dmenu_main_menu() {
             "Open nvidia-settings" \
             "List outputs" \
             "Exit" \
-            | dmenu -i -p "Screen Manager:")" || return
+            | rofi -dmenu -i -p "Screen Manager:")" || choice=""
+
+        # Exit on empty choice (Escape pressed)
+        [[ -z "${choice}" ]] && return 0
 
         case "${choice}" in
             "Load configuration")
@@ -577,15 +677,28 @@ dmenu_main_menu() {
                 ;;
             "Open nvidia-settings")
                 nvidia-settings &
+                return 0
                 ;;
             "List outputs")
-                list_outputs | dmenu -l 20 -p "Outputs:"
+                dmenu_list_outputs
                 ;;
-            "Exit"|"")
-                return
+            "Exit")
+                return 0
                 ;;
         esac
     done
+}
+
+# List outputs with Back button
+dmenu_list_outputs() {
+    local output_text
+    output_text="$(list_outputs)"
+
+    local choice
+    choice="$(printf '%s\n%s' "${output_text}" "--- Back ---" | rofi -dmenu -i -l 20 -p "Outputs:")" || choice=""
+
+    # Just return to main menu regardless of choice
+    return 0
 }
 
 # Load configuration submenu
@@ -604,9 +717,9 @@ dmenu_load_config_menu() {
     menu_items+=("Back")
 
     local choice
-    choice="$(printf '%s\n' "${menu_items[@]}" | dmenu -i -l 10 -p "Load config:")" || return
+    choice="$(printf '%s\n' "${menu_items[@]}" | rofi -dmenu -i -l 10 -p "Load config:")" || choice=""
 
-    [[ "${choice}" == "Back" || -z "${choice}" ]] && return
+    [[ "${choice}" == "Back" || -z "${choice}" ]] && return 0
 
     # Extract config name (before " - " or " [DEFAULT]")
     local config_name
@@ -622,18 +735,18 @@ dmenu_save_config_menu() {
     local name description
 
     # Get configuration name
-    name="$(echo "" | dmenu -p "Config name:")" || return
-    [[ -z "${name}" ]] && return
+    name="$(echo "" | rofi -dmenu -p "Config name:")" || name=""
+    [[ -z "${name}" ]] && return 0
 
     # Sanitize name (remove special characters)
     name="$(echo "${name}" | tr -cd 'a-zA-Z0-9_-')"
 
     # Get description
-    description="$(echo "" | dmenu -p "Description (optional):")" || description=""
+    description="$(echo "" | rofi -dmenu -p "Description (optional):")" || description=""
 
     # Ask if this should be default
     local make_default
-    make_default="$(printf '%s\n' "Yes" "No" | dmenu -i -p "Set as default?")" || make_default="No"
+    make_default="$(printf '%s\n' "Yes" "No" | rofi -dmenu -i -p "Set as default?")" || make_default="No"
 
     save_config "${name}" "${description}"
 
@@ -648,55 +761,169 @@ dmenu_display_settings_menu() {
     while true; do
         local -a outputs=()
         while IFS= read -r output; do
-            local status="[ENABLED]"
+            local label status="[ENABLED]" primary=""
+            label="$(get_display_label "${output}")"
             is_output_enabled "${output}" || status="[DISABLED]"
-            local primary=""
             is_primary_output "${output}" && primary=" (PRIMARY)"
-            outputs+=("${output}${primary} ${status}")
+            outputs+=("${output}|${label}${primary} ${status}")
         done < <(get_connected_outputs)
 
-        outputs+=("Back")
+        # Build menu with labels
+        local -a menu_items=()
+        for item in "${outputs[@]}"; do
+            IFS='|' read -r _ display_text <<< "${item}"
+            menu_items+=("${display_text}")
+        done
+        menu_items+=("Back")
 
         local choice
-        choice="$(printf '%s\n' "${outputs[@]}" | dmenu -i -p "Select display:")" || return
+        choice="$(printf '%s\n' "${menu_items[@]}" | rofi -dmenu -i -p "Select display:")" || choice=""
 
-        [[ "${choice}" == "Back" || -z "${choice}" ]] && return
+        [[ "${choice}" == "Back" || -z "${choice}" ]] && return 0
 
-        # Extract output name
-        local selected_output
-        selected_output="$(echo "${choice}" | awk '{print $1}')"
+        # Find the output name from the choice
+        local selected_output=""
+        for item in "${outputs[@]}"; do
+            IFS='|' read -r out display_text <<< "${item}"
+            if [[ "${display_text}" == "${choice}" ]]; then
+                selected_output="${out}"
+                break
+            fi
+        done
 
-        dmenu_single_display_menu "${selected_output}"
+        [[ -n "${selected_output}" ]] && dmenu_single_display_menu "${selected_output}"
     done
 }
 
 # Single display settings menu
 dmenu_single_display_menu() {
     local output="${1}"
+    local label
+    label="$(get_display_label "${output}")"
 
     while true; do
         local choice
         choice="$(printf '%s\n' \
             "Enable (auto mode)" \
+            "Set resolution/mode" \
+            "Set position" \
             "Disable" \
             "Set as primary" \
             "Back" \
-            | dmenu -i -p "${output}:")" || return
+            | rofi -dmenu -i -p "${label}:")" || choice=""
+
+        # Exit on empty choice (Escape pressed)
+        [[ -z "${choice}" ]] && return 0
 
         case "${choice}" in
             "Enable (auto mode)")
                 xrandr --output "${output}" --auto
+                reload_desktop_environment
+                ;;
+            "Set resolution/mode")
+                dmenu_select_mode "${output}"
+                ;;
+            "Set position")
+                dmenu_select_position "${output}"
                 ;;
             "Disable")
                 xrandr --output "${output}" --off
+                reload_desktop_environment
                 ;;
             "Set as primary")
                 xrandr --output "${output}" --primary
+                reload_desktop_environment
                 ;;
-            "Back"|"")
-                return
+            "Back")
+                return 0
                 ;;
         esac
+    done
+}
+
+# Select mode/resolution for a display
+dmenu_select_mode() {
+    local output="${1}"
+    local label
+    label="$(get_display_label "${output}")"
+
+    local -a modes=()
+    local current_mode
+    current_mode="$(extract_mode "${output}")"
+
+    while IFS= read -r mode; do
+        [[ -z "${mode}" ]] && continue
+        local mark=""
+        [[ "${mode}" == "${current_mode}" ]] && mark=" [CURRENT]"
+        modes+=("${mode}${mark}")
+    done < <(get_available_modes "${output}")
+
+    modes+=("Back")
+
+    local choice
+    choice="$(printf '%s\n' "${modes[@]}" | rofi -dmenu -i -l 15 -p "${label} mode:")" || choice=""
+
+    [[ "${choice}" == "Back" || -z "${choice}" ]] && return 0
+
+    # Extract mode (remove [CURRENT] mark if present)
+    local selected_mode
+    selected_mode="$(echo "${choice}" | sed 's/ \[CURRENT\]//')"
+
+    if [[ -n "${selected_mode}" ]]; then
+        xrandr --output "${output}" --mode "${selected_mode}"
+        reload_desktop_environment
+    fi
+}
+
+# Select position relative to other displays
+dmenu_select_position() {
+    local output="${1}"
+    local label
+    label="$(get_display_label "${output}")"
+
+    # Get other outputs
+    local -a other_outputs=()
+    while IFS= read -r other; do
+        [[ "${other}" == "${output}" ]] && continue
+        is_output_enabled "${other}" || continue
+        other_outputs+=("${other}")
+    done < <(get_connected_outputs)
+
+    # Build position options
+    local -a options=()
+
+    for other in "${other_outputs[@]}"; do
+        local other_label
+        other_label="$(get_display_label "${other}")"
+        options+=("Left of ${other_label}|--left-of|${other}")
+        options+=("Right of ${other_label}|--right-of|${other}")
+        options+=("Above ${other_label}|--above|${other}")
+        options+=("Below ${other_label}|--below|${other}")
+        options+=("Same as ${other_label}|--same-as|${other}")
+    done
+
+    options+=("Back||")
+
+    # Build menu
+    local -a menu_items=()
+    for opt in "${options[@]}"; do
+        IFS='|' read -r text _ _ <<< "${opt}"
+        menu_items+=("${text}")
+    done
+
+    local choice
+    choice="$(printf '%s\n' "${menu_items[@]}" | rofi -dmenu -i -l 15 -p "${label} position:")" || choice=""
+
+    [[ "${choice}" == "Back" || -z "${choice}" ]] && return 0
+
+    # Find selected option
+    for opt in "${options[@]}"; do
+        IFS='|' read -r text flag other <<< "${opt}"
+        if [[ "${text}" == "${choice}" && -n "${flag}" ]]; then
+            xrandr --output "${output}" "${flag}" "${other}"
+            reload_desktop_environment
+            return 0
+        fi
     done
 }
 
@@ -717,7 +944,7 @@ Commands:
     auto                        Auto-configure (handle connections/disconnections)
     rearrange                   Remove gaps and align displays
     list                        List all outputs and their status
-    dmenu                       Show dmenu interface for screen management
+    dmenu                       Show rofi interface for screen management
     monitor                     Continuously monitor for display changes
 
 Configuration directory: ${CONFIG_DIR}

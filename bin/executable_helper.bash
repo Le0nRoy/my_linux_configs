@@ -255,11 +255,8 @@ case "$1" in
         #echo "${URL_TO_CONNECT}"
         ;;
     "screens_settings")
-        nvidia-settings
-        polybar_start
-        set_us_ru_layout
-        set_background
-        source "${HOME}/.xsessionrc"
+        # Launch xrandr rofi menu for screen management
+        bash "${HOME}/bin/xrandr_manager.bash" dmenu
         ;;
     "vnc_over_ssh")
         shift

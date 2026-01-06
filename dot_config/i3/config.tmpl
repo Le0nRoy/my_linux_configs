@@ -91,7 +91,7 @@ exec --no-startup-id firefox
 exec --no-startup-id alacritty -e "$TMUX"
 
 {{ if eq .chezmoi.hostname "dragonlady" -}}
-exec --no-startup-id quodlibet
+#exec --no-startup-id quodlibet
 exec --no-startup-id Telegram 
 exec --no-startup-id "$HOME/bin/helper.bash todoist"
 ## Mail client
@@ -152,8 +152,7 @@ bindsym ctrl+XF86AudioLowerVolume exec $volume_hdmi_down
 bindsym ctrl+XF86AudioMute exec $volume_hdmi_mute
 ## Keepass
 bindsym $mod+F5 exec keepass "${HOME}/Personal/Database.kdbx"
-## Screen management
-bindsym $mod+Shift+F10 exec "bash $HOME/bin/xrandr_manager.bash dmenu"
+## Screen management (mod+F10 is defined below)
 ## Keyboard layouts
 bindsym $mod+F12 exec $SET_EN_RU_LAYOUT
 bindsym $mod+Shift+F12 exec "bash '$HOME/.xsessionrc'"
@@ -241,7 +240,7 @@ bindsym $mod+Ctrl+Down move workspace to output down
 bindsym $mod+Shift+c reload
 ## Lock screen
 bindsym $mod+l exec --no-startup-id $LOCK_SCREEN 
-## Switch displays
+## Screen management rofi menu
 bindsym $mod+F10 exec $HOME/bin/helper.bash screens_settings
 ## Set shutdown, restart and locking features
 set $mode_system (l)ock, (h)ibernate, (s)hutdown, (r)eboot 
