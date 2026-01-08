@@ -160,14 +160,13 @@ get_display_label() {
 
 # Reload polybar and other desktop components after display changes
 reload_desktop_environment() {
-    # Reload polybar
-    if pgrep -x polybar &>/dev/null || pgrep -f polybar-supervisor &>/dev/null; then
-        # Kill existing polybar supervisor and restart
-        pkill -f "polybar-supervisor.bash" 2>/dev/null || true
-        sleep 0.2
-        if [[ -x "${HOME}/bin/polybar-supervisor.bash" ]]; then
-            nohup "${HOME}/bin/polybar-supervisor.bash" &>/dev/null &
-        fi
+    # Reload polybar - kill all polybar processes and supervisor, then restart
+    pkill -f "polybar-supervisor.bash" 2>/dev/null || true
+    pkill -x polybar 2>/dev/null || true
+    sleep 0.3
+    if [[ -x "${HOME}/bin/polybar-supervisor.bash" ]]; then
+        nohup "${HOME}/bin/polybar-supervisor.bash" &>/dev/null &
+        disown 2>/dev/null || true
     fi
 
     # Set background

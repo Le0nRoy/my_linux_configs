@@ -257,6 +257,7 @@ case "$1" in
     "screens_settings")
         # Launch xrandr rofi menu for screen management
         bash "${HOME}/bin/xrandr_manager.bash" dmenu
+        polybar_start
         ;;
     "vnc_over_ssh")
         shift

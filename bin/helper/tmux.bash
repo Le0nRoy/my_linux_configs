@@ -37,20 +37,24 @@ function tmux_ide_session() {
 
         # Now send commands after terminal initialization is done
         # Use `C-u` (ctrl+u) to remove all special symbols, sent by IDE
+        # Window 1 (ai-agents): left pane = claude, right pane = empty
         tmux send-keys -t "${session_name}:ai-agents.0" C-u
         tmux send-keys -t "${session_name}:ai-agents.0" "${HOME}/bin/claude_wrapper.bash"
-        tmux send-keys -t "${session_name}:ai-agents.1" C-u
-        tmux send-keys -t "${session_name}:ai-agents.1" "${HOME}/bin/cursor_agent_wrapper.bash"
+
+        # Window 2 (dev): left pane = empty, right pane = git watch
+        tmux send-keys -t "${session_name}:dev.1" "watch 'git branch --show-current; git status --short'" C-m
 
         # Wait for attach process to complete
         wait "${attach_pid}" 2>/dev/null || true
     else
         # Called as script: just prepare commands and print instructions
         sleep 0.1
+        # Window 1 (ai-agents): left pane = claude, right pane = empty
         tmux send-keys -t "${session_name}:ai-agents.0" C-u
         tmux send-keys -t "${session_name}:ai-agents.0" "${HOME}/bin/claude_wrapper.bash"
-        tmux send-keys -t "${session_name}:ai-agents.1" C-u
-        tmux send-keys -t "${session_name}:ai-agents.1" "${HOME}/bin/cursor_agent_wrapper.bash"
+
+        # Window 2 (dev): left pane = empty, right pane = git watch
+        tmux send-keys -t "${session_name}:dev.1" "watch 'git branch --show-current; git status --short'" C-m
 
         echo "Session '${session_name}' created. To attach, run:"
         echo "  tmux attach-session -t ${session_name}"
