@@ -169,7 +169,11 @@ reload_desktop_environment() {
         disown 2>/dev/null || true
     fi
 
-    # Set background
+    # Set background - source common.bash to get DESKTOP_BG if not already set
+    if [[ -z "${DESKTOP_BG:-}" && -f "${HOME}/bin/helper/common.bash" ]]; then
+        # shellcheck source=/dev/null
+        source "${HOME}/bin/helper/common.bash"
+    fi
     if command -v feh &>/dev/null && [[ -n "${DESKTOP_BG:-}" ]]; then
         feh --bg-fill "${DESKTOP_BG}" 2>/dev/null || true
     fi
@@ -654,6 +658,7 @@ dmenu_main_menu() {
             "Per-display settings" \
             "Rearrange displays (remove gaps)" \
             "Open nvidia-settings" \
+            "Reload desktop (polybar + background)" \
             "List outputs" \
             "Exit" \
             | rofi -dmenu -i -p "Screen Manager:")" || choice=""
@@ -675,8 +680,14 @@ dmenu_main_menu() {
                 rearrange_displays
                 ;;
             "Open nvidia-settings")
-                nvidia-settings &
+                # Run nvidia-settings and reload desktop after it closes
+                # Backgrounded so rofi closes immediately
+                (nvidia-settings; "${0}" reload-desktop) &>/dev/null &
+                disown 2>/dev/null || true
                 return 0
+                ;;
+            "Reload desktop (polybar + background)")
+                reload_desktop_environment
                 ;;
             "List outputs")
                 dmenu_list_outputs
@@ -942,6 +953,7 @@ Commands:
     set-default <name>          Set default configuration
     auto                        Auto-configure (handle connections/disconnections)
     rearrange                   Remove gaps and align displays
+    reload-desktop              Reload polybar and reset background
     list                        List all outputs and their status
     dmenu                       Show rofi interface for screen management
     monitor                     Continuously monitor for display changes
@@ -983,6 +995,9 @@ main() {
             ;;
         rearrange)
             rearrange_displays
+            ;;
+        reload-desktop)
+            reload_desktop_environment
             ;;
         list)
             list_outputs

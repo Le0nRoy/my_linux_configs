@@ -8,10 +8,10 @@ function tmux_ide_session() {
     local session_name
     session_name="$(basename "${PWD}")"
 
-    # Check if session already exists
-    if tmux has-session -t "${session_name}" 2>/dev/null; then
+    # Check if session already exists (use '=' prefix for exact match)
+    if tmux has-session -t "=${session_name}" 2>/dev/null; then
         # Attach to existing session
-        tmux attach-session -t "${session_name}" -d
+        tmux attach-session -t "=${session_name}" -d
         return 0
     fi
 
@@ -29,7 +29,7 @@ function tmux_ide_session() {
     # Check if we have a controlling terminal (running in interactive shell vs called as script)
     if [[ -t 0 ]]; then
         # Interactive mode: attach in background to handle PyCharm's device queries
-        tmux attach-session -t "${session_name}" -d &
+        tmux attach-session -t "=${session_name}" -d &
         local attach_pid=$!
 
         # Wait for terminal handshake to complete (PyCharm sends device queries on attach)
@@ -57,7 +57,7 @@ function tmux_ide_session() {
         tmux send-keys -t "${session_name}:dev.1" "watch 'git branch --show-current; git status --short'" C-m
 
         echo "Session '${session_name}' created. To attach, run:"
-        echo "  tmux attach-session -t ${session_name}"
+        echo "  tmux attach-session -t '=${session_name}'"
     fi
 }
 
@@ -66,10 +66,10 @@ function tmux_main_session() {
     local session_name="${TMUX_SESSION:-tmux-main}"
     local chezmoi_dir="${HOME}/.local/share/chezmoi"
 
-    # Check if session already exists
-    if tmux has-session -t "${session_name}" 2>/dev/null; then
+    # Check if session already exists (use '=' prefix for exact match)
+    if tmux has-session -t "=${session_name}" 2>/dev/null; then
         # Attach to existing session
-        tmux attach-session -t "${session_name}" -d
+        tmux attach-session -t "=${session_name}" -d
         return 0
     fi
 
@@ -102,5 +102,5 @@ function tmux_main_session() {
     tmux select-pane -t "${session_name}:chezmoi.0"
 
     # Attach to the session
-    tmux attach-session -t "${session_name}" -d
+    tmux attach-session -t "=${session_name}" -d
 }

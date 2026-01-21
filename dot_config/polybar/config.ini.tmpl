@@ -108,7 +108,7 @@ separator = |
 separator-foreground = ${colors.disabled}
 modules-left = filesystem ytmp3usage chezmoi
 modules-center = wlan eth type-c-eth
-modules-right = memory cpu 
+modules-right = memory cpu gpu gpu-mem gpu-temp gpu-power
 fixed-center = true
 ; Misc
 cursor-click = pointer
@@ -219,6 +219,38 @@ interval = 2
 format-prefix = "CPU "
 format-prefix-foreground = ${colors.primary}
 label = %percentage:2%%
+
+[module/gpu]
+type = custom/script
+exec = nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null || echo "N/A"
+interval = 2
+format-prefix = "GPU "
+format-prefix-foreground = ${colors.primary}
+label = %output%%
+
+[module/gpu-mem]
+type = custom/script
+exec = nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null | awk -F',' '{printf "%.0f", ($1/$2)*100}' || echo "N/A"
+interval = 2
+format-prefix = "VRAM "
+format-prefix-foreground = ${colors.primary}
+label = %output%%
+
+[module/gpu-temp]
+type = custom/script
+exec = nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null || echo "N/A"
+interval = 2
+format-prefix = "TEMP "
+format-prefix-foreground = ${colors.primary}
+label = %output%°C
+
+[module/gpu-power]
+type = custom/script
+exec = nvidia-smi --query-gpu=power.draw,power.max_limit --format=csv,noheader,nounits 2>/dev/null | awk -F', *' '$1+0 >= 0 && $2+0 > 0 {printf "%.0f/%.0fW", $1, $2; found=1; exit} END {if(found==0) print "N/A"}'
+interval = 2
+format-prefix = "PWR "
+format-prefix-foreground = ${colors.primary}
+label = %output%
 
 [network-base]
 type = internal/network

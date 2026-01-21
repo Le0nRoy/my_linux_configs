@@ -2,7 +2,7 @@
 
 This file tracks ongoing development tasks for the dotfiles system and AI agent configuration.
 
-**Last Updated**: 2025-12-05
+**Last Updated**: 2025-12-18
 
 ---
 
@@ -254,21 +254,15 @@ xrandr_manager.bash monitor                    # Continuous monitoring
 
 ### 9. Unify AI Agent Rules
 
-**Status**: Not started
+**Status**: ✅ Completed (2025-12-18)
 **Priority**: Low
 **Description**: Consolidate AGENTS.md and CLAUDE.md into a single comprehensive rule file
 
-**Considerations**:
-- Current separation: AGENTS.md (all agents), CLAUDE.md (Claude-specific)
-- Some rules are agent-specific (tool usage patterns)
-- Some rules are universal (code style, security)
-
-**Options**:
-1. Single file with agent-specific sections
-2. Base file + agent-specific overrides
-3. Modular system (include pattern)
-
-**Decision Needed**: Discuss with user which approach is preferred
+**Completed Implementation**:
+- ✅ Made `AGENTS.md` the single source of truth
+- ✅ `CLAUDE.md` now redirects to `AGENTS.md` with brief summary
+- ✅ Added CRITICAL commit/staging policy: never stage or commit without explicit instruction
+- ✅ Updated all sections that referenced automatic staging/committing
 
 ---
 
@@ -277,6 +271,59 @@ xrandr_manager.bash monitor                    # Continuous monitoring
 **Status**: Not started
 **Priority**: Low
 **Description**: Instead of current sandbox system with access to the host network create a sandbox, which still gets host directories mounted, however has own network, with own docker daemon running. Access to the internet should persist in the sandbox. Sandbox should consume as low resources, as possible, but must have 0 possibility to harm host system. Also while developing this feature need always double check, that no secrets are mounted to the sandboxes (instead of development/testing secrets).
+
+---
+
+### 11. PulseAudio/PipeWire Audio Profiles Manager
+
+**Status**: Not started
+**Priority**: Medium
+**Description**: Create audio routing profiles with dmenu interface for managing which applications output to which audio sinks
+
+**Use Cases**:
+- Gaming: Game audio to headphones, Discord/music to speakers
+- Streaming: Capture specific apps while monitoring on headphones
+- Music production: Route DAW to specific interface, system sounds elsewhere
+- Video calls: Meeting audio to headphones, other apps to speakers
+
+**Features Needed**:
+- Save/load named audio routing profiles
+- dmenu interface for profile selection
+- Per-application sink assignment
+- Move running applications between sinks
+- Set default sink for new applications
+- Show current audio routing status
+
+**Implementation Ideas**:
+```bash
+# Profile format (JSON or simple config)
+# ~/.config/audio-profiles/gaming.conf
+default_sink=speakers
+app:firefox=headphones
+app:discord=speakers
+app:steam*=headphones
+
+# CLI commands
+audio_profile.bash list              # List profiles
+audio_profile.bash load <name>       # Apply profile
+audio_profile.bash save <name>       # Save current routing
+audio_profile.bash dmenu             # Interactive menu
+audio_profile.bash move <app> <sink> # Move single app
+audio_profile.bash status            # Show current routing
+```
+
+**Technical Considerations**:
+- Use `pactl` for PulseAudio or `wpctl` for PipeWire
+- Detect which sound server is running
+- Handle sink-inputs (running streams) vs clients
+- Match applications by name pattern (regex/glob)
+- Handle apps that start after profile is loaded
+
+**Related Tools**:
+- `pactl list sink-inputs` - List running audio streams
+- `pactl move-sink-input` - Move stream to different sink
+- `pactl set-default-sink` - Set default output
+- `wpctl` - PipeWire equivalent commands
 
 ---
 
