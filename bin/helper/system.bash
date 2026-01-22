@@ -2,14 +2,32 @@
 # Helper System Module - System, display, and notification functions
 # Depends on: common.bash (for DESKTOP_BG, LOCK_SCREEN_IMAGE, SINK_NAME)
 
+# Source xsessionrc to get apply_xsession_input_settings function (single source of truth)
+# XSESSIONRC_SKIP_INIT prevents running init block - we only need the function definition
+XSESSIONRC_SKIP_INIT=1 source "${HOME}/.xsessionrc"
+
 function get_display() {
     # Get current DISPLAY environment variable
     echo "${DISPLAY}"
 }
 
 function set_us_ru_layout() {
+    # Apply input settings from xsessionrc (touchpad, xset)
+    apply_xsession_input_settings
     # Set US/RU keyboard layout with Alt+Shift toggle
     setxkbmap -layout us,ru -option grp:alt_shift_toggle
+    # Restart kbdd to pick up new keyboards
+    pkill -x kbdd 2>/dev/null || true
+    kbdd
+}
+
+function set_us_ge_layout() {
+    # Apply input settings from xsessionrc (touchpad, xset)
+    apply_xsession_input_settings
+    # Set US/GE keyboard layout with Alt+Shift toggle
+    setxkbmap -layout ge,us -option grp:alt_shift_toggle
+    # Restart kbdd to pick up new keyboards
+    pkill -x kbdd 2>/dev/null || true
     kbdd
 }
 

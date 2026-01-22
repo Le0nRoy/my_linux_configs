@@ -8,19 +8,29 @@ fi
 
 GDK_SCALE=1
 
-## Disable screensaver
-xset s off
-xset s noblank
-xset -dpms
-## Enable ssh-agent
-eval `ssh-agent`
+## Apply input device settings (safe for reruns)
+## This function is the single source of truth for input configuration
+## Called by helper.bash functions and inputplug handler
+apply_xsession_input_settings() {
+    ## Disable screensaver
+    xset s off
+    xset s noblank
+    xset -dpms
 
-## Enable touchpad
-for touchpad in "$(xinput list --name-only | grep -i 'Touchpad')"; do
-    xinput --set-prop "${touchpad}" 'libinput Tapping Enabled' 1
-    xinput --set-prop "${touchpad}" 'libinput Natural Scrolling Enabled' 1
-done
+    ## Enable touchpad
+    xinput list --name-only | grep -i 'Touchpad' | while read -r touchpad; do
+        xinput --set-prop "${touchpad}" 'libinput Tapping Enabled' 1 2>/dev/null || true
+        xinput --set-prop "${touchpad}" 'libinput Natural Scrolling Enabled' 1 2>/dev/null || true
+    done
+}
 
-"${HOME_HELPER_UNIQ_SCRIPT_DIR}/helper.bash" set_us_ru_keymap
+## Run initialization unless XSESSIONRC_SKIP_INIT is set (used by system.bash)
+if [[ -z "${XSESSIONRC_SKIP_INIT}" ]]; then
+    ## Enable ssh-agent (only if not already running)
+    if [[ -z "${SSH_AGENT_PID}" ]] || ! kill -0 "${SSH_AGENT_PID}" 2>/dev/null; then
+        eval "$(ssh-agent)"
+    fi
 
+    apply_xsession_input_settings
+fi
 

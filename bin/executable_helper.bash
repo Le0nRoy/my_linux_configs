@@ -131,7 +131,7 @@ case "$1" in
         set_us_ru_layout
         ;;
     "set_us_ge_keymap")
-        setxkbmap -layout ge,us -option grp:alt_shift_toggle
+        set_us_ge_layout
         ;;
     "lock_screen")
         # Pause notifications

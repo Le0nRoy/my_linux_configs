@@ -108,7 +108,7 @@ separator = |
 separator-foreground = ${colors.disabled}
 modules-left = filesystem ytmp3usage chezmoi
 modules-center = wlan eth type-c-eth
-modules-right = memory cpu gpu gpu-mem gpu-temp gpu-power
+modules-right = memory cpu{{ if eq .chezmoi.hostname "dragonlady" }} gpu gpu-mem{{ end }} sys-temp sys-fan sys-power
 fixed-center = true
 ; Misc
 cursor-click = pointer
@@ -200,8 +200,11 @@ label-foreground = ${colors.white}
 [module/filesystem]
 type = internal/fs
 interval = 25
-; All other mountpoints should be added to the `.config/polybar/config-env.ini` file
+; Universal mounts for all machines
 mount-0 = /
+mount-1 = /home
+mount-2 = /Data
+; Machine-specific mounts should be added to config-<hostname>.ini
 
 label-mounted = %{F#F0C674}%mountpoint%%{F-} %percentage_used%%
 label-unmounted = 
@@ -220,6 +223,7 @@ format-prefix = "CPU "
 format-prefix-foreground = ${colors.primary}
 label = %percentage:2%%
 
+{{ if eq .chezmoi.hostname "dragonlady" -}}
 [module/gpu]
 type = custom/script
 exec = nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null || echo "N/A"
@@ -236,17 +240,26 @@ format-prefix = "VRAM "
 format-prefix-foreground = ${colors.primary}
 label = %output%%
 
-[module/gpu-temp]
+{{ end -}}
+[module/sys-temp]
 type = custom/script
-exec = nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null || echo "N/A"
+exec = "${HOME}/bin/polybar_system_stats.bash" temp
 interval = 2
 format-prefix = "TEMP "
 format-prefix-foreground = ${colors.primary}
-label = %output%°C
+label = %output%
 
-[module/gpu-power]
+[module/sys-fan]
 type = custom/script
-exec = nvidia-smi --query-gpu=power.draw,power.max_limit --format=csv,noheader,nounits 2>/dev/null | awk -F', *' '$1+0 >= 0 && $2+0 > 0 {printf "%.0f/%.0fW", $1, $2; found=1; exit} END {if(found==0) print "N/A"}'
+exec = "${HOME}/bin/polybar_system_stats.bash" fan
+interval = 2
+format-prefix = "FAN "
+format-prefix-foreground = ${colors.primary}
+label = %output%
+
+[module/sys-power]
+type = custom/script
+exec = "${HOME}/bin/polybar_system_stats.bash" power
 interval = 2
 format-prefix = "PWR "
 format-prefix-foreground = ${colors.primary}
