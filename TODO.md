@@ -2,7 +2,7 @@
 
 This file tracks ongoing development tasks for the dotfiles system and AI agent configuration.
 
-**Last Updated**: 2026-01-26
+**Last Updated**: 2026-01-27
 
 ---
 
@@ -233,6 +233,96 @@ audio_profile.bash status            # Show current routing
 - `pactl move-sink-input` - Move stream to different sink
 - `pactl set-default-sink` - Set default output
 - `wpctl` - PipeWire equivalent commands
+
+---
+
+### 12. Improve AI Sandboxing with Read-Only Mode
+
+**Status**: Not started
+**Priority**: High
+**Description**: Create a read-only AI agent mode with system-wide access but strict security boundaries
+
+**Features**:
+
+#### 12.1 Read-Only System Access Mode
+- Configure external sandbox (bubblewrap) to enforce read-only access
+- NOT controlled by AI agent internal settings (agent cannot override)
+- Full system read access for information gathering
+- No write capabilities anywhere
+
+#### 12.2 Exclude Directories with Secrets
+- Automatically exclude sensitive directories from bind mounts:
+  - `${HOME}/.ssh` - SSH keys and known_hosts
+  - `/Job/secrets` - Work-related secrets
+  - `${HOME}/.kube` - Kubernetes credentials
+  - `${HOME}/.config/gcloud` - GCP credentials
+  - `${HOME}/.aws` - AWS credentials
+  - `${HOME}/.gnupg` - GPG keys
+  - `${HOME}/.password-store` - pass password manager
+  - Add configurable list for additional paths
+
+#### 12.3 Alternative User Execution (Optional)
+- Explore running AI agent as different user
+- User would have read-only access to specific files
+- More robust isolation than bubblewrap alone
+- May require sudo/polkit configuration
+
+**Implementation Notes**:
+- Create new wrapper: `executable_claude_ro_wrapper.bash`
+- Use `--ro-bind` for all mounts
+- Create exclusion list config file: `~/.config/ai-sandbox/secrets-exclusion.conf`
+- Document which directories are excluded and why
+
+---
+
+### 13. Verify Sandboxed Agent Subagent Capabilities
+
+**Status**: Not started
+**Priority**: High
+**Description**: Verify and document subagent orchestration capabilities for sandboxed AI agents
+
+**Requirements**:
+
+#### 13.1 Workdir Read-Write Subagents
+- Sandboxed RW agent can spawn subagents in workdir
+- Subagents inherit workdir write access
+- Subagents can access subdirectories of workdir
+
+#### 13.2 System-Wide Read-Only Subagents
+- RW agent can spawn RO subagents with system-wide access
+- RO subagents can gather information from:
+  - Installed packages (`pacman -Q`, `dpkg -l`)
+  - System configurations (`/etc/`)
+  - Hardware info (`lspci`, `lsusb`, `sensors`)
+  - Display info (`xrandr`, Xorg configs)
+  - GPU info (`nvidia-smi`, `nvidia-settings`)
+  - Network configuration
+
+#### 13.3 Information Collection Use Cases
+- Collect system state to improve dotfiles scripts:
+  - `xrandr` screen management
+  - Proton game launcher configuration
+  - Hardware sensors reading
+  - NVIDIA GPU info retrieval
+  - System installation reproduction script
+- RO subagent gathers info, passes to RW agent on-demand
+- RW agent uses info to enhance scripts
+
+#### 13.4 Subagent Limits
+- Maximum concurrent subagents must be configurable
+- Default limit: TBD (suggest: 3-5)
+- Configuration location: `~/.config/ai-sandbox/subagent-limits.conf`
+- Prevent resource exhaustion from runaway subagent spawning
+
+**Testing Plan**:
+- [ ] Test RW agent spawning RW subagent in workdir
+- [ ] Test RW agent spawning RO system-wide subagent
+- [ ] Test RO subagent cannot write anywhere
+- [ ] Test subagent limit enforcement
+- [ ] Test information passing between subagents and parent
+- [ ] Document orchestration patterns
+
+**Related Tasks**: Task 10 (Fully sandboxed environment), Task 12 (RO mode)
 
 ---
 
