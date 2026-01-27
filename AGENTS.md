@@ -119,6 +119,38 @@ local -a args=(
 - Include header comments for scripts
 - Validate inputs and provide helpful error messages
 
+**Loops - CRITICAL**:
+```bash
+# WRONG - splits on whitespace, breaks with spaces in output
+for item in $(command); do
+    echo "${item}"
+done
+
+# CORRECT - preserves full lines including spaces
+command | while read -r item; do
+    echo "${item}"
+done
+
+# CORRECT - iterating over array elements (safe)
+local -a items=("item one" "item two" "item three")
+for item in "${items[@]}"; do
+    echo "${item}"
+done
+
+# CORRECT - iterating over glob patterns (safe, no command substitution)
+for file in /path/to/files/*; do
+    [[ -e "${file}" ]] || continue  # handle empty glob
+    echo "${file}"
+done
+```
+
+**When to use `for` vs `while read`**:
+- `for item in "${array[@]}"` - iterating over bash arrays (safe)
+- `for file in /path/*` - iterating over glob patterns (safe)
+- `for i in {1..10}` - iterating over ranges (safe)
+- `command | while read -r line` - processing command output line by line (safe)
+- **NEVER**: `for item in $(command)` - word splitting breaks on spaces
+
 **Validation**:
 ```bash
 # Check syntax

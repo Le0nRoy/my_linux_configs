@@ -2,7 +2,7 @@
 
 This file tracks ongoing development tasks for the dotfiles system and AI agent configuration.
 
-**Last Updated**: 2025-12-18
+**Last Updated**: 2026-01-26
 
 ---
 
@@ -31,106 +31,21 @@ This file tracks ongoing development tasks for the dotfiles system and AI agent 
 
 ---
 
-### 2. Complete xrandr Screen Management System
+### ✅ 2. Complete xrandr Screen Management System (Completed 2025-12-05)
 
-**Status**: ✅ Completed (2025-12-05)
-**Priority**: High
-**Branch**: `xrandr_config`
-**Description**: Implement comprehensive Xorg display management with automatic detection, configuration saving/loading, and dmenu interface
+Comprehensive Xorg display management with automatic detection, configuration saving/loading, and rofi interface.
 
-#### Completed Implementation
-
-**Major rewrite of `bin/executable_xrandr_manager.bash` (783 lines, modular architecture):**
-
-**Configuration Management (3.1):**
-- ✅ Multiple named configurations stored in `~/.config/xrandr-manager/configs/`
-- ✅ Default configuration selection via dmenu prompt when saving
-- ✅ Visual layout descriptions: `DP-2*@0,0 HDMI-0@2560,0` (sorted left-to-right)
-- ✅ Full metadata: name, description, date, layout, output configurations
-
-**Auto-Detection (3.2):**
-- ✅ Connection detection via `detect_connections()` function
-- ✅ Disconnection detection via `detect_disconnections()` function
-- ✅ State tracking in `~/.config/xrandr-manager/current_state`
-- ✅ Automatic actions triggered on state change
-
-**Auto-Apply on Reconnect (3.3):**
-- ✅ Default config applied automatically when displays reconnect
-- ✅ `rearrange_displays()` removes gaps between displays
-- ✅ Middle-axis alignment via `calculate_middle_axis()`
-- ✅ Displays positioned contiguously (no gaps)
-
-**Disconnection Handling (3.4):**
-- ✅ Primary moves to DEFAULT_PRIMARY (DP-2) if available
-- ✅ `find_next_clockwise()` selects next display when default unavailable
-- ✅ `rearrange_displays()` closes gaps after disconnect
-- ✅ Middle axes aligned across remaining displays
-
-**dmenu UI:**
-- ✅ Keybinding changed to `$mod+Shift+F10` in i3 config
-- ✅ Per-display settings: Enable/Disable/Set Primary via submenu
-- ✅ All submenus have "Back" button
-- ✅ Menu reopens after actions (while loop)
-- ✅ Main menu: Load config, Save config, Per-display settings, Rearrange, nvidia-settings, List outputs, Exit
-
-**Code Quality:**
-- ✅ 40+ small functions (most under 20 lines)
-- ✅ All variables quoted: `"${var}"`
-- ✅ All conditions use `[[ ]]`
-- ✅ Clear snake_case function names
-- ✅ Organized into sections with clear headers
-
-**Functions implemented:**
-- Parsing: `get_connected_outputs`, `get_disconnected_outputs`, `get_primary_output`, `extract_mode`, `extract_position`, `get_display_dimensions`, `get_display_offset`, `is_primary_output`, `is_output_enabled`
-- Config: `list_configs`, `get_default_config`, `set_default_config`, `generate_layout_description`, `save_config`, `save_output_config`, `load_config`, `delete_config`
-- Apply: `apply_config_file`, `build_output_args`, `add_mode_args`, `add_position_args`, `execute_xrandr_command`
-- Geometry: `calculate_middle_axis`, `get_displays_left_to_right`, `find_next_clockwise`, `rearrange_displays`
-- Auto: `get_current_state`, `save_state`, `load_previous_state`, `handle_disconnection`, `select_new_primary`, `handle_connection`, `auto_configure`, `detect_disconnections`, `detect_connections`
-- Display: `list_outputs`, `format_output_info`
-- dmenu: `dmenu_main_menu`, `dmenu_load_config_menu`, `dmenu_save_config_menu`, `dmenu_display_settings_menu`, `dmenu_single_display_menu`
-
-**CLI Commands:**
-```bash
-xrandr_manager.bash save <name> [description]  # Save config
-xrandr_manager.bash load <name>                # Load config
-xrandr_manager.bash delete <name>              # Delete config
-xrandr_manager.bash list-configs               # List all configs
-xrandr_manager.bash set-default <name>         # Set default config
-xrandr_manager.bash auto                       # Auto-configure
-xrandr_manager.bash rearrange                  # Remove gaps/align
-xrandr_manager.bash list                       # List outputs
-xrandr_manager.bash dmenu                      # Interactive menu
-xrandr_manager.bash monitor                    # Continuous monitoring
-```
+**See**: [docs/completed/2025-12-05-xrandr-screen-management.md](docs/completed/2025-12-05-xrandr-screen-management.md)
+**Documentation**: [docs/xrandr-manager.md](docs/xrandr-manager.md)
 
 ---
 
-### 3. Refactor helper.bash
+### ✅ 3. Refactor helper.bash (Completed 2025-11-18)
 
-**Status**: ✅ Completed (2025-11-18)
-**Priority**: Medium
-**Description**: Break down `bin/executable_helper.bash` into smaller, modular files while preserving direct function execution
+Split monolithic helper.bash into 7 focused modules while maintaining backward compatibility.
 
-**Completed Implementation**:
-- ✅ Created modular directory structure: `bin/helper/`
-- ✅ Split into 7 focused modules (429 total lines):
-  - `common.bash` (27 lines) - Shared variables and constants
-  - `tmux.bash` (102 lines) - Tmux session management functions
-  - `git.bash` (13 lines) - Git utility functions
-  - `system.bash` (88 lines) - System, display, and notification functions
-  - `storage.bash` (110 lines) - Mount/unmount operations
-  - `backup.bash` (36 lines) - Backup and sync functions
-  - `utils.bash` (53 lines) - Miscellaneous utility functions
-- ✅ Reduced main script from 640 lines to 292 lines
-- ✅ Created comprehensive README: `bin/helper/README.md`
-- ✅ Validated all module syntax with `bash -n`
-- ✅ Tested backward compatibility (sourcing and command-line)
-- ✅ Maintained all existing functionality
-- ✅ Preserved autocompletion and error handling
-
-**Documentation**:
-- See `bin/helper/README.md` for module overview and usage
-- See `docs/helper_refactor_plan.md` for detailed design decisions
+**See**: [docs/completed/2025-11-18-helper-bash-refactor.md](docs/completed/2025-11-18-helper-bash-refactor.md)
+**Documentation**: [bin/helper/README.md](bin/helper/README.md)
 
 ---
 
@@ -252,17 +167,11 @@ xrandr_manager.bash monitor                    # Continuous monitoring
 
 ---
 
-### 9. Unify AI Agent Rules
+### ✅ 9. Unify AI Agent Rules (Completed 2025-12-18)
 
-**Status**: ✅ Completed (2025-12-18)
-**Priority**: Low
-**Description**: Consolidate AGENTS.md and CLAUDE.md into a single comprehensive rule file
+Made AGENTS.md the single source of truth; CLAUDE.md now redirects with summary.
 
-**Completed Implementation**:
-- ✅ Made `AGENTS.md` the single source of truth
-- ✅ `CLAUDE.md` now redirects to `AGENTS.md` with brief summary
-- ✅ Added CRITICAL commit/staging policy: never stage or commit without explicit instruction
-- ✅ Updated all sections that referenced automatic staging/committing
+**See**: [docs/completed/2025-12-18-unify-ai-agent-rules.md](docs/completed/2025-12-18-unify-ai-agent-rules.md)
 
 ---
 
