@@ -1,7 +1,11 @@
 #!/bin/bash
 
-DIR="$1"
-DIR_NAME=$(basename "${DIR}")
+DIR="${1}"
+
+# Exit silently if directory does not exist
+[[ -d "${DIR}" ]] || exit 0
+
+DIR_NAME="$(basename "${DIR}")"
 
 LIMIT_SIZE=$((1*1024*1024*1024))  # 1 GB
 LIMIT_FILES=20

@@ -13,19 +13,57 @@ COLOR_MUTED="#707880"             # Muted sink (gray)
 COLOR_CHOSEN_FG="#000000"         # Chosen sink foreground (black)
 COLOR_CHOSEN_BG="#BD5E02"         # Chosen sink background (orange, like focused workspace)
 
-# Get or initialize chosen sink
+# Get list of currently available sink names
+get_available_sinks() {
+    pactl list sinks short 2>/dev/null | awk '{print $2}'
+}
+
+# Check if a sink exists
+sink_exists() {
+    local sink="${1}"
+    [[ -n "${sink}" ]] && get_available_sinks | grep -qx "${sink}"
+}
+
+# Get default sink from PulseAudio
+get_default_sink() {
+    pactl get-default-sink 2>/dev/null
+}
+
+# Get or initialize chosen sink (with validation)
 get_chosen_sink() {
+    local chosen_sink=""
+    local default_sink=""
+    local first_sink=""
+
+    # Try to read from state file
     if [[ -f "${STATE_FILE}" ]]; then
-        cat "${STATE_FILE}"
-    else
-        # Default: choose first available sink
-        local first_sink
-        first_sink="$(pactl list sinks short | head -1 | awk '{print $2}')"
-        if [[ -n "${first_sink}" ]]; then
-            echo "${first_sink}" > "${STATE_FILE}"
-            echo "${first_sink}"
-        fi
+        chosen_sink="$(cat "${STATE_FILE}")"
     fi
+
+    # Validate chosen sink still exists
+    if sink_exists "${chosen_sink}"; then
+        echo "${chosen_sink}"
+        return
+    fi
+
+    # Chosen sink doesn't exist - try default sink
+    default_sink="$(get_default_sink)"
+    if sink_exists "${default_sink}"; then
+        echo "${default_sink}" > "${STATE_FILE}"
+        echo "${default_sink}"
+        return
+    fi
+
+    # Fall back to first available sink
+    first_sink="$(get_available_sinks | head -1)"
+    if [[ -n "${first_sink}" ]]; then
+        echo "${first_sink}" > "${STATE_FILE}"
+        echo "${first_sink}"
+        return
+    fi
+
+    # No sinks available (PulseAudio not ready?)
+    echo ""
 }
 
 # Set chosen sink
@@ -237,10 +275,11 @@ handle_click() {
             pactl set-sink-mute "${chosen_sink}" toggle
             ;;
         right)
-            # Right click - cycle to next sink (default sink remains unchanged)
+            # Right click - cycle to next sink and set as default
             local next_sink
             next_sink="$(get_next_sink "${chosen_sink}")"
             set_chosen_sink "${next_sink}"
+            pactl set-default-sink "${next_sink}"
             ;;
         scroll_up)
             # Scroll up - increase volume on CHOSEN sink
