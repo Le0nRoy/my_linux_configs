@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "confluence": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic/mcp-confluence"
+      ],
+      "env": {
+        "CONFLUENCE_URL": "${CONFLUENCE_URL}",
+        "CONFLUENCE_TOKEN": "${CONFLUENCE_TOKEN}",
+        "CONFLUENCE_USER": "${CONFLUENCE_USER}"
+      }
+    }
+  }
+}

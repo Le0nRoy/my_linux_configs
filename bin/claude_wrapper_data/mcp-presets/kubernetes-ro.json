@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "kubernetes": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic/mcp-kubernetes"
+      ],
+      "env": {
+        "KUBECONFIG": "~/.kube/ai-agent-config"
+      }
+    }
+  }
+}
