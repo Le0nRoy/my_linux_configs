@@ -265,6 +265,12 @@ run_sandboxed_agent() {
         bwrap_args+=(--bind "${HOME_DIR}/bin" "${HOME_DIR}/bin")
     fi
 
+    # Add ~/bin directory if it exists (for kind, kubectl, and other user binaries)
+    if [[ -d "${HOME_DIR}/.agents" ]]; then
+        bwrap_args+=(--bind "${HOME_DIR}/.agents" "${HOME_DIR}/.agents")
+    fi
+
+
     # Add extra bwrap flags (user-specified binds, etc.) - using validated flags
     bwrap_args+=("${validated_bwrap_flags[@]}")
 
