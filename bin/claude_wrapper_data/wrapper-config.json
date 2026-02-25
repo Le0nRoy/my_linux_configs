@@ -111,39 +111,5 @@
       "description": "Security scanning and vulnerability analysis",
       "category": "Security"
     }
-  ],
-  "presets": [
-    {
-      "id": "code-reviewer",
-      "name": "Code Reviewer",
-      "description": "Code review for Python, Go, Bash with security (GitHub + GitLab)",
-      "mcps": ["github-ro", "gitlab-ro"],
-      "skills": [
-        "anthropics/code-review",
-        "anthropics/python-review",
-        "anthropics/go-review",
-        "anthropics/bash-review",
-        "anthropics/security-review"
-      ]
-    },
-    {
-      "id": "test-engineer",
-      "name": "Test Engineer",
-      "description": "Automated test development (Go, Python)",
-      "mcps": [],
-      "skills": [
-        "anthropics/testing",
-        "anthropics/code-review"
-      ]
-    },
-    {
-      "id": "devops-debugger",
-      "name": "DevOps Debugger",
-      "description": "K8s logs, GitLab pipelines, Docker, Confluence docs",
-      "mcps": ["kubernetes-ro", "gitlab-ro", "docker-rw", "confluence-ro"],
-      "skills": [
-        "anthropics/k8s-debug"
-      ]
-    }
   ]
 }

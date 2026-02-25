@@ -1,8 +1,8 @@
 #!/bin/bash
 # Claude Wrapper Library - Menu functions and helpers for claude_wrapper.bash
 #
-# This library provides interactive menus for selecting MCPs, skills, and presets.
-# It is sourced by executable_claude_wrapper.bash.
+# This library provides an interactive menu for agent orchestration setup
+# and plain session management. It is sourced by executable_claude_wrapper.bash.
 
 # ===== CONSTANTS =====
 
@@ -11,6 +11,8 @@ WRAPPER_DATA_DIR="${WRAPPER_DATA_DIR:-$(dirname "${BASH_SOURCE[0]}")}"
 WRAPPER_CONFIG="${WRAPPER_DATA_DIR}/wrapper-config.json"
 WRAPPER_HELP="${WRAPPER_DATA_DIR}/wrapper-help.md"
 MCP_PRESETS_DIR="${WRAPPER_DATA_DIR}/mcp-presets"
+ORCHESTRATOR_PROMPT="${WRAPPER_DATA_DIR}/orchestrator-prompt.md"
+AGENT_ROLES_CONFIG="${WRAPPER_DATA_DIR}/agent-roles.json"
 
 # Claude runtime directory (for skills, etc.)
 CLAUDE_DIR="${HOME}/.claude"
@@ -22,12 +24,12 @@ LOCAL_STORAGE_DIR=".claude-wrapper"
 
 # Selected items (arrays)
 declare -a SELECTED_MCPS=()
-declare -a SELECTED_SKILLS=()
 
 # Available items (loaded from config)
 declare -a AVAILABLE_MCPS=()
-declare -a AVAILABLE_SKILLS=()
-declare -a AVAILABLE_PRESETS=()
+
+# Orchestration role assignments (loaded from agent-roles.json, modifiable at runtime)
+declare -A ROLE_ASSIGNMENTS=()
 
 # ===== UTILITY FUNCTIONS =====
 
@@ -50,39 +52,9 @@ array_contains() {
     return 1
 }
 
-# Toggle item in array (add if not present, remove if present)
-# Usage: array_toggle "value" array_name
-array_toggle() {
-    local value="${1}"
-    local -n arr_ref="${2}"
-    local -a new_arr=()
-    local found=0
-
-    for item in "${arr_ref[@]}"; do
-        if [[ "${item}" == "${value}" ]]; then
-            found=1
-        else
-            new_arr+=("${item}")
-        fi
-    done
-
-    if [[ ${found} -eq 0 ]]; then
-        new_arr+=("${value}")
-    fi
-
-    arr_ref=("${new_arr[@]}")
-}
-
-# Remove all items from array
-# Usage: array_clear array_name
-array_clear() {
-    local -n arr_ref="${1}"
-    arr_ref=()
-}
-
 # ===== CONFIGURATION LOADING =====
 
-# Load available MCPs, skills, and presets from config
+# Load available MCPs from config
 load_wrapper_config() {
     if [[ ! -f "${WRAPPER_CONFIG}" ]]; then
         wrapper_log "ERROR" "Configuration not found: ${WRAPPER_CONFIG}"
@@ -91,12 +63,6 @@ load_wrapper_config() {
 
     # Load MCPs
     mapfile -t AVAILABLE_MCPS < <(jq -r '.mcps[].id' "${WRAPPER_CONFIG}" 2>/dev/null)
-
-    # Load skills
-    mapfile -t AVAILABLE_SKILLS < <(jq -r '.skills[].id' "${WRAPPER_CONFIG}" 2>/dev/null)
-
-    # Load presets
-    mapfile -t AVAILABLE_PRESETS < <(jq -r '.presets[].id' "${WRAPPER_CONFIG}" 2>/dev/null)
 
     return 0
 }
@@ -109,30 +75,57 @@ get_mcp_info() {
     jq -r ".mcps[] | select(.id == \"${mcp_id}\") | .${field}" "${WRAPPER_CONFIG}" 2>/dev/null
 }
 
-# Get skill info by ID
-get_skill_info() {
-    local skill_id="${1}"
-    local field="${2}"
-    jq -r ".skills[] | select(.id == \"${skill_id}\") | .${field}" "${WRAPPER_CONFIG}" 2>/dev/null
+# ===== AGENT ROLES =====
+
+# Load role assignments from agent-roles.json (defaults)
+load_agent_roles() {
+    if [[ ! -f "${AGENT_ROLES_CONFIG}" ]]; then
+        wrapper_log "ERROR" "Agent roles config not found: ${AGENT_ROLES_CONFIG}"
+        return 1
+    fi
+
+    local roles
+    roles=$(jq -r '.default_roles | to_entries[] | .key + "=" + .value' "${AGENT_ROLES_CONFIG}" 2>/dev/null)
+    while IFS='=' read -r role agent; do
+        ROLE_ASSIGNMENTS["${role}"]="${agent}"
+    done <<< "${roles}"
+
+    return 0
 }
 
-# Get preset info by ID
-get_preset_info() {
-    local preset_id="${1}"
-    local field="${2}"
-    jq -r ".presets[] | select(.id == \"${preset_id}\") | .${field}" "${WRAPPER_CONFIG}" 2>/dev/null
+# Check if an agent binary is installed
+check_agent_installed() {
+    local agent_id="${1}"
+    local cmd
+    cmd=$(jq -r ".agents.\"${agent_id}\".command" "${AGENT_ROLES_CONFIG}" 2>/dev/null)
+    command -v "${cmd}" &>/dev/null
 }
 
-# Get preset MCPs as array
-get_preset_mcps() {
-    local preset_id="${1}"
-    jq -r ".presets[] | select(.id == \"${preset_id}\") | .mcps[]" "${WRAPPER_CONFIG}" 2>/dev/null
+# Check which required skills are missing
+# Prints space-separated list of missing skill names
+check_skills_installed() {
+    local -a required_skills=(
+        "writing-plans"
+        "executing-plans"
+        "subagent-driven-development"
+        "requesting-code-review"
+        "using-git-worktrees"
+        "finishing-a-development-branch"
+    )
+    local -a missing=()
+    for skill in "${required_skills[@]}"; do
+        if [[ ! -d "${HOME}/.agents/skills/${skill}" ]]; then
+            missing+=("${skill}")
+        fi
+    done
+    echo "${missing[*]}"
 }
 
-# Get preset skills as array
-get_preset_skills() {
-    local preset_id="${1}"
-    jq -r ".presets[] | select(.id == \"${preset_id}\") | .skills[]" "${WRAPPER_CONFIG}" 2>/dev/null
+# Install a missing skill via npx
+install_missing_skill() {
+    local skill_name="${1}"
+    echo "Installing skill: ${skill_name}..." >/dev/tty
+    npx skills add "${skill_name}" </dev/tty >/dev/tty 2>&1
 }
 
 # ===== LOCAL STORAGE =====
@@ -343,185 +336,278 @@ show_header() {
     echo "" >/dev/tty
 }
 
-# Show current selections summary
-show_selections_summary() {
-    echo "Current selections:" >/dev/tty
-    if [[ ${#SELECTED_MCPS[@]} -gt 0 ]]; then
-        echo "  MCPs: ${SELECTED_MCPS[*]}" >/dev/tty
+# Show agent availability and role assignments for orchestration
+show_dependency_status() {
+    echo "Agent availability:" >/dev/tty
+
+    local -a agent_ids
+    mapfile -t agent_ids < <(jq -r '.agents | keys[]' "${AGENT_ROLES_CONFIG}" 2>/dev/null)
+
+    for agent_id in "${agent_ids[@]}"; do
+        local strengths
+        strengths=$(jq -r ".agents.\"${agent_id}\".strengths" "${AGENT_ROLES_CONFIG}" 2>/dev/null)
+        if check_agent_installed "${agent_id}"; then
+            printf "  ✓ %-10s - %s\n" "${agent_id}" "${strengths}" >/dev/tty
+        else
+            printf "  ✗ %-10s - Not installed (%s not found)\n" "${agent_id}" \
+                "$(jq -r ".agents.\"${agent_id}\".command" "${AGENT_ROLES_CONFIG}" 2>/dev/null)" >/dev/tty
+        fi
+    done
+
+    echo "" >/dev/tty
+    echo "Current role assignments:" >/dev/tty
+
+    local -a role_names=("planner" "implementer" "tester" "reviewer" "finisher")
+    for role in "${role_names[@]}"; do
+        local agent="${ROLE_ASSIGNMENTS[${role}]:-claude}"
+        local desc
+        desc=$(jq -r ".role_descriptions.\"${role}\"" "${AGENT_ROLES_CONFIG}" 2>/dev/null)
+        printf "  %-14s %s  (%s)\n" "${role^}:" "${agent}" "${desc}" >/dev/tty
+    done
+
+    echo "" >/dev/tty
+
+    # Skills status
+    local missing_skills
+    missing_skills=$(check_skills_installed)
+    if [[ -z "${missing_skills}" ]]; then
+        echo "Skills: All required skills installed ✓" >/dev/tty
     else
-        echo "  MCPs: (none)" >/dev/tty
-    fi
-    if [[ ${#SELECTED_SKILLS[@]} -gt 0 ]]; then
-        echo "  Skills: ${SELECTED_SKILLS[*]}" >/dev/tty
-    else
-        echo "  Skills: (none)" >/dev/tty
+        echo "Skills: Missing - ${missing_skills}" >/dev/tty
     fi
     echo "" >/dev/tty
 }
 
-# Show main menu
-# Returns: selected action (preset, mcp, skill, help, new, resume) via stdout
-show_main_menu() {
+# Show role editor submenu - lets user change agent assignment per role
+show_role_editor() {
+    local -a role_names=("planner" "implementer" "tester" "reviewer" "finisher")
+    local -a agent_ids
+    mapfile -t agent_ids < <(jq -r '.agents | keys[]' "${AGENT_ROLES_CONFIG}" 2>/dev/null)
+
     while true; do
         show_header
-        show_selections_summary
+        echo "Modify Role Assignments" >/dev/tty
+        echo "----------------------------------------" >/dev/tty
+        echo "" >/dev/tty
+
+        local i=1
+        for role in "${role_names[@]}"; do
+            local agent="${ROLE_ASSIGNMENTS[${role}]:-claude}"
+            local desc
+            desc=$(jq -r ".role_descriptions.\"${role}\"" "${AGENT_ROLES_CONFIG}" 2>/dev/null)
+            printf "  %d) %-14s %s  (%s)\n" "${i}" "${role^}:" "${agent}" "${desc}" >/dev/tty
+            i=$((i + 1))
+        done
+
+        echo "" >/dev/tty
+        echo "Available agents: ${agent_ids[*]}" >/dev/tty
+        echo "" >/dev/tty
+        echo "Commands: [number] change role, [b]ack" >/dev/tty
+        echo -n "> " >/dev/tty
+        read -r input </dev/tty
+
+        case "${input}" in
+            b|back|B|Back)
+                return 0
+                ;;
+            [0-9]*)
+                local idx=$((input - 1))
+                if [[ ${idx} -ge 0 && ${idx} -lt ${#role_names[@]} ]]; then
+                    local role="${role_names[${idx}]}"
+                    echo "" >/dev/tty
+                    echo "Select agent for ${role^}:" >/dev/tty
+
+                    local j=1
+                    for agent_id in "${agent_ids[@]}"; do
+                        local installed="✓"
+                        if ! check_agent_installed "${agent_id}"; then
+                            installed="✗"
+                        fi
+                        printf "  %d) %s %s\n" "${j}" "${installed}" "${agent_id}" >/dev/tty
+                        j=$((j + 1))
+                    done
+
+                    echo -n "> " >/dev/tty
+                    read -r agent_choice </dev/tty
+
+                    local agent_idx=$((agent_choice - 1))
+                    if [[ ${agent_idx} -ge 0 && ${agent_idx} -lt ${#agent_ids[@]} ]]; then
+                        local chosen_agent="${agent_ids[${agent_idx}]}"
+                        if ! check_agent_installed "${chosen_agent}"; then
+                            echo "Warning: ${chosen_agent} is not installed." >/dev/tty
+                            echo -n "Assign anyway? [y/N]: " >/dev/tty
+                            read -r confirm </dev/tty
+                            if [[ "${confirm}" != "y" && "${confirm}" != "Y" ]]; then
+                                continue
+                            fi
+                        fi
+                        ROLE_ASSIGNMENTS["${role}"]="${chosen_agent}"
+                        echo "${role^} assigned to ${chosen_agent}." >/dev/tty
+                        sleep 0.5
+                    else
+                        echo "Invalid choice." >/dev/tty
+                        sleep 0.5
+                    fi
+                else
+                    echo "Invalid number." >/dev/tty
+                    sleep 0.5
+                fi
+                ;;
+            *)
+                echo "Unknown command." >/dev/tty
+                sleep 0.5
+                ;;
+        esac
+    done
+}
+
+# Apply recommended role assignments (from agent-roles.json)
+apply_recommended_roles() {
+    local roles
+    roles=$(jq -r '.recommended_roles | to_entries[] | select(.key != "_comment") | .key + "=" + .value' \
+        "${AGENT_ROLES_CONFIG}" 2>/dev/null)
+    while IFS='=' read -r role agent; do
+        [[ -z "${role}" ]] && continue
+        ROLE_ASSIGNMENTS["${role}"]="${agent}"
+    done <<< "${roles}"
+}
+
+# Install missing dependencies (agents and skills)
+install_missing_dependencies() {
+    show_header
+    echo "Install Missing Dependencies" >/dev/tty
+    echo "----------------------------------------" >/dev/tty
+    echo "" >/dev/tty
+
+    # Check agents
+    local -a agent_ids
+    mapfile -t agent_ids < <(jq -r '.agents | keys[]' "${AGENT_ROLES_CONFIG}" 2>/dev/null)
+
+    local has_missing=0
+    for agent_id in "${agent_ids[@]}"; do
+        if ! check_agent_installed "${agent_id}"; then
+            has_missing=1
+            local install_cmd
+            install_cmd=$(jq -r ".agents.\"${agent_id}\".install_command" "${AGENT_ROLES_CONFIG}" 2>/dev/null)
+            echo "Agent '${agent_id}' not installed." >/dev/tty
+            echo "  Install: ${install_cmd}" >/dev/tty
+            echo -n "  Install now? [y/N]: " >/dev/tty
+            read -r confirm </dev/tty
+            if [[ "${confirm}" == "y" || "${confirm}" == "Y" ]]; then
+                echo "Running: ${install_cmd}" >/dev/tty
+                eval "${install_cmd}" </dev/tty >/dev/tty 2>&1
+                if check_agent_installed "${agent_id}"; then
+                    echo "  ✓ ${agent_id} installed successfully." >/dev/tty
+                else
+                    echo "  ✗ ${agent_id} installation failed." >/dev/tty
+                fi
+            fi
+            echo "" >/dev/tty
+        fi
+    done
+
+    # Check skills
+    local missing_skills
+    missing_skills=$(check_skills_installed)
+    if [[ -n "${missing_skills}" ]]; then
+        has_missing=1
+        echo "Missing skills: ${missing_skills}" >/dev/tty
+        echo -n "Install all missing skills? [y/N]: " >/dev/tty
+        read -r confirm </dev/tty
+        if [[ "${confirm}" == "y" || "${confirm}" == "Y" ]]; then
+            for skill in ${missing_skills}; do
+                install_missing_skill "${skill}"
+            done
+        fi
+        echo "" >/dev/tty
+    fi
+
+    if [[ ${has_missing} -eq 0 ]]; then
+        echo "All dependencies are installed. ✓" >/dev/tty
+    fi
+
+    echo "" >/dev/tty
+    echo "Press Enter to continue..." >/dev/tty
+    read -r </dev/tty
+}
+
+# Show orchestration submenu
+# Returns "orchestrate" via stdout if user wants to start, or returns without output to go back
+show_orchestration_menu() {
+    # Load role config
+    if ! load_agent_roles; then
+        echo "Failed to load agent roles. Press Enter to continue..." >/dev/tty
+        read -r </dev/tty
+        return 1
+    fi
+
+    while true; do
+        show_header
+        echo "Agent Orchestration" >/dev/tty
+        echo "----------------------------------------" >/dev/tty
+        echo "" >/dev/tty
+
+        show_dependency_status
 
         echo "Options:" >/dev/tty
-        echo "  1) Presets (MCPs + Skills bundles)" >/dev/tty
-        echo "  2) Connect MCPs" >/dev/tty
-        echo "  3) Connect Skills" >/dev/tty
-        echo "  4) Help" >/dev/tty
-        echo "  5) Start new conversation" >/dev/tty
-        echo "  6) Resume from list" >/dev/tty
+        echo "  1) Start orchestration" >/dev/tty
+        echo "  2) Modify role assignments" >/dev/tty
+        echo "  3) Use recommended roles" >/dev/tty
+        echo "  4) Install missing dependencies" >/dev/tty
+        echo "  b) Back" >/dev/tty
         echo "" >/dev/tty
-        echo -n "Choose an option [1-6]: " >/dev/tty
+        echo -n "> " >/dev/tty
         read -r choice </dev/tty
 
         case "${choice}" in
-            1) echo "preset"; return 0 ;;
-            2) echo "mcp"; return 0 ;;
-            3) echo "skill"; return 0 ;;
-            4) echo "help"; return 0 ;;
-            5) echo "new"; return 0 ;;
-            6) echo "resume"; return 0 ;;
-            *)
-                echo "Invalid choice. Press Enter to continue..." >/dev/tty
-                read -r </dev/tty
-                ;;
-        esac
-    done
-}
-
-# Generic multi-select menu
-# Arguments:
-#   $1 - Menu title
-#   $2 - Name of array containing item IDs
-#   $3 - Name of array containing selected items (will be modified)
-#   $4 - Config type for getting info (mcp, skill)
-show_multiselect_menu() {
-    local title="${1}"
-    local -n items_ref="${2}"
-    local -n selected_ref="${3}"
-    local config_type="${4}"
-
-    while true; do
-        show_header
-        echo "${title}" >/dev/tty
-        echo "----------------------------------------" >/dev/tty
-        echo "" >/dev/tty
-
-        local i=1
-        for item_id in "${items_ref[@]}"; do
-            local name description
-            if [[ "${config_type}" == "mcp" ]]; then
-                name=$(get_mcp_info "${item_id}" "name")
-                description=$(get_mcp_info "${item_id}" "description")
-            elif [[ "${config_type}" == "skill" ]]; then
-                name=$(get_skill_info "${item_id}" "name")
-                description=$(get_skill_info "${item_id}" "description")
-            fi
-
-            local marker="[ ]"
-            if array_contains "${item_id}" "${selected_ref[@]}"; then
-                marker="[x]"
-            fi
-
-            printf "  %2d) %s %-20s - %s\n" "${i}" "${marker}" "${name:-${item_id}}" "${description:-}" >/dev/tty
-            i=$((i + 1))
-        done
-
-        echo "" >/dev/tty
-        echo "Commands: [number] toggle, [b]ack, [r]eset, [d]one" >/dev/tty
-        echo -n "> " >/dev/tty
-        read -r input </dev/tty
-
-        case "${input}" in
-            b|back|B|Back)
+            1)
+                echo "orchestrate"
                 return 0
                 ;;
-            r|reset|R|Reset)
-                array_clear selected_ref
+            2)
+                show_role_editor
                 ;;
-            d|done|D|Done)
-                return 0
+            3)
+                apply_recommended_roles
+                echo "Recommended roles applied." >/dev/tty
+                sleep 0.5
                 ;;
-            [0-9]*)
-                local idx=$((input - 1))
-                if [[ ${idx} -ge 0 && ${idx} -lt ${#items_ref[@]} ]]; then
-                    local item_id="${items_ref[${idx}]}"
-                    array_toggle "${item_id}" selected_ref
-                else
-                    echo "Invalid number. Press Enter to continue..." >/dev/tty
-                    read -r </dev/tty
-                fi
+            4)
+                install_missing_dependencies
                 ;;
-            *)
-                echo "Unknown command. Press Enter to continue..." >/dev/tty
-                read -r </dev/tty
-                ;;
-        esac
-    done
-}
-
-# Show presets menu
-show_presets_menu() {
-    while true; do
-        show_header
-        echo "Presets (MCPs + Skills bundles)" >/dev/tty
-        echo "----------------------------------------" >/dev/tty
-        echo "" >/dev/tty
-        echo "Selecting a preset will clear other selections and start immediately." >/dev/tty
-        echo "" >/dev/tty
-
-        local i=1
-        for preset_id in "${AVAILABLE_PRESETS[@]}"; do
-            local name description
-            name=$(get_preset_info "${preset_id}" "name")
-            description=$(get_preset_info "${preset_id}" "description")
-            printf "  %2d) %-20s - %s\n" "${i}" "${name:-${preset_id}}" "${description:-}" >/dev/tty
-            i=$((i + 1))
-        done
-
-        echo "" >/dev/tty
-        echo "Commands: [number] select preset, [b]ack" >/dev/tty
-        echo -n "> " >/dev/tty
-        read -r input </dev/tty
-
-        case "${input}" in
             b|back|B|Back)
                 return 1
                 ;;
-            [0-9]*)
-                local idx=$((input - 1))
-                if [[ ${idx} -ge 0 && ${idx} -lt ${#AVAILABLE_PRESETS[@]} ]]; then
-                    local preset_id="${AVAILABLE_PRESETS[${idx}]}"
-
-                    # Clear existing selections
-                    SELECTED_MCPS=()
-                    SELECTED_SKILLS=()
-
-                    # Load preset MCPs
-                    mapfile -t SELECTED_MCPS < <(get_preset_mcps "${preset_id}")
-
-                    # Load preset skills
-                    mapfile -t SELECTED_SKILLS < <(get_preset_skills "${preset_id}")
-
-                    echo "" >/dev/tty
-                    echo "Preset '${preset_id}' loaded:" >/dev/tty
-                    echo "  MCPs: ${SELECTED_MCPS[*]:-none}" >/dev/tty
-                    echo "  Skills: ${SELECTED_SKILLS[*]:-none}" >/dev/tty
-                    echo "" >/dev/tty
-                    echo "Starting Claude session..." >/dev/tty
-                    sleep 1
-
-                    return 0  # Signal to start session
-                else
-                    echo "Invalid number. Press Enter to continue..." >/dev/tty
-                    read -r </dev/tty
-                fi
-                ;;
             *)
-                echo "Unknown command. Press Enter to continue..." >/dev/tty
+                echo "Invalid choice." >/dev/tty
+                sleep 0.5
+                ;;
+        esac
+    done
+}
+
+# Show main menu
+# Returns: selected action (orchestrate, help, new, resume) via stdout
+show_main_menu() {
+    while true; do
+        show_header
+
+        echo "Options:" >/dev/tty
+        echo "  1) Agent Orchestration" >/dev/tty
+        echo "  2) Help" >/dev/tty
+        echo "  3) Start new conversation" >/dev/tty
+        echo "  4) Resume from list" >/dev/tty
+        echo "" >/dev/tty
+        echo -n "Choose an option [1-4]: " >/dev/tty
+        read -r choice </dev/tty
+
+        case "${choice}" in
+            1) echo "orchestrate"; return 0 ;;
+            2) echo "help"; return 0 ;;
+            3) echo "new"; return 0 ;;
+            4) echo "resume"; return 0 ;;
+            *)
+                echo "Invalid choice. Press Enter to continue..." >/dev/tty
                 read -r </dev/tty
                 ;;
         esac
@@ -542,21 +628,12 @@ display_help() {
     else
         echo "Help file not found: ${WRAPPER_HELP}" >/dev/tty
         echo "" >/dev/tty
-        echo "Available MCPs:" >/dev/tty
-        for mcp_id in "${AVAILABLE_MCPS[@]}"; do
-            local name description
-            name=$(get_mcp_info "${mcp_id}" "name")
-            description=$(get_mcp_info "${mcp_id}" "description")
-            echo "  - ${name:-${mcp_id}}: ${description:-}" >/dev/tty
-        done
+        echo "Claude CLI Wrapper" >/dev/tty
         echo "" >/dev/tty
-        echo "Available Skills:" >/dev/tty
-        for skill_id in "${AVAILABLE_SKILLS[@]}"; do
-            local name description
-            name=$(get_skill_info "${skill_id}" "name")
-            description=$(get_skill_info "${skill_id}" "description")
-            echo "  - ${name:-${skill_id}}: ${description:-}" >/dev/tty
-        done
+        echo "Options:" >/dev/tty
+        echo "  Agent Orchestration - Launch multi-phase dev workflow (plan/implement/test/review/merge)" >/dev/tty
+        echo "  Start new conversation - Launch a plain Claude session" >/dev/tty
+        echo "  Resume from list - Resume a previous Claude session" >/dev/tty
         echo "" >/dev/tty
         echo "Press Enter to return to menu..." >/dev/tty
         read -r </dev/tty
@@ -566,7 +643,7 @@ display_help() {
 # ===== MAIN MENU LOOP =====
 
 # Run the interactive menu system
-# Returns selected action and sets SELECTED_MCPS and SELECTED_SKILLS
+# Returns selected action via stdout: "start", "resume", or "orchestrate"
 run_menu_system() {
     # Load configuration
     if ! load_wrapper_config; then
@@ -579,17 +656,13 @@ run_menu_system() {
         action=$(show_main_menu)
 
         case "${action}" in
-            preset)
-                if show_presets_menu; then
-                    echo "start"
+            orchestrate)
+                local orch_result
+                orch_result=$(show_orchestration_menu)
+                if [[ "${orch_result}" == "orchestrate" ]]; then
+                    echo "orchestrate"
                     return 0
                 fi
-                ;;
-            mcp)
-                show_multiselect_menu "Connect MCPs" AVAILABLE_MCPS SELECTED_MCPS "mcp"
-                ;;
-            skill)
-                show_multiselect_menu "Connect Skills" AVAILABLE_SKILLS SELECTED_SKILLS "skill"
                 ;;
             help)
                 display_help
@@ -604,6 +677,30 @@ run_menu_system() {
                 ;;
         esac
     done
+}
+
+# ===== ORCHESTRATION =====
+
+# Build the orchestrator system prompt with role assignments substituted
+# Outputs the rendered prompt to stdout
+build_orchestrator_prompt() {
+    if [[ ! -f "${ORCHESTRATOR_PROMPT}" ]]; then
+        wrapper_log "ERROR" "Orchestrator prompt not found: ${ORCHESTRATOR_PROMPT}"
+        return 1
+    fi
+
+    # Build role assignments text
+    local role_text=""
+    local -a role_names=("planner" "implementer" "tester" "reviewer" "finisher")
+    for role in "${role_names[@]}"; do
+        local agent="${ROLE_ASSIGNMENTS[${role}]:-claude}"
+        role_text+="- ${role^}: ${agent}"$'\n'
+    done
+
+    # Read template and substitute {ROLE_ASSIGNMENTS}
+    local prompt_content
+    prompt_content=$(<"${ORCHESTRATOR_PROMPT}")
+    echo "${prompt_content//\{ROLE_ASSIGNMENTS\}/${role_text}}"
 }
 
 # ===== COMMAND BUILDING =====
@@ -623,9 +720,6 @@ build_claude_flags() {
         fi
     fi
 
-    # Note: Claude Code skills (slash commands) are built-in and always available
-    # The SELECTED_SKILLS array is informational only - used for preset descriptions
-
     # Output flags
     printf '%s\n' "${flags[@]}"
 }
@@ -634,6 +728,8 @@ build_claude_flags() {
 cleanup_wrapper() {
     # Remove temporary MCP config files
     rm -f /tmp/claude-mcp-$$.json 2>/dev/null
+    # Remove temporary orchestrator prompt files
+    rm -f /tmp/claude-orchestrator-$$.md 2>/dev/null
 }
 
 # Set trap for cleanup

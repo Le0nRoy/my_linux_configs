@@ -3,7 +3,7 @@
 # Uses the universal AI agent wrapper with claude-specific configuration.
 #
 # Features:
-# - Interactive menu for selecting MCPs, skills, and presets
+# - Agent orchestration (plan → implement → test → review → merge)
 # - Sandboxed execution with resource limits
 # - Session resume support
 
@@ -54,18 +54,49 @@ run_claude_session() {
     esac
 }
 
+# Function to run an orchestrated session
+# Builds the orchestrator system prompt with role assignments and launches Claude
+run_orchestrated_session() {
+    # Build the orchestrator system prompt with role assignments
+    local prompt_content
+    prompt_content=$(build_orchestrator_prompt)
+    if [[ $? -ne 0 || -z "${prompt_content}" ]]; then
+        echo "ERROR: Failed to build orchestrator prompt." >&2
+        return 1
+    fi
+
+    # Write to temp file for --append-system-prompt
+    local prompt_file="/tmp/claude-orchestrator-$$.md"
+    echo "${prompt_content}" > "${prompt_file}"
+
+    # Build additional flags from any MCP selections
+    local -a extra_flags=()
+    mapfile -t extra_flags < <(build_claude_flags)
+
+    # Launch Claude with the orchestrator prompt appended
+    run_sandboxed_agent "claude" -- "${WRAPPER_FLAGS[@]}" -- \
+        "${CLAUDE_FLAGS[@]}" "${extra_flags[@]}" \
+        --append-system-prompt "$(cat "${prompt_file}")"
+}
+
 # Interactive session selection (only if no arguments provided and stdin/stdout are terminals)
 if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
     if [[ ${MENU_AVAILABLE} -eq 1 ]]; then
         # Use the full menu system
         action=$(run_menu_system)
 
-        # Build additional flags from selections
-        mapfile -t extra_flags < <(build_claude_flags)
-
-        # Run the session
-        run_claude_session "${action}" "${extra_flags[@]}"
-        exit $?
+        case "${action}" in
+            orchestrate)
+                run_orchestrated_session
+                exit $?
+                ;;
+            *)
+                # Build additional flags from selections
+                mapfile -t extra_flags < <(build_claude_flags)
+                run_claude_session "${action}" "${extra_flags[@]}"
+                exit $?
+                ;;
+        esac
     else
         # Fallback to simple menu if library not available
         echo "Claude CLI - Session Options:"
