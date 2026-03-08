@@ -96,8 +96,8 @@ function job_mount() {
     # Mount encrypted job directory using fscrypt
     if [[ ! -f "${JOB_SETUP_FILE}" ]]; then
         fscrypt unlock "${JOB_MOUNT_DIR}"
-        source "${JOB_SETUP_FILE}"
-        "${JOB_SETUP_FILE}" start
+#        source "${JOB_SETUP_FILE}"
+#        "${JOB_SETUP_FILE}" start
     else
         echo "${JOB_MOUNT_DIR} is already mounted"
     fi
@@ -105,6 +105,6 @@ function job_mount() {
 
 function job_umount() {
     # Unmount and lock encrypted job directory
-    source "${JOB_TEARDOWN_FILE}"
+#    source "${JOB_TEARDOWN_FILE}"
     fscrypt lock "${JOB_MOUNT_DIR}"
 }
