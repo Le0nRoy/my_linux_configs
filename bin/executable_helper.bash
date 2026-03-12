@@ -21,6 +21,7 @@ source "${HELPER_MODULE_DIR}/storage.bash"
 source "${HELPER_MODULE_DIR}/backup.bash"
 source "${HELPER_MODULE_DIR}/utils.bash"
 source "${HELPER_MODULE_DIR}/transfer.bash"
+source "${HELPER_MODULE_DIR}/i3.bash"
 
 # Load environment variables if present
 if [[ -f "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env" ]]; then

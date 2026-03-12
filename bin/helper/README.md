@@ -13,7 +13,8 @@ helper/
 ├── system.bash      # System/display/notifications
 ├── storage.bash     # Mount/unmount operations
 ├── backup.bash      # Backup and sync functions
-└── utils.bash       # Miscellaneous utilities
+├── utils.bash       # Miscellaneous utilities
+└── i3.bash          # i3 window manager utilities
 ```
 
 ## Modules Overview
@@ -72,6 +73,13 @@ helper/
 - `cut_video()` - Cut video segment
 - `gpg_decrypt()` - Decrypt GPG file
 - `gpg_encrypt()` - Encrypt with GPG
+
+### i3.bash - i3 Window Manager
+**Dependencies**: `i3-save-tree`, `i3-msg`, `jq`
+**Functions**:
+- `i3_save_ws <num>` - Save a single workspace to `~/.config/i3/workspaces/` and the chezmoi repo
+- `i3_save_chezmoi_ws()` - Save all active workspaces to `~/.config/i3/workspaces/` and the chezmoi repo
+- `i3_restore_ws <src> [target]` - Restore a workspace layout from the saved file into i3
 
 ## Usage
 
@@ -147,6 +155,7 @@ common.bash (no dependencies)
 git.bash (no dependencies)
 backup.bash (no dependencies)
 utils.bash (no dependencies)
+i3.bash (no dependencies)
 ```
 
 ## Testing
