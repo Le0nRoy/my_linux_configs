@@ -221,11 +221,16 @@ case "$1" in
             
             WIN_ID=$(awk '{print $1}' <<<"${SELECTION}")
             if [ -n "${WIN_ID}" ]; then
-                # Focus the window and send URL (if provided)
-                xdotool windowactivate "${WIN_ID}" 
-                xdotool key --window "${WIN_ID}" ctrl+t 
-                xdotool type --window "${WIN_ID}" --clearmodifiers "${LINK}"
+                # Use clipboard paste for instant URL entry (xdotool type is slow ~12ms/char)
+                PREV_CLIP=$(xclip -selection clipboard -o 2>/dev/null || true)
+                printf '%s' "${LINK}" | xclip -selection clipboard
+                xdotool windowactivate --sync "${WIN_ID}"
+                xdotool key --window "${WIN_ID}" ctrl+t
+                sleep 0.1
+                xdotool key --window "${WIN_ID}" ctrl+v
                 xdotool key --window "${WIN_ID}" Return
+                # Restore previous clipboard content after navigation starts
+                { sleep 1; printf '%s' "${PREV_CLIP}" | xclip -selection clipboard; } &
             fi
         else
             # Fallback to simple choose between profiles
