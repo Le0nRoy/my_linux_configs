@@ -42,6 +42,16 @@ git diff {BASE_SHA}..{HEAD_SHA}
 - Performance implications?
 - Security concerns?
 
+**SOLID & OOP Design:**
+- Single Responsibility: each class/module has one reason to change?
+- Open/Closed: behavior extended without modifying existing code?
+- Liskov Substitution: subtypes fully substitutable for their base types?
+- Interface Segregation: no class forced to depend on interfaces it doesn't use?
+- Dependency Inversion: high-level modules depend on abstractions, not concretions?
+- Encapsulation: internal state hidden, no unnecessary public fields?
+- Inheritance vs composition: is-a relationship used for inheritance, has-a for composition?
+- No god objects or anemic domain models?
+
 **Testing:**
 - Tests actually test logic (not mocks)?
 - Edge cases covered?

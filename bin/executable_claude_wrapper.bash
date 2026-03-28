@@ -59,7 +59,11 @@ run_claude_session() {
 run_orchestrated_session() {
     # Build the orchestrator system prompt with role assignments
     local prompt_content
-    prompt_content=$(build_orchestrator_prompt)
+    if [[ "${ORCHESTRATION_MODE:-custom}" == "bulletproof" ]]; then
+        prompt_content=$(build_bulletproof_prompt)
+    else
+        prompt_content=$(build_orchestrator_prompt)
+    fi
     if [[ $? -ne 0 || -z "${prompt_content}" ]]; then
         echo "ERROR: Failed to build orchestrator prompt." >&2
         return 1

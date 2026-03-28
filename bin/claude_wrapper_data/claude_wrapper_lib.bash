@@ -12,6 +12,7 @@ WRAPPER_CONFIG="${WRAPPER_DATA_DIR}/wrapper-config.json"
 WRAPPER_HELP="${WRAPPER_DATA_DIR}/wrapper-help.md"
 MCP_PRESETS_DIR="${WRAPPER_DATA_DIR}/mcp-presets"
 ORCHESTRATOR_PROMPT="${WRAPPER_DATA_DIR}/orchestrator-prompt.md"
+BULLETPROOF_PROMPT="${WRAPPER_DATA_DIR}/bulletproof-prompt.md"
 AGENT_ROLES_CONFIG="${WRAPPER_DATA_DIR}/agent-roles.json"
 
 # Claude runtime directory (for skills, etc.)
@@ -30,6 +31,9 @@ declare -a AVAILABLE_MCPS=()
 
 # Orchestration role assignments (loaded from agent-roles.json, modifiable at runtime)
 declare -A ROLE_ASSIGNMENTS=()
+
+# Orchestration mode: "custom" (orchestrator-mode skill) or "bulletproof" (bulletproof skill)
+ORCHESTRATION_MODE="custom"
 
 # ===== UTILITY FUNCTIONS =====
 
@@ -549,11 +553,16 @@ show_orchestration_menu() {
 
         show_dependency_status
 
+        local mode_label="Custom (orchestrator-mode skill)"
+        [[ "${ORCHESTRATION_MODE}" == "bulletproof" ]] && mode_label="Bulletproof (12-stage workflow)"
+        echo "Orchestration mode: ${mode_label}" >/dev/tty
+        echo "" >/dev/tty
         echo "Options:" >/dev/tty
         echo "  1) Start orchestration" >/dev/tty
         echo "  2) Modify role assignments" >/dev/tty
         echo "  3) Use recommended roles" >/dev/tty
         echo "  4) Install missing dependencies" >/dev/tty
+        echo "  5) Toggle orchestration mode (Custom / Bulletproof)" >/dev/tty
         echo "  b) Back" >/dev/tty
         echo "" >/dev/tty
         echo -n "> " >/dev/tty
@@ -574,6 +583,16 @@ show_orchestration_menu() {
                 ;;
             4)
                 install_missing_dependencies
+                ;;
+            5)
+                if [[ "${ORCHESTRATION_MODE}" == "custom" ]]; then
+                    ORCHESTRATION_MODE="bulletproof"
+                    echo "Switched to Bulletproof mode." >/dev/tty
+                else
+                    ORCHESTRATION_MODE="custom"
+                    echo "Switched to Custom orchestration mode." >/dev/tty
+                fi
+                sleep 0.5
                 ;;
             b|back|B|Back)
                 return 1
@@ -700,6 +719,27 @@ build_orchestrator_prompt() {
     # Read template and substitute {ROLE_ASSIGNMENTS}
     local prompt_content
     prompt_content=$(<"${ORCHESTRATOR_PROMPT}")
+    echo "${prompt_content//\{ROLE_ASSIGNMENTS\}/${role_text}}"
+}
+
+# Build the bulletproof system prompt with role assignments substituted
+# Outputs the rendered prompt to stdout
+build_bulletproof_prompt() {
+    if [[ ! -f "${BULLETPROOF_PROMPT}" ]]; then
+        wrapper_log "ERROR" "Bulletproof prompt not found: ${BULLETPROOF_PROMPT}"
+        return 1
+    fi
+
+    # Build role assignments text
+    local role_text=""
+    local -a role_names=("planner" "implementer" "tester" "reviewer" "finisher")
+    for role in "${role_names[@]}"; do
+        local agent="${ROLE_ASSIGNMENTS[${role}]:-claude}"
+        role_text+="- ${role^}: ${agent}"$'\n'
+    done
+
+    local prompt_content
+    prompt_content=$(<"${BULLETPROOF_PROMPT}")
     echo "${prompt_content//\{ROLE_ASSIGNMENTS\}/${role_text}}"
 }
 
