@@ -87,6 +87,29 @@ git commit -m "feat: add specific feature"
 ```
 ````
 
+## File Ownership Rule
+
+**Each task must list the files it owns.** No two tasks may own the same file.
+If a change requires multiple passes on one file, merge into one task or sequence
+them as Task N → Task N+1 with an explicit dependency.
+
+The context doc (`docs/plans/YYYY-MM-DD-<feature>-context.md`) must include:
+- How to run the feature
+- How to debug it
+- How to test it
+- Key file paths and their roles
+- File ownership map per task
+
+## Plan Quality Checklist
+
+Before handing off the plan for execution, verify:
+- [ ] Every task has clear acceptance criteria
+- [ ] No task owns a file that another active task also owns
+- [ ] Tasks are ordered so dependencies are resolved before dependents
+- [ ] Plan covers error paths, not just the happy path
+- [ ] Env vars and config changes are documented in the context doc
+- [ ] No task is so large it can't be reviewed in a single pass (~200 lines diff max)
+
 ## Remember
 - Exact file paths always
 - Complete code in plan (not "add validation")

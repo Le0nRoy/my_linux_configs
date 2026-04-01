@@ -15,27 +15,38 @@ Guide completion of development work by presenting clear options and handling ch
 
 ## The Process
 
-### Step 1: Verify Tests
+### Step 1: Pre-Completion Checklist
 
-**Before presenting options, verify tests pass:**
+Run all checks in order. Do NOT proceed to Step 2 until all pass.
 
+**1a. Tests pass:**
 ```bash
 # Run project's test suite
 npm test / cargo test / pytest / go test ./...
 ```
+If tests fail — show failures and stop. Cannot proceed until tests pass.
 
-**If tests fail:**
+**1b. No report files staged:**
+```bash
+git status
+# Must not see any reports/ files staged or committed
+# If missing, add now:
+echo "reports/" >> .git/info/exclude
 ```
-Tests failing (<N> failures). Must fix before completing:
 
-[Show failures]
-
-Cannot proceed with merge/PR until tests pass.
+**1c. No secrets in recent commits:**
+```bash
+# Adjust HEAD~N to cover all commits in this session
+git diff HEAD~1..HEAD | grep -iE "password|api_key|secret|token" | grep "^+" | grep -v "\.example\|test\|mock\|placeholder"
+# Any hits = STOP and report
 ```
 
-Stop. Don't proceed to Step 2.
+**1d. Linting/static analysis passes:**
+```bash
+make lint    # or: ruff check . / go vet ./... / eslint .
+```
 
-**If tests pass:** Continue to Step 2.
+If all pass: Continue to Step 2.
 
 ### Step 2: Determine Base Branch
 

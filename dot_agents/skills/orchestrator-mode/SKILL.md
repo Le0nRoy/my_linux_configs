@@ -1,11 +1,11 @@
 ---
 name: orchestrator-mode
-description: Use when activated as development orchestrator to manage full feature delivery — covers phase workflow, agent dispatch, file ownership rules, report conventions, and role switching
+description: Use when activated as development orchestrator to manage full feature delivery — covers phase workflow, subagent dispatch, file ownership rules, and report conventions
 ---
 
 # Orchestrator Mode
 
-Manage the full development workflow by dispatching fresh specialist agents for each phase.
+Coordinate the full development workflow by dispatching fresh specialist subagents for each phase.
 Keep your own context minimal — never read file contents yourself, delegate all work.
 
 ## Critical Rules
@@ -16,93 +16,63 @@ Plan tasks so each file is owned by at most one active subagent at a time.
 If tasks share files, run them sequentially — never in parallel.
 
 ### Report Files Are Temporary
-Each agent writes a report to `reports/<agent>-<task>-YYYY-MM-DD.md`.
-- Before dispatching any agent: `echo "reports/" >> .git/info/exclude`
-- Report files MUST NEVER be staged or committed
-- Remind each agent of this rule in every dispatch prompt
-
-### Your Report Covers Orchestration Only
-`reports/orchestrator-<feature>-YYYY-MM-DD.md` must cover:
-- How tasks were divided between subagents and why
-- Which agent role handled each phase and which skills were active
-- Agent substitutions, parallel launches, file ownership conflicts
-- Gates hit (human review, test failures) and their outcomes
-- What slowed orchestration and what could be improved
+Before dispatching any agent: `echo "reports/" >> .git/info/exclude`
+Report files MUST NEVER be staged or committed. Remind every subagent of this rule.
 
 ## Workflow Phases
 
 ### Phase 0: Project Verification
-- Dispatch agent with **common-automation-verifier** skill
-- Note critical gaps (CLAUDE.md/AGENTS.md, env config, test coverage) before planning
+Dispatch subagent with **common-automation-verifier** skill.
+Note critical gaps before planning (missing AGENTS.md, zero test coverage, no env template).
 
 ### Phase 1: Planning
-- Dispatch **task-planner** (see `agents/task-planner.md`) using **writing-plans** skill
-- Plan saved to `docs/plans/YYYY-MM-DD-<feature>.md`
-- Context doc at `docs/plans/YYYY-MM-DD-<feature>-context.md` covering: how to run/debug/test, key file paths, file ownership map per task
-- **Gate**: Human reviews plan before proceeding
+Dispatch **task-planner** subagent using **writing-plans** skill.
+- Plan → `docs/plans/YYYY-MM-DD-<feature>.md`
+- Context doc → `docs/plans/YYYY-MM-DD-<feature>-context.md`
+- **Gate**: Human reviews plan before proceeding.
 
 ### Phase 2: Implementation
-- Dispatch **code-writer** (see `agents/code-writer.md`) with the plan file path
-- For large features (>5 tasks): set up a worktree first (**using-git-worktrees** skill)
-- Code-writer follows the plan task by task using **subagent-driven-development**
+Dispatch **code-writer** subagent using **implementing-tasks** skill.
+- For large features (>5 tasks): set up worktree first (**using-git-worktrees** skill)
+- One subagent per task; dispatch sequentially unless tasks are file-conflict-free
 
 ### Phase 3: Testing
-- Dispatch **testing-planner** (see `agents/testing-planner.md`)
-- Dispatch **automation-tester** (see `agents/automation-tester.md`)
-- If sandbox prevents proper testing: create `docs/sandbox-improvements/<feature>.md` listing required changes
+1. Dispatch **testing-planner** subagent using **planning-tests** skill → produces test plan
+2. Dispatch **automation-tester** subagent using **writing-automated-tests** skill → executes test plan
+- Gate: All runnable tests must pass before proceeding
 
 ### Phase 4: Code Review
-- Dispatch **code-reviewer** (see `agents/code-reviewer.md`) using **requesting-code-review** skill
-- Reviewer checks: architecture, logic, tests, security, legal compliance, plan compliance
-- If issues found: dispatch code-writer to fix, then re-review
+Dispatch **code-reviewer** subagent using **requesting-code-review** skill.
+If issues found: dispatch code-writer to fix, then re-review.
 
 ### Phase 5: Documentation
-- Dispatch **documentation-updater** (see `agents/documentation-updater.md`)
-- Updates README, API docs, env var docs, changelog, context doc
+Dispatch **documentation-updater** subagent using **updating-documentation** skill.
 
 ### Phase 6: Finalization
-- Dispatch **task-finisher** (see `agents/task-finisher.md`) using **finishing-a-development-branch** skill
-- Verifies tests pass, checks no reports committed, presents merge options
+Dispatch **task-finisher** subagent using **finishing-a-development-branch** skill.
 
 ## Agent Dispatch
 
-### Dispatching Claude Subagents
-Use Task tool with subagent_type:
+Use the Task tool with the appropriate subagent_type:
 - Exploration/research: `subagent_type="Explore"`
 - Implementation/coding: `subagent_type="general-purpose"`
 - Planning: `subagent_type="Plan"`
 
-### Dispatching Codex
-```bash
-codex --dangerously-bypass-approvals-and-sandbox -q "prompt"
-```
-
-### Dispatching Cursor
-```bash
-cursor-agent --force "prompt"
-```
-
-### No Sandbox Wrappers
-Call agents directly (already inside sandbox):
-- `claude` not `claude_wrapper.bash`
-- `codex` not `codex_wrapper.bash`
-- `cursor-agent` not `cursor_agent_wrapper.bash`
+Call agents directly (already inside sandbox) — `claude` not `claude_wrapper.bash`.
 
 ## Context Management
 - Pass only file paths and brief descriptions between phases
-- The plan file and context doc are the shared artifacts
-- Each subagent prompt must reference the plan file path and their role description
+- Plan file + context doc are the shared artifacts for all phases
+- Each subagent prompt must include: plan file path, their skill name, the report rule
 
-## Role Switching
-If an agent hits rate limits or errors, tell the human and offer to switch that role to a different agent.
+## Your Report
 
-## Agent Role Files
-Full role descriptions in `~/.local/share/chezmoi/bin/claude_wrapper_data/agents/`:
-- `agents/orchestrator.md` — This role
-- `agents/task-planner.md` — Planning phase
-- `agents/code-writer.md` — Implementation phase
-- `agents/testing-planner.md` — Test strategy phase
-- `agents/automation-tester.md` — Test writing and execution phase
-- `agents/code-reviewer.md` — Review phase
-- `agents/documentation-updater.md` — Documentation phase
-- `agents/task-finisher.md` — Finalization phase
+Write `reports/orchestrator-<feature>-YYYY-MM-DD.md` — orchestration decisions only, not code changes.
+
+Covers:
+- How tasks were divided between subagents and why
+- Which skill was active per phase
+- Gates hit (human review, test failures) and outcomes
+- What slowed orchestration; what would be faster next time
+
+**IMPORTANT:** Add `reports/` to `.git/info/exclude`. Never stage or commit report files.

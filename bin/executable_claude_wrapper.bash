@@ -41,63 +41,53 @@ CLAUDE_FLAGS=(
 # Function to run claude with selected options
 run_claude_session() {
     local action="${1}"
-    shift
-    local -a extra_claude_flags=("$@")
 
     case "${action}" in
         resume)
-            run_sandboxed_agent "claude" -- "${WRAPPER_FLAGS[@]}" -- "${CLAUDE_FLAGS[@]}" "${extra_claude_flags[@]}" --resume
+            run_sandboxed_agent "claude" -- "${WRAPPER_FLAGS[@]}" -- "${CLAUDE_FLAGS[@]}" --resume
             ;;
         start|*)
-            run_sandboxed_agent "claude" -- "${WRAPPER_FLAGS[@]}" -- "${CLAUDE_FLAGS[@]}" "${extra_claude_flags[@]}"
+            run_sandboxed_agent "claude" -- "${WRAPPER_FLAGS[@]}" -- "${CLAUDE_FLAGS[@]}"
             ;;
     esac
 }
 
 # Function to run an orchestrated session
-# Builds the orchestrator system prompt with role assignments and launches Claude
+# Accepts "orchestrate" (orchestrator-mode skill) or "bulletproof" (bulletproof skill)
 run_orchestrated_session() {
-    # Build the orchestrator system prompt with role assignments
+    local mode="${1:-orchestrate}"
+
     local prompt_content
-    if [[ "${ORCHESTRATION_MODE:-custom}" == "bulletproof" ]]; then
+    if [[ "${mode}" == "bulletproof" ]]; then
         prompt_content=$(build_bulletproof_prompt)
     else
         prompt_content=$(build_orchestrator_prompt)
     fi
     if [[ $? -ne 0 || -z "${prompt_content}" ]]; then
-        echo "ERROR: Failed to build orchestrator prompt." >&2
+        echo "ERROR: Failed to build prompt." >&2
         return 1
     fi
 
-    # Write to temp file for --append-system-prompt
     local prompt_file="/tmp/claude-orchestrator-$$.md"
     echo "${prompt_content}" > "${prompt_file}"
 
-    # Build additional flags from any MCP selections
-    local -a extra_flags=()
-    mapfile -t extra_flags < <(build_claude_flags)
-
-    # Launch Claude with the orchestrator prompt appended
     run_sandboxed_agent "claude" -- "${WRAPPER_FLAGS[@]}" -- \
-        "${CLAUDE_FLAGS[@]}" "${extra_flags[@]}" \
+        "${CLAUDE_FLAGS[@]}" \
         --append-system-prompt "$(cat "${prompt_file}")"
 }
 
 # Interactive session selection (only if no arguments provided and stdin/stdout are terminals)
 if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
     if [[ ${MENU_AVAILABLE} -eq 1 ]]; then
-        # Use the full menu system
         action=$(run_menu_system)
 
         case "${action}" in
-            orchestrate)
-                run_orchestrated_session
+            orchestrate|bulletproof)
+                run_orchestrated_session "${action}"
                 exit $?
                 ;;
             *)
-                # Build additional flags from selections
-                mapfile -t extra_flags < <(build_claude_flags)
-                run_claude_session "${action}" "${extra_flags[@]}"
+                run_claude_session "${action}"
                 exit $?
                 ;;
         esac
@@ -123,6 +113,5 @@ if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
 fi
 
 # Run claude with its specific binds (non-interactive mode or with arguments)
-# Note: Added prlimit (was missing in original), removed incorrect /opt/cursor-agent ro-bind, Android is now a default bind
 # AI rules (AGENTS.md and CLAUDE.md) are bound by default in universal wrapper
 run_sandboxed_agent "claude" -- "${WRAPPER_FLAGS[@]}" -- "${CLAUDE_FLAGS[@]}" "$@"

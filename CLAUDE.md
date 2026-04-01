@@ -24,4 +24,4 @@ This is a **chezmoi-managed dotfiles repository** containing:
 | Code standards | `coding-standards` skill |
 | Test writing | `qa-automation` skill |
 | Code review process | `requesting-code-review` skill |
-| Agent role descriptions | `bin/claude_wrapper_data/agents/` |
+| Orchestration workflow | `orchestrator-mode` skill |

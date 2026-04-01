@@ -1,7 +1,7 @@
 # AI Agent Rules — Chezmoi Dotfiles & User-Level AI Policies
 
 This repository contains chezmoi-managed system configurations and user-level AI agent policies.
-These rules apply to **all AI agents** (Claude, Codex, Cursor, etc.) working on **any project** on this system.
+These rules apply to **Claude Code** (and any other AI agents) working on **any project** on this system.
 
 **User**: Vadim (le0nRoy) | **Platform**: Linux (Arch-based) | **Shell**: bash (primary)
 
@@ -12,8 +12,8 @@ These rules apply to **all AI agents** (Claude, Codex, Cursor, etc.) working on 
 | Resource | Location |
 |----------|----------|
 | User-level skills | `~/.agents/skills/` (symlinked from `~/.claude/skills/`) |
-| Agent role descriptions | `~/.local/share/chezmoi/bin/claude_wrapper_data/agents/` |
-| Orchestrator config | `~/.local/share/chezmoi/bin/claude_wrapper_data/orchestrator-prompt.md` |
+| Orchestrator prompt | `~/.local/share/chezmoi/bin/claude_wrapper_data/orchestrator-prompt.md` |
+| Bulletproof prompt | `~/.local/share/chezmoi/bin/claude_wrapper_data/bulletproof-prompt.md` |
 | Installed plugins | `~/.claude/settings.json` → `enabledPlugins` |
 | Plugin marketplace | `~/.claude/plugins/marketplaces/claude-plugins-official/plugins/` |
 
