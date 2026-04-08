@@ -2,32 +2,23 @@
 
 This file tracks ongoing development tasks for the dotfiles system and AI agent configuration.
 
-**Last Updated**: 2026-01-27
+**Last Updated**: 2026-04-08
 
 ---
 
 ## Active Tasks
 
-### 1. Create AI Tools Pipeline
+### ✅ 1. Create AI Tools Pipeline (Completed 2026-04-08)
 
-**Status**: Not started
-**Priority**: High
-**Description**: Design and implement a pipeline workflow for AI-assisted development
+Implemented a skills-based orchestration framework replacing the previous preset/MCP/agent-roles approach.
 
-**Components**:
-- Prompt helper: Tool to craft effective prompts for AI agents
-- Developer agent: Primary code generation and implementation
-- Reviewer & tester: Automated code review and testing validation
-
-**Requirements**:
-- Pipeline should be automatable (scriptable)
-- Each stage should have clear inputs/outputs
-- Support parallel execution where possible
-- Integrate with existing wrapper infrastructure
-
-**Notes**:
-- Consider using existing tools (pre-commit hooks, CI/CD patterns)
-- Should work with Claude, Codex, and Cursor agents
+**What was built**:
+- `orchestrator-mode` skill: multi-phase workflow (plan → implement → test → review → docs → finalize)
+- `bulletproof` skill: 12-stage verified dev workflow (submodule at `dot_agents/skills/bulletproof/`)
+- Supporting skills: `writing-plans`, `implementing-tasks`, `planning-tests`, `writing-automated-tests`, `updating-documentation`, `subagent-driven-development`, `executing-plans`, `requesting-code-review`, `using-git-worktrees`, `finishing-a-development-branch`, `find-skills`
+- `claude_wrapper`: interactive menu with orchestrate/bulletproof/plain/resume options
+- `run_always_register-agent-skills.bash`: chezmoi hook linking `~/.claude/skills` → `~/.agents/skills/`
+- Orchestrator and bulletproof system prompts in `bin/claude_wrapper_data/`
 
 ---
 
@@ -323,6 +314,27 @@ audio_profile.bash status            # Show current routing
 - [ ] Document orchestration patterns
 
 **Related Tasks**: Task 10 (Fully sandboxed environment), Task 12 (RO mode)
+
+---
+
+### 14. Migrate AI Rules to Standalone Repository
+
+**Status**: Not started
+**Priority**: Medium
+**Description**: Extract AI agent rules and skills into a standalone `ai-rules` git repository, connected to the dotfiles repo as a submodule. This decouples AI workflow definitions from system configuration.
+
+**Plan**: [docs/plans/2026-04-02-ai-rules-repository-migration.md](docs/plans/2026-04-02-ai-rules-repository-migration.md)
+
+**Key tasks**:
+1. Create `~/projects/ai-rules/` repo with `AGENTS.md` and `skills/`
+2. Add `ai-rules` as submodule in the dotfiles repo at `dot_agents/`
+3. Update `run_always_register-agent-skills.bash` for submodule init
+4. Update wrapper prompts and docs to reflect new paths
+
+**Open questions before starting**:
+- Where will `ai-rules` be hosted? (GitHub/GitLab/private)
+- Should it be public?
+- Confirm bulletproof submodule remote URL
 
 ---
 
