@@ -44,6 +44,9 @@ docs/
 ├── ai-agent-sandboxing.md      # Sandbox architecture documentation
 ├── systemd-services.md         # Systemd services reference
 ├── helper_refactor_plan.md     # Design document for helper refactor
+├── plans/                      # Active implementation plans
+│   ├── 2026-03-28-bulletproof-skill-improvements.md
+│   └── 2026-04-02-ai-rules-repository-migration.md
 └── completed/                  # Completed task documentation
     ├── 2025-11-18-helper-bash-refactor.md
     ├── 2025-12-05-xrandr-screen-management.md

@@ -13,7 +13,9 @@ helper/
 ├── system.bash      # System/display/notifications
 ├── storage.bash     # Mount/unmount operations
 ├── backup.bash      # Backup and sync functions
-└── utils.bash       # Miscellaneous utilities
+├── utils.bash       # Miscellaneous utilities
+├── transfer.bash    # File transfer utilities (rsync/SSH)
+└── i3.bash          # i3 window manager utilities
 ```
 
 ## Modules Overview
@@ -72,6 +74,23 @@ helper/
 - `cut_video()` - Cut video segment
 - `gpg_decrypt()` - Decrypt GPG file
 - `gpg_encrypt()` - Encrypt with GPG
+
+### transfer.bash - File Transfer Utilities
+**Dependencies**: None
+**Functions**:
+- `rsync_ssh()` - Transfer files to/from a remote host over SSH using rsync with fast cipher; supports dry-run, compression, custom port/cipher
+- `rm_ssh()` - Delete files/directories on a remote host via a single SSH connection; supports dry-run and confirmation prompts
+
+Aliases: `cp_ssh` → `rsync_ssh`
+
+Bash completion is provided for both `rsync_ssh` and `rm_ssh`, including SSH host suggestions from `~/.ssh/config`.
+
+### i3.bash - i3 Window Manager
+**Dependencies**: `i3-save-tree`, `i3-msg`, `jq`
+**Functions**:
+- `i3_save_ws <num>` - Save a single workspace to `~/.config/i3/workspaces/` and the chezmoi repo
+- `i3_save_chezmoi_ws()` - Save all active workspaces to `~/.config/i3/workspaces/` and the chezmoi repo
+- `i3_restore_ws <src> [target]` - Restore a workspace layout from the saved file into i3
 
 ## Usage
 
@@ -147,6 +166,8 @@ common.bash (no dependencies)
 git.bash (no dependencies)
 backup.bash (no dependencies)
 utils.bash (no dependencies)
+transfer.bash (no dependencies)
+i3.bash (no dependencies)
 ```
 
 ## Testing
@@ -155,11 +176,17 @@ Test individual modules:
 ```bash
 # Test syntax
 bash -n ~/bin/helper/tmux.bash
+bash -n ~/bin/helper/transfer.bash
 
 # Test by sourcing
 source ~/bin/helper/common.bash
 source ~/bin/helper/tmux.bash
 # Call functions...
+
+# Test transfer functions
+source ~/bin/helper/transfer.bash
+rsync_ssh -h
+rm_ssh -h
 ```
 
 Test via main script:

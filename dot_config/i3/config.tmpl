@@ -82,6 +82,7 @@ exec_always --no-startup-id $SET_EN_RU_LAYOUT
 exec_always --no-startup-id "bash $HOME/bin/helper.bash set_background"
 ## Restore layouts on workspaces from files
 {{ if eq .chezmoi.hostname "dragonlady" -}}
+exec --no-startup-id "i3-msg 'workspace 1; append_layout ~/.config/i3/workspaces/workspace_1-dragonlady.json'; focus child"
 exec --no-startup-id "i3-msg 'workspace 4; append_layout ~/.config/i3/workspaces/workspace_4-dragonlady.json'; focus child"
 {{ else if eq .chezmoi.hostname "dragoncave" -}}
 exec --no-startup-id "i3-msg 'workspace 4; append_layout ~/.config/i3/workspaces/workspace_4-dragoncave.json'; focus child"
@@ -154,7 +155,7 @@ bindsym ctrl+XF86AudioRaiseVolume exec $volume_hdmi_up
 bindsym ctrl+XF86AudioLowerVolume exec $volume_hdmi_down
 bindsym ctrl+XF86AudioMute exec $volume_hdmi_mute
 ## Keepass
-bindsym $mod+F5 exec keepass "${HOME}/Personal/Database.kdbx"
+bindsym $mod+F5 exec keepassxc "${HOME}/Personal/Database.kdbx"
 ## Screen management (mod+F10 is defined below)
 ## Keyboard layouts
 bindsym $mod+F12 exec $SET_EN_RU_LAYOUT
@@ -298,7 +299,7 @@ assign [class="(?i)alacritty"] $ws4
 assign [class="(?i)quodlibet"] $ws4
 assign [class="(?i)Telegram|telegram-desktop|TelegramDesktop"] $ws4
 assign [class="(?i)firefox$"] $ws4
-assign [class="(?i)todoist"] $ws4
+assign [class="(?i)todoist"] $ws1
 assign [class="(?i)discord"] $ws4
 assign [class="(?i)joplin"] $ws4
 
@@ -349,6 +350,7 @@ for_window [class="(?i)slack" title="\(Canvas\)"] floating enable resize set 120
 for_window [class="(?i)slack" title="\(List\)"] floating enable resize set 1200 900
 
 for_window [class="keepass2|KeePass2"] floating enable resize set 900 600 
+for_window [class="keepassxc|KeePassXC"] floating enable resize set 1550 850
 for_window [class="(?i)pavucontrol"] floating enable resize set 900 900
 for_window [class="(?i)blueman-manager"] floating enable resize set 900 600
 for_window [class="(?i)iwgtk"] floating enable resize set 600 900

@@ -4,12 +4,34 @@
 
 function upgrade_system() {
     # Upgrade system packages and global npm packages
-    yay -Syu
-    sudo paccache -r
-    sudo npm install -g @openai/codex@latest
+
+    # Step 1: pacman-managed packages (quick: just download and install)
+    sudo pacman -Syu
+
+    # Step 2: npm-based global packages (fast)
     sudo npm install -g @anthropic-ai/claude-code@latest
-    sudo npm cache clean
-    npm outdated -g --depth=0
+    sudo npm cache clean --force
+
+    # Step 3: yay-managed AUR packages (slowest due to compilation)
+    # --noconfirm:    non-interactive, no confirmation prompts
+    # --nodiffmenu:   skip PKGBUILD diff display
+    # --nocleanmenu:  skip clean-build-files menu (handled by --cleanafter)
+    # --noeditmenu:   skip PKGBUILD edit menu
+    # --noupgrademenu: skip package selection/exclusion menu
+    # --cleanafter:   remove build dirs after install (saves space; compiled pkgs stay in pacman cache)
+    # --removemake:   remove make-only dependencies after build (saves space)
+    yay -Syu --noconfirm --nodiffmenu --nocleanmenu --noeditmenu --noupgrademenu \
+        --cleanafter --removemake
+
+    # Trim pacman cache: keep 1 version (allows one rollback, avoids storing 3 old versions)
+    sudo paccache -rk1
+}
+
+function yay_no_cache() {
+    # Upgrade AUR packages via yay (non-interactive, space-efficient)
+    yay --noconfirm --nodiffmenu --nocleanmenu --noeditmenu --noupgrademenu \
+        --cleanafter --removemake
+    sudo paccache -rk1
 }
 
 function adb_pull_music() {

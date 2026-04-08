@@ -2,32 +2,23 @@
 
 This file tracks ongoing development tasks for the dotfiles system and AI agent configuration.
 
-**Last Updated**: 2026-01-26
+**Last Updated**: 2026-04-08
 
 ---
 
 ## Active Tasks
 
-### 1. Create AI Tools Pipeline
+### ✅ 1. Create AI Tools Pipeline (Completed 2026-04-08)
 
-**Status**: Not started
-**Priority**: High
-**Description**: Design and implement a pipeline workflow for AI-assisted development
+Implemented a skills-based orchestration framework replacing the previous preset/MCP/agent-roles approach.
 
-**Components**:
-- Prompt helper: Tool to craft effective prompts for AI agents
-- Developer agent: Primary code generation and implementation
-- Reviewer & tester: Automated code review and testing validation
-
-**Requirements**:
-- Pipeline should be automatable (scriptable)
-- Each stage should have clear inputs/outputs
-- Support parallel execution where possible
-- Integrate with existing wrapper infrastructure
-
-**Notes**:
-- Consider using existing tools (pre-commit hooks, CI/CD patterns)
-- Should work with Claude, Codex, and Cursor agents
+**What was built**:
+- `orchestrator-mode` skill: multi-phase workflow (plan → implement → test → review → docs → finalize)
+- `bulletproof` skill: 12-stage verified dev workflow (submodule at `dot_agents/skills/bulletproof/`)
+- Supporting skills: `writing-plans`, `implementing-tasks`, `planning-tests`, `writing-automated-tests`, `updating-documentation`, `subagent-driven-development`, `executing-plans`, `requesting-code-review`, `using-git-worktrees`, `finishing-a-development-branch`, `find-skills`
+- `claude_wrapper`: interactive menu with orchestrate/bulletproof/plain/resume options
+- `run_always_register-agent-skills.bash`: chezmoi hook linking `~/.claude/skills` → `~/.agents/skills/`
+- Orchestrator and bulletproof system prompts in `bin/claude_wrapper_data/`
 
 ---
 
@@ -233,6 +224,117 @@ audio_profile.bash status            # Show current routing
 - `pactl move-sink-input` - Move stream to different sink
 - `pactl set-default-sink` - Set default output
 - `wpctl` - PipeWire equivalent commands
+
+---
+
+### 12. Improve AI Sandboxing with Read-Only Mode
+
+**Status**: Not started
+**Priority**: High
+**Description**: Create a read-only AI agent mode with system-wide access but strict security boundaries
+
+**Features**:
+
+#### 12.1 Read-Only System Access Mode
+- Configure external sandbox (bubblewrap) to enforce read-only access
+- NOT controlled by AI agent internal settings (agent cannot override)
+- Full system read access for information gathering
+- No write capabilities anywhere
+
+#### 12.2 Exclude Directories with Secrets
+- Automatically exclude sensitive directories from bind mounts:
+  - `${HOME}/.ssh` - SSH keys and known_hosts
+  - `/Job/secrets` - Work-related secrets
+  - `${HOME}/.kube` - Kubernetes credentials
+  - `${HOME}/.config/gcloud` - GCP credentials
+  - `${HOME}/.aws` - AWS credentials
+  - `${HOME}/.gnupg` - GPG keys
+  - `${HOME}/.password-store` - pass password manager
+  - Add configurable list for additional paths
+
+#### 12.3 Alternative User Execution (Optional)
+- Explore running AI agent as different user
+- User would have read-only access to specific files
+- More robust isolation than bubblewrap alone
+- May require sudo/polkit configuration
+
+**Implementation Notes**:
+- Create new wrapper: `executable_claude_ro_wrapper.bash`
+- Use `--ro-bind` for all mounts
+- Create exclusion list config file: `~/.config/ai-sandbox/secrets-exclusion.conf`
+- Document which directories are excluded and why
+
+---
+
+### 13. Verify Sandboxed Agent Subagent Capabilities
+
+**Status**: Not started
+**Priority**: High
+**Description**: Verify and document subagent orchestration capabilities for sandboxed AI agents
+
+**Requirements**:
+
+#### 13.1 Workdir Read-Write Subagents
+- Sandboxed RW agent can spawn subagents in workdir
+- Subagents inherit workdir write access
+- Subagents can access subdirectories of workdir
+
+#### 13.2 System-Wide Read-Only Subagents
+- RW agent can spawn RO subagents with system-wide access
+- RO subagents can gather information from:
+  - Installed packages (`pacman -Q`, `dpkg -l`)
+  - System configurations (`/etc/`)
+  - Hardware info (`lspci`, `lsusb`, `sensors`)
+  - Display info (`xrandr`, Xorg configs)
+  - GPU info (`nvidia-smi`, `nvidia-settings`)
+  - Network configuration
+
+#### 13.3 Information Collection Use Cases
+- Collect system state to improve dotfiles scripts:
+  - `xrandr` screen management
+  - Proton game launcher configuration
+  - Hardware sensors reading
+  - NVIDIA GPU info retrieval
+  - System installation reproduction script
+- RO subagent gathers info, passes to RW agent on-demand
+- RW agent uses info to enhance scripts
+
+#### 13.4 Subagent Limits
+- Maximum concurrent subagents must be configurable
+- Default limit: TBD (suggest: 3-5)
+- Configuration location: `~/.config/ai-sandbox/subagent-limits.conf`
+- Prevent resource exhaustion from runaway subagent spawning
+
+**Testing Plan**:
+- [ ] Test RW agent spawning RW subagent in workdir
+- [ ] Test RW agent spawning RO system-wide subagent
+- [ ] Test RO subagent cannot write anywhere
+- [ ] Test subagent limit enforcement
+- [ ] Test information passing between subagents and parent
+- [ ] Document orchestration patterns
+
+**Related Tasks**: Task 10 (Fully sandboxed environment), Task 12 (RO mode)
+
+---
+
+### 14. Migrate AI Rules to Standalone Repository
+
+**Status**: Not started
+**Priority**: Medium
+**Description**: Extract AI agent rules and skills into a standalone `ai-rules` git repository, connected to the dotfiles repo as a submodule. This decouples AI workflow definitions from system configuration.
+
+**Plan**: [docs/plans/2026-04-02-ai-rules-repository-migration.md](docs/plans/2026-04-02-ai-rules-repository-migration.md)
+
+**Key tasks**:
+1. Create `~/projects/ai-rules/` repo with `AGENTS.md` and `skills/`
+2. Add `ai-rules` as submodule in the dotfiles repo at `dot_agents/`
+3. Update `run_always_register-agent-skills.bash` for submodule init
+4. Update wrapper prompts and docs to reflect new paths
+
+**Open questions before starting**:
+- Where will `ai-rules` be hosted? (GitHub/GitLab/private)
+- Should it be public?
+- Confirm bulletproof submodule remote URL
 
 ---
 

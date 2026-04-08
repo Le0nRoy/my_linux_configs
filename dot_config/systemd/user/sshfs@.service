@@ -1,9 +1,10 @@
 [Unit]
-Description=SSHFS mount for %I
+Description=SSHFS mount: %I
+Documentation=man:sshfs(1)
 After=network-online.target
 Wants=network-online.target
-OnFailure=failure-notification@%n
-OnSuccess=success-notification@%n
+# %I is the unescaped instance: user@host:/remote:/local
+# Use sshfs.bash for interactive mount management.
 
 [Service]
 Type=simple
@@ -11,9 +12,15 @@ Type=simple
 ExecStart=%h/bin/sshfs-mount.sh start "%I"
 ExecStop=%h/bin/sshfs-mount.sh stop "%I"
 
+# Restart on connection loss (sshfs exits with code 1 after unmounting).
+# RestartSec=30 avoids hammering a temporarily unreachable host.
 Restart=on-failure
-RestartSec=5
+RestartSec=30
+
+# Limit to 5 restarts within 10 minutes; after that the unit enters failed
+# state so it does not loop forever when the host is permanently gone.
+StartLimitIntervalSec=600
+StartLimitBurst=5
 
 [Install]
 WantedBy=default.target
-
