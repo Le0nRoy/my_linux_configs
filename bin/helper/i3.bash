@@ -8,7 +8,7 @@
 # Resolve hostname; fails loudly if empty so no file is written without a hostname
 _i3_get_host() {
     local host
-    host="$(_i3_get_host)" || return 1
+    host="$(uname -n)" || return 1
     if [[ -z "${host}" ]]; then
         echo "Error: could not determine hostname (uname -n returned empty)" >&2
         return 1

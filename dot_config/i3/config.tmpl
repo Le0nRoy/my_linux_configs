@@ -280,23 +280,19 @@ mode "resize" {
 ## Open applications on specific workspaces
 assign [class="(?i)slack"] $ws1
 assign [class="(?i)job_navigator"] $ws1
-assign [class="(?i)thunderbird|Mail"] $ws1
+assign [class="(?i)thunderbird|Mail"] $ws4
 assign [class="(?i)zoom" title="Meeting chat"] $ws1
 
 assign [class="(?i)lens"] $ws2
 assign [class="(?i)postman"] $ws2
-assign [class="jetbrains-studio"] $ws3
+assign [class="jetbrains-studio"] $ws2
 assign [class="jetbrains-.+"] $ws2
 assign [title="Android Emulator"] $ws2
 assign [class="Arduino IDE"] $ws2
 assign [class="(?i)code"] $ws2
+assign [class="(?i)cursor"] $ws2
 
-assign [class="(?i)cursor"] $ws3
-{{ if eq .chezmoi.hostname "dragonlady" -}}
-assign [class="(?i)alacritty"] $ws1
-{{ else if eq .chezmoi.hostname "dragoncave" -}}
-assign [class="(?i)alacritty"] $ws4
-{{ end -}}
+assign [class="(?i)alacritty"] $ws3
 
 assign [class="(?i)quodlibet"] $ws4
 assign [class="(?i)Telegram|telegram-desktop|TelegramDesktop"] $ws4
@@ -304,6 +300,7 @@ assign [class="(?i)firefox$"] $ws4
 assign [class="(?i)todoist"] $ws1
 assign [class="(?i)discord"] $ws4
 assign [class="(?i)joplin"] $ws4
+assign [class="(?i)zoom"] $ws4
 
 assign [class="(?i)steam.*"] $ws5
 assign [title="(?i)steam"] $ws5
@@ -312,7 +309,6 @@ assign [class="(?i)(minecraft-launcher)|(Minecraft Launcher)"] $ws5
 assign [class="(?i)chromium"] $ws6
 assign [class="(?i)opera"] $ws6
 
-assign [class="(?i)zoom"] $ws7
 ## Open specific applications in floating mode
 # Make all notifications and dialog windows floating
 for_window [window_type="dialog"] floating enabled 
@@ -324,7 +320,7 @@ for_window [title="alsamixer"] floating enable border pixel 1
 for_window [class="(?i)nvidia-settings"] floating enable border pixel 1
 for_window [title="Media viewer" class="(?i)telegram-?desktop"] floating enable border pixel 1
 for_window [class="(?i)thunderbird|Mail"] floating disable
-for_window [class="(?i)thunderbird|Mail" window_role="GtkFileChooserDialog"] floating enable
+for_window [class="(?i)thunderbird|Mail" window_role="GtkFileChooserDialog|Dialog"] floating enable
 for_window [instance="Msgcompose"] floating enable
 for_window [class="(?iflameshot" title="Open With"] floating enable resize set 900 600
 # Steam
