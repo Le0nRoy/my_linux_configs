@@ -22,6 +22,7 @@ source "${HELPER_MODULE_DIR}/backup.bash"
 source "${HELPER_MODULE_DIR}/utils.bash"
 source "${HELPER_MODULE_DIR}/transfer.bash"
 source "${HELPER_MODULE_DIR}/i3.bash"
+source "${HELPER_MODULE_DIR}/firefox.bash"
 
 # Load environment variables if present
 if [[ -f "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env" ]]; then
@@ -196,70 +197,12 @@ case "$1" in
         ;;
     "firefox")
         shift
-        LINK="${1}"
-        if [ -n "${LINK}" ]; then
-            # Format: "<win_id> <title>"
-            mapfile -t WINDOWS < <(wmctrl -lx | awk '/Navigator/ {print $1 " " substr($0, index($0,$5))}')
-            
-            CHOICES=()
-            
-            for window in "${WINDOWS[@]}"; do
-                WIN_ID=$(awk '{print $1}' <<<"${window}")
-                TITLE=$(awk '{$1=""; print substr($0,2)}' <<<"${window}")
-                CHOICES+=("${WIN_ID} ${TITLE}")
-            done
-            
-            if [[ "${#CHOICES[@]}" -eq 1 ]]; then
-                SELECTION="${CHOICES[0]}"
-            else
-                # Show selection menu 
-                SELECTION=$(printf '%s\n' "${CHOICES[@]}" | rofi -dmenu -i -p "Open link with:")
-            fi
-            
-            # Handle cancel 
-            [ -z "${SELECTION}" ] && exit 0
-            
-            WIN_ID=$(awk '{print $1}' <<<"${SELECTION}")
-            if [ -n "${WIN_ID}" ]; then
-                # Use clipboard paste for instant URL entry (xdotool type is slow ~12ms/char)
-                PREV_CLIP=$(xclip -selection clipboard -o 2>/dev/null || true)
-                printf '%s' "${LINK}" | xclip -selection clipboard
-                xdotool windowactivate --sync "${WIN_ID}"
-                xdotool key --window "${WIN_ID}" ctrl+t
-                sleep 0.1
-                xdotool key --window "${WIN_ID}" ctrl+v
-                xdotool key --window "${WIN_ID}" Return
-                # Restore previous clipboard content after navigation starts
-                { sleep 1; printf '%s' "${PREV_CLIP}" | xclip -selection clipboard; } &
-            fi
+        LINK="${1:-}"
+        if [[ -n "${LINK}" ]]; then
+            _ff_open_link "${LINK}"
         else
-            # Fallback to simple choose between profiles
-            PROFILES=("personal")
-            if [[ -f "${JOB_SETUP_FILE}" ]]; then
-                PROFILES+=("work")
-            fi
-
-            CHOICE=$(printf '%s\n' "${PROFILES[@]}" | rofi -dmenu -p "Open in profile:")
-            [ -z "$CHOICE" ] && exit 0
-
-            if [[ "${CHOICE}" == "work" ]]; then
-                "${JOB_SETUP_FILE}" firefox "$@"
-            else
-                /usr/bin/firefox "$@"
-            fi
+            _ff_profile_picker
         fi
-        ;;
-    "firefox_personal")
-        shift
-        /usr/bin/firefox -P default-release "$@"
-        ;;
-    "firefox_docker")
-        FIREFOX_CONTAINER_NAME="secure_firefox"
-        echo "username: kasm_user"
-        echo "password: password"
-        docker run --rm -it --name="${FIREFOX_CONTAINER_NAME}" --shm-size=512m -p 6901:6901 -e VNC_PW=password kasmweb/firefox:1.14.0 | grep -A 1 'Paste this url in your browser:' 
-        #URL_TO_CONNECT="$(docker logs ${FIREFOX_CONTAINER_NAME} | grep -A 1 'Paste this url in your browser:' | tail -n 1)"
-        #echo "${URL_TO_CONNECT}"
         ;;
     "screens_settings")
         # Launch xrandr rofi menu for screen management
