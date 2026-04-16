@@ -25,7 +25,7 @@ function _ff_parse_profiles_ini() {
 
     while IFS= read -r line || [[ -n "${line}" ]]; do
         line="${line%$'\r'}"
-        if [[ "${line}" =~ ^\[Profile[0-9] ]]; then
+        if [[ "${line}" =~ ^\[Profile[0-9]+\] ]]; then
             __emit; in_profile=1; name=""; path=""; is_default="0"
         elif [[ "${line}" =~ ^\[ ]]; then
             __emit; in_profile=0; name=""; path=""; is_default="0"
@@ -96,12 +96,6 @@ function _ff_launch_sandboxed() {
 }
 
 # Show rofi profile picker and launch the selected profile.
-#
-# Display name precedence per profile:
-#   1. Explicit entry in ~/bin/.firefox_profiles (path → label)
-#   2. Default profile (Default=1 in profiles.ini) → "Personal"
-#   3. Name= field from profiles.ini
-#
 # Profiles in ~/bin/.firefox_profiles whose path is not in profiles.ini
 # are also shown, provided the directory exists on disk.
 function _ff_profile_picker() {
@@ -130,8 +124,12 @@ function _ff_profile_picker() {
             local display
             if [[ -n "${FIREFOX_PROFILE_NAMES[${path}]:-}" ]]; then
                 display="${FIREFOX_PROFILE_NAMES[${path}]} (${path##*/})"
+            elif [[ "${is_default}" == "1" ]]; then
+                display="Personal (${path##*/})"
+            elif [[ -n "${name}" ]]; then
+                display="${name} (${path##*/})"
             else
-                display="${path}"
+                display="${path##*/}"
             fi
 
             _ff_profile_is_open "${path}" && display="● ${display}"
@@ -154,7 +152,7 @@ function _ff_profile_picker() {
                 if [[ -n "${FIREFOX_PROFILE_NAMES[${_pdir}]:-}" ]]; then
                     _display="${FIREFOX_PROFILE_NAMES[${_pdir}]} (${_pdir##*/})"
                 else
-                    _display="${_pdir}"
+                    _display="${_pdir##*/}"
                 fi
                 _ff_profile_is_open "${_pdir}" && _display="● ${_display}"
                 display_names+=("${_display}")
@@ -239,7 +237,7 @@ function _ff_open_link() {
     command -v firejail &>/dev/null && CHOICES+=("⚠ Sandboxed (firejail)")
 
     local SELECTION
-    if [[ "${#CHOICES[@]}" -eq 1 ]]; then
+    if [[ "${#WINDOWS[@]}" -eq 1 ]]; then
         SELECTION="${CHOICES[0]}"
     else
         SELECTION=$(printf '%s\n' "${CHOICES[@]}" | rofi -dmenu -i -p "Open link with:")

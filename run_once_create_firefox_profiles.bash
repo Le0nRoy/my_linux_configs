@@ -23,6 +23,6 @@ cat > "${DEST}" << 'EOF'
 #
 declare -A FIREFOX_PROFILE_NAMES=()
 
-# FIREFOX_PROFILE_NAMES["/home/YOUR_USER/.mozilla/firefox/khbqv2t5.default-release"]="Personal"
-# FIREFOX_PROFILE_NAMES["/home/YOUR_USER/.mozilla/firefox/TxktUkK5.Profile 1"]="Work"
+# FIREFOX_PROFILE_NAMES["$HOME/.mozilla/firefox/khbqv2t5.default-release"]="Personal"
+# FIREFOX_PROFILE_NAMES["$HOME/.mozilla/firefox/TxktUkK5.Profile 1"]="Work"
 EOF
