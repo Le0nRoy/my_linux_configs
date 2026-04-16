@@ -48,13 +48,12 @@
                        "y": 0
                     },
                     "marks": [],
-                    "name": "Inbox - v2trishin@gmail.com - Mozilla Thunderbird",
+                    "name": "Thunderbird",
                     "percent": 0.5,
                     "swallows": [
                        {
                        "class": "^org\\.mozilla\\.Thunderbird$",
                        "instance": "^Mail$",
-                       "title": "^Inbox\\ \\-\\ v2trishin\\@gmail\\.com\\ \\-\\ Mozilla\\ Thunderbird$",
                        "window_role": "^3pane$"
                        }
                     ],
