@@ -7,7 +7,6 @@ FIREFOX_CMD="${FIREFOX_CMD:-/usr/bin/firefox}"
 # Find profiles.ini across standard installation locations
 function _ff_find_profiles_ini() {
     local candidates=(
-        "${HOME}/.cache/mozilla/firefox/profiles.ini"
         "${HOME}/.mozilla/firefox/profiles.ini"
         "${HOME}/.var/app/org.mozilla.firefox/.mozilla/firefox/profiles.ini"
     )
@@ -58,26 +57,32 @@ function _ff_launch() {
 
 # Return 0 if the profile directory has a live, locally-owned Firefox lock.
 # Handles stale locks (crashed Firefox) and remote locks (NFS home, other hosts).
+#
+# Lock files live in the profile data directory (~/.mozilla/firefox/<folder>/).
+# When a profiles.ini resolves paths elsewhere, the lock may still be in the
+# standard data dir — both locations are checked.
+#
+# Remote-host locks are rejected implicitly: their PID won't exist on this machine,
+# so the /proc check fails without needing hostname or IP lookups.
 function _ff_profile_is_open() {
     local profile_path="${1}"
-    local lock="${profile_path}/lock"
-    [[ -L "${lock}" ]] || return 1
+    local folder="${profile_path##*/}"
 
-    local lock_target
-    lock_target="$(readlink "${lock}" 2>/dev/null)" || return 1
+    local lock_target=""
+    local candidate
+    for candidate in "${profile_path}/lock" "${HOME}/.mozilla/firefox/${folder}/lock"; do
+        [[ -L "${candidate}" ]] || continue
+        lock_target="$(readlink "${candidate}" 2>/dev/null)" && break
+    done
+    [[ -z "${lock_target}" ]] && return 1
 
     # lock format: <ip>:+<pid>
-    local lock_ip lock_pid
-    lock_ip="${lock_target%%:*}"
-    lock_pid="${lock_target##*+}"
+    local lock_pid="${lock_target##*+}"
+    [[ "${lock_pid}" =~ ^[0-9]+$ ]] || return 1
 
-    # Reject locks from other hosts — they appear when the home dir is on NFS
-    local local_ips
-    local_ips="$(hostname -I 2>/dev/null)"
-    [[ " ${local_ips} " == *" ${lock_ip} "* ]] || return 1
-
-    # Verify the process is still alive
-    kill -0 "${lock_pid}" 2>/dev/null
+    # PID must be alive and belong to a Firefox executable
+    kill -0 "${lock_pid}" 2>/dev/null && \
+        [[ "$(readlink -f "/proc/${lock_pid}/exe" 2>/dev/null)" == */firefox* ]]
 }
 
 # Launch Firefox in a firejail sandbox (private home, no real profile data)
@@ -129,7 +134,7 @@ function _ff_profile_picker() {
                 display="${path}"
             fi
 
-            _ff_profile_is_open "${path}" && display="> ${display}"
+            _ff_profile_is_open "${path}" && display="● ${display}"
             display_names+=("${display}")
             profile_paths+=("${path}")
             profile_is_default+=("${is_default}")
@@ -139,7 +144,6 @@ function _ff_profile_picker() {
         # No profiles.ini found — scan known base directories directly.
         # A subdirectory is treated as a profile only if it contains prefs.js or places.sqlite.
         local -a _scan_bases=(
-            "${HOME}/.cache/mozilla/firefox"
             "${HOME}/.mozilla/firefox"
         )
         for _base in "${_scan_bases[@]}"; do
@@ -152,7 +156,7 @@ function _ff_profile_picker() {
                 else
                     _display="${_pdir}"
                 fi
-                _ff_profile_is_open "${_pdir}" && _display="> ${_display}"
+                _ff_profile_is_open "${_pdir}" && _display="● ${_display}"
                 display_names+=("${_display}")
                 profile_paths+=("${_pdir}")
                 profile_is_default+=("0")
@@ -166,7 +170,7 @@ function _ff_profile_picker() {
         [[ -n "${seen_paths[${extra_path}]:-}" ]] && continue
         [[ -d "${extra_path}" ]] || continue
         local extra_display="${FIREFOX_PROFILE_NAMES[${extra_path}]}"
-        _ff_profile_is_open "${extra_path}" && extra_display="> ${extra_display}"
+        _ff_profile_is_open "${extra_path}" && extra_display="● ${extra_display}"
         extra_display="${extra_display} (${extra_path##*/})"
         display_names+=("${extra_display}")
         profile_paths+=("${extra_path}")
@@ -209,7 +213,7 @@ function _ff_profile_picker() {
     for i in "${!display_names[@]}"; do
         if [[ "${display_names[${i}]}" == "${choice}" ]]; then
             # Derive raw label (strip > prefix and (folder) suffix) for name-based class check
-            local _raw_label="${display_names[${i}]#> }"
+            local _raw_label="${display_names[${i}]#● }"
             _raw_label="${_raw_label% (*}"
             local _eff_default="${profile_is_default[${i}]}"
             [[ "${_raw_label}" == Work_* ]] && _eff_default="0"
