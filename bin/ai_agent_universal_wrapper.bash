@@ -229,6 +229,12 @@ run_sandboxed_agent() {
             bwrap_args+=(--bind /run/containerd/containerd.sock /run/containerd/containerd.sock)
         fi
 
+        # Bind Tailscale socket for read-only query access (status, ip, peers)
+        # Note: write/modify permissions are enforced by the Tailscale daemon itself
+        if [[ -S /run/tailscale/tailscaled.sock ]]; then
+            bwrap_args+=(--bind /run/tailscale/tailscaled.sock /run/tailscale/tailscaled.sock)
+        fi
+
         # Bind user runtime directory if it exists
         if [[ -n "${XDG_RUNTIME_DIR}" && -d "${XDG_RUNTIME_DIR}" ]]; then
             bwrap_args+=(--bind "${XDG_RUNTIME_DIR}" "${XDG_RUNTIME_DIR}")
