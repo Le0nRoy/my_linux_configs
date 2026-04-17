@@ -323,7 +323,7 @@ for_window [title="alsamixer"] floating enable border pixel 1
 for_window [class="(?i)nvidia-settings"] floating enable border pixel 1
 for_window [title="Media viewer" class="(?i)telegram-?desktop"] floating enable border pixel 1
 for_window [class="(?i)thunderbird|Mail"] floating disable
-for_window [class="(?i)thunderbird|Mail" window_role="GtkFileChooserDialog|Dialog"] floating enable
+for_window [class="(?i)thunderbird|Mail" window_role="GtkFileChooserDialog|Dialog|AlarmWindow"] floating enable
 for_window [instance="Msgcompose"] floating enable
 for_window [class="(?iflameshot" title="Open With"] floating enable resize set 900 600
 # Steam
@@ -345,6 +345,9 @@ for_window [class="(?i)zoom" title="zoom"] floating enable
 
 # gThumb
 for_window [class="(?i)gthumb"] floating enable
+
+# Pritunl VPN client
+for_window [class="(?i)pritunl"] floating enable
 
 # Slack
 for_window [class="(?i)slack" floating] sticky enable resize set 600 800

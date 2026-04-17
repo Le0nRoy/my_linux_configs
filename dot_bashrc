@@ -39,6 +39,11 @@ if [[ -d /etc/bash_completion.d  ]]; then
 		. /etc/bash_completion.d/$i
 	done
 fi
+if [[ -d ~/.bash_completion.d ]]; then
+	for f in ~/.bash_completion.d/*; do
+		. "$f"
+	done
+fi
 
 # Change the window title of X terminals
 case ${TERM} in
