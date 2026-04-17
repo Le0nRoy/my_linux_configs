@@ -31,15 +31,6 @@ else
     source "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env.template"
 fi
 
-## Autocompletion for this script
-_helper_script() {
-    local cur
-    _init_completion || return
-
-    COMPREPLY=($(compgen -W '$(sed --sandbox -En "s/^\s+\"(.*)\"\)/\1/p" "${HOME_HELPER_UNIQ_SCRIPT_PATH}")' -- "${cur}"))
-} &&
-    complete -F _helper_script "$HOME_HELPER_UNIQ_SCRIPT_NAME" 
-
 show_error_and_usage() {
     if [[ -z "${1}" ]]; then
         echo "First parameter can't be empty"
