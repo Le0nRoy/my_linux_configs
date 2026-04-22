@@ -82,7 +82,6 @@ exec_always --no-startup-id $SET_EN_RU_LAYOUT
 exec_always --no-startup-id "bash $HOME/bin/helper.bash set_background"
 ## Restore layouts on workspaces from files
 {{ if eq .chezmoi.hostname "dragonlady" -}}
-exec --no-startup-id "i3-msg 'workspace 1; append_layout ~/.config/i3/workspaces/workspace_1-dragonlady.json'; focus child"
 exec --no-startup-id "i3-msg 'workspace 4; append_layout ~/.config/i3/workspaces/workspace_4-dragonlady.json'; focus child"
 {{ else if eq .chezmoi.hostname "dragoncave" -}}
 exec --no-startup-id "i3-msg 'workspace 4; append_layout ~/.config/i3/workspaces/workspace_4-dragoncave.json'; focus child"
