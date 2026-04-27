@@ -9,9 +9,8 @@
 
 source "$(dirname "${BASH_SOURCE[0]}")/ai_agent_universal_wrapper.bash"
 
-WRAPPER_DATA_DIR="$(dirname "${BASH_SOURCE[0]}")/ai_wrapper_data"
-# Hard source — chezmoi guarantees the lib exists; no fallback needed.
-source "${WRAPPER_DATA_DIR}/claude_wrapper_lib.bash"
+# Requires `chezmoi apply` to have been run — if source fails, the wrapper is not yet deployed.
+source "$(dirname "${BASH_SOURCE[0]}")/ai_wrapper_data/claude_wrapper_lib.bash"
 
 # Configurable rlimits (adjusted for test debugging with pytest-xdist and Playwright)
 export RLIMIT_AS=unlimited                       # Unlimited for large models and WebAssembly

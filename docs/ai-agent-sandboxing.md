@@ -42,7 +42,7 @@ This provides defense-in-depth while allowing productive development work.
                           ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              Agent-Specific Lib                             │
-│    (claude_wrapper_lib.bash, codex_wrapper_lib.bash, etc.)  │
+│    (bin/ai_wrapper_data/claude_wrapper_lib.bash, etc.)      │
 │                                                             │
 │    Sets: AI_WRAPPER_AGENT_NAME, AI_AGENT_COMMAND,           │
 │          AI_SYSTEM_PROMPT_FLAG, AI_RESUME_ARGS              │

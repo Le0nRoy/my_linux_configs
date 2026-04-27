@@ -9,8 +9,8 @@
 
 source "$(dirname "${BASH_SOURCE[0]}")/ai_agent_universal_wrapper.bash"
 
-WRAPPER_DATA_DIR="$(dirname "${BASH_SOURCE[0]}")/ai_wrapper_data"
-source "${WRAPPER_DATA_DIR}/cursor_wrapper_lib.bash"
+# Requires `chezmoi apply` to have been run — if source fails, the wrapper is not yet deployed.
+source "$(dirname "${BASH_SOURCE[0]}")/ai_wrapper_data/cursor_wrapper_lib.bash"
 
 export RLIMIT_AS=unlimited                       # Unlimited address space
 export RLIMIT_CPU=unlimited                      # Unlimited CPU time
