@@ -8,13 +8,13 @@
 # Required variables (set before sourcing):
 #   AI_WRAPPER_AGENT_NAME  - Display name (e.g. "Claude CLI")
 #   AI_AGENT_COMMAND       - Binary to run (e.g. "claude")
-#   WRAPPER_DATA_DIR       - Path to this directory
 #
 # Required variables (set by the calling wrapper, used by run_orchestrated_session/run_agent_session):
 #   WRAPPER_FLAGS          - Array of bubblewrap flags (--bind mounts, etc.)
 #   AGENT_FLAGS            - Array of agent-specific CLI flags
 #
 # Optional variables:
+#   WRAPPER_DATA_DIR       - Path to this directory (defaults to the directory containing this file)
 #   WRAPPER_HELP           - Path to help file (defaults to wrapper-help.md in WRAPPER_DATA_DIR)
 #   AI_SYSTEM_PROMPT_FLAG  - CLI flag for system prompt injection (e.g. "--append-system-prompt")
 #                            If unset, orchestration mode starts a plain session with a warning.
@@ -107,12 +107,6 @@ show_main_menu() {
                 ;;
         esac
     done
-}
-
-# Show the interactive menu and return the selected action via stdout.
-# NOTE: call check_agent_binary in the parent shell before invoking this in $().
-run_menu_system() {
-    show_main_menu
 }
 
 # ===== ORCHESTRATION =====

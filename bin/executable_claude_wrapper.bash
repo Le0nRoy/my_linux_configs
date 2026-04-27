@@ -9,7 +9,7 @@
 
 source "$(dirname "${BASH_SOURCE[0]}")/ai_agent_universal_wrapper.bash"
 
-WRAPPER_DATA_DIR="$(dirname "${BASH_SOURCE[0]}")/claude_wrapper_data"
+WRAPPER_DATA_DIR="$(dirname "${BASH_SOURCE[0]}")/ai_wrapper_data"
 # Hard source — chezmoi guarantees the lib exists; no fallback needed.
 source "${WRAPPER_DATA_DIR}/claude_wrapper_lib.bash"
 
@@ -34,7 +34,7 @@ AGENT_FLAGS=(
 # Interactive session selection (only if no arguments provided and stdin/stdout are terminals)
 if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
     check_agent_binary
-    action=$(run_menu_system)
+    action=$(show_main_menu)
 
     case "${action}" in
         orchestrate|bulletproof)

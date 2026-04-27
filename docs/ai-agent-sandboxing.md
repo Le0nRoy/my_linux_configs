@@ -117,7 +117,7 @@ Each agent has two files: an executable entry-point and an agent-specific lib.
 
 ### Shared Menu Library
 
-**File**: `bin/claude_wrapper_data/ai_wrapper_lib.bash`
+**File**: `bin/ai_wrapper_data/ai_wrapper_lib.bash`
 
 Sourced by all agent libs. Provides the interactive session menu, prompt loading,
 and session dispatch. Requires the calling lib to set:
@@ -132,7 +132,7 @@ and session dispatch. Requires the calling lib to set:
 
 ### Claude Wrapper
 
-**Files**: `bin/executable_claude_wrapper.bash`, `bin/claude_wrapper_data/claude_wrapper_lib.bash`
+**Files**: `bin/executable_claude_wrapper.bash`, `bin/ai_wrapper_data/claude_wrapper_lib.bash`
 
 ```bash
 # Binds:
@@ -143,7 +143,7 @@ and session dispatch. Requires the calling lib to set:
 
 ### Codex Wrapper
 
-**Files**: `bin/executable_codex_wrapper.bash`, `bin/claude_wrapper_data/codex_wrapper_lib.bash`
+**Files**: `bin/executable_codex_wrapper.bash`, `bin/ai_wrapper_data/codex_wrapper_lib.bash`
 
 ```bash
 # Binds:
@@ -157,7 +157,7 @@ until the correct Codex CLI flag is confirmed.
 
 ### Cursor Wrapper
 
-**Files**: `bin/executable_cursor_agent_wrapper.bash`, `bin/claude_wrapper_data/cursor_wrapper_lib.bash`
+**Files**: `bin/executable_cursor_agent_wrapper.bash`, `bin/ai_wrapper_data/cursor_wrapper_lib.bash`
 
 ```bash
 # Binds:
