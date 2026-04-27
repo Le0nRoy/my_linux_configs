@@ -13,7 +13,9 @@ function rclone_systemd() {
     done
 
     echo "Executing rclone command:"
-    printf 'rclone --log-systemd --log-level INFO --auto-confirm --human-readable --modify-window 24h bisync %s\n' "$(printf '%q ' "$@")"
+    printf 'rclone --log-systemd --log-level INFO --auto-confirm --human-readable --modify-window 24h bisync'
+    printf ' %q' "$@"
+    printf '\n'
     rclone --log-systemd --log-level INFO --auto-confirm --human-readable --modify-window 24h bisync "$@"
 }
 

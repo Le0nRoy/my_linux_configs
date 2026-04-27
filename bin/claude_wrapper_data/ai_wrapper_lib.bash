@@ -2,16 +2,24 @@
 # Shared menu and orchestration library for AI agent wrappers.
 # Sourced by agent-specific libs after setting required variables.
 #
+# Prerequisites (must be satisfied before sourcing):
+#   run_sandboxed_agent    - function from ai_agent_universal_wrapper.bash (source that first)
+#
 # Required variables (set before sourcing):
 #   AI_WRAPPER_AGENT_NAME  - Display name (e.g. "Claude CLI")
 #   AI_AGENT_COMMAND       - Binary to run (e.g. "claude")
 #   WRAPPER_DATA_DIR       - Path to this directory
+#
+# Required variables (set by the calling wrapper, used by run_orchestrated_session/run_agent_session):
+#   WRAPPER_FLAGS          - Array of bubblewrap flags (--bind mounts, etc.)
+#   AGENT_FLAGS            - Array of agent-specific CLI flags
 #
 # Optional variables:
 #   WRAPPER_HELP           - Path to help file (defaults to wrapper-help.md in WRAPPER_DATA_DIR)
 #   AI_SYSTEM_PROMPT_FLAG  - CLI flag for system prompt injection (e.g. "--append-system-prompt")
 #                            If unset, orchestration mode starts a plain session with a warning.
 #   AI_RESUME_ARGS         - Array of args for resume mode (default: --resume)
+#                            Note: an empty array (AI_RESUME_ARGS=()) also triggers the default.
 
 WRAPPER_DATA_DIR="${WRAPPER_DATA_DIR:-$(dirname "${BASH_SOURCE[0]}")}"
 WRAPPER_HELP="${WRAPPER_HELP:-${WRAPPER_DATA_DIR}/wrapper-help.md}"
@@ -23,7 +31,7 @@ BULLETPROOF_PROMPT="${WRAPPER_DATA_DIR}/bulletproof-prompt.md"
 wrapper_log() {
     local level="${1}"
     shift
-    echo -e "[${AI_WRAPPER_AGENT_NAME:-ai-wrapper}] ${level}: $*" >&2
+    printf '[%s] %s: %s\n' "${AI_WRAPPER_AGENT_NAME:-ai-wrapper}" "${level}" "$*" >&2
 }
 
 # ===== BINARY CHECK =====
@@ -164,14 +172,6 @@ run_agent_session() {
             ;;
     esac
 }
-
-# ===== CLEANUP =====
-
-_ai_wrapper_cleanup() {
-    : # temp file no longer used; trap kept for future use
-}
-
-trap _ai_wrapper_cleanup EXIT
 
 # ===== SCRIPT GUARD =====
 
