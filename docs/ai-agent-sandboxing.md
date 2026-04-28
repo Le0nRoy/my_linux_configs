@@ -34,9 +34,28 @@ This provides defense-in-depth while allowing productive development work.
                           ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              Agent-Specific Wrapper                         │
-│    (claude_wrapper.bash, codex_wrapper.bash, etc.)          │
+│    (executable_claude_wrapper.bash, etc.)                   │
 │                                                             │
-│    Sets: RLIMIT_*, agent-specific bind mounts               │
+│    Sources agent lib, sets RLIMIT_* and bind mounts         │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│              Agent-Specific Lib                             │
+│    (bin/ai_wrapper_data/claude_wrapper_lib.bash, etc.)      │
+│                                                             │
+│    Sets: AI_WRAPPER_AGENT_NAME, AI_AGENT_COMMAND,           │
+│          AI_SYSTEM_PROMPT_FLAG, AI_RESUME_ARGS              │
+│    Sources: ai_wrapper_lib.bash                             │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│              ai_wrapper_lib.bash (shared)                   │
+│                                                             │
+│    - Interactive menu (orchestrate/bulletproof/start/resume)│
+│    - Prompt loading (orchestrator-prompt, bulletproof)      │
+│    - Session dispatch via run_sandboxed_agent               │
 └─────────────────────────┬───────────────────────────────────┘
                           │
                           ▼
@@ -94,9 +113,26 @@ run_sandboxed_agent COMMAND -- [BWRAP_FLAGS...] -- [CMD_ARGS...]
 
 ## Agent-Specific Wrappers
 
+Each agent has two files: an executable entry-point and an agent-specific lib.
+
+### Shared Menu Library
+
+**File**: `bin/ai_wrapper_data/ai_wrapper_lib.bash`
+
+Sourced by all agent libs. Provides the interactive session menu, prompt loading,
+and session dispatch. Requires the calling lib to set:
+
+| Variable | Purpose | Example |
+|---|---|---|
+| `AI_WRAPPER_AGENT_NAME` | Display name | `"Claude CLI"` |
+| `AI_AGENT_COMMAND` | Binary to run | `"claude"` |
+| `AI_SYSTEM_PROMPT_FLAG` | System prompt injection flag | `"--append-system-prompt"` |
+| `AI_RESUME_ARGS` | Args for resume mode | `(--resume)` |
+| `WRAPPER_HELP` | Path to help file | `codex-help.md` |
+
 ### Claude Wrapper
 
-**File**: `bin/executable_claude_wrapper.bash`
+**Files**: `bin/executable_claude_wrapper.bash`, `bin/ai_wrapper_data/claude_wrapper_lib.bash`
 
 ```bash
 # Binds:
@@ -107,7 +143,7 @@ run_sandboxed_agent COMMAND -- [BWRAP_FLAGS...] -- [CMD_ARGS...]
 
 ### Codex Wrapper
 
-**File**: `bin/executable_codex_wrapper.bash`
+**Files**: `bin/executable_codex_wrapper.bash`, `bin/ai_wrapper_data/codex_wrapper_lib.bash`
 
 ```bash
 # Binds:
@@ -116,9 +152,12 @@ run_sandboxed_agent COMMAND -- [BWRAP_FLAGS...] -- [CMD_ARGS...]
 # - ~/AGENTS.md, ~/CLAUDE.md (read-only)
 ```
 
+Note: `AI_SYSTEM_PROMPT_FLAG` is not yet set — orchestration starts a plain session
+until the correct Codex CLI flag is confirmed.
+
 ### Cursor Wrapper
 
-**File**: `bin/executable_cursor_agent_wrapper.bash`
+**Files**: `bin/executable_cursor_agent_wrapper.bash`, `bin/ai_wrapper_data/cursor_wrapper_lib.bash`
 
 ```bash
 # Binds:
@@ -126,6 +165,9 @@ run_sandboxed_agent COMMAND -- [BWRAP_FLAGS...] -- [CMD_ARGS...]
 # - Working directory (read-write)
 # - ~/AGENTS.md, ~/CLAUDE.md (read-only)
 ```
+
+Note: `AI_SYSTEM_PROMPT_FLAG` is not yet set — orchestration starts a plain session
+until the correct cursor-agent CLI flag is confirmed.
 
 ## Resource Limits
 

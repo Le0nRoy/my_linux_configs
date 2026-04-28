@@ -12,7 +12,7 @@ This is a **chezmoi-managed dotfiles repository** containing:
 - System configuration files deployed to `~/` via `chezmoi apply`
 - User-level AI agent policies (`AGENTS.md`) deployed system-wide
 - User-level skills (`~/.agents/skills/`) for AI workflow automation
-- AI orchestration configs (`bin/claude_wrapper_data/`)
+- AI orchestration configs (`bin/ai_wrapper_data/`)
 
 ## Quick Reference
 

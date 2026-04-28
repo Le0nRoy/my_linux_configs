@@ -18,7 +18,7 @@ Implemented a skills-based orchestration framework replacing the previous preset
 - Supporting skills: `writing-plans`, `implementing-tasks`, `planning-tests`, `writing-automated-tests`, `updating-documentation`, `subagent-driven-development`, `executing-plans`, `requesting-code-review`, `using-git-worktrees`, `finishing-a-development-branch`, `find-skills`
 - `claude_wrapper`: interactive menu with orchestrate/bulletproof/plain/resume options
 - `run_always_register-agent-skills.bash`: chezmoi hook linking `~/.claude/skills` → `~/.agents/skills/`
-- Orchestrator and bulletproof system prompts in `bin/claude_wrapper_data/`
+- Orchestrator and bulletproof system prompts in `bin/ai_wrapper_data/`
 
 ---
 

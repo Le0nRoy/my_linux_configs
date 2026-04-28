@@ -23,7 +23,7 @@ Currently, AI agent rules (`AGENTS.md`, skills in `dot_agents/skills/`) live ins
 ├── dot_agents/
 │   └── skills/                    ← submodule → ai-rules repo
 ├── AGENTS.md                      ← symlink or chezmoi template sourcing from submodule
-└── bin/claude_wrapper_data/       ← stays here (system-specific wrapper config)
+└── bin/ai_wrapper_data/           ← stays here (system-specific wrapper config)
 
 ~/projects/ai-rules/               ← standalone ai-rules repo
 ├── AGENTS.md                      ← canonical AI rules file
@@ -186,7 +186,7 @@ Or add a dedicated `run_always_init-submodules.bash` chezmoi script.
 ### Task 5: Update wrapper prompts and documentation
 
 **Files:**
-- Modify: `bin/claude_wrapper_data/orchestrator-prompt.md` — update any paths if needed
+- Modify: `bin/ai_wrapper_data/orchestrator-prompt.md` — update any paths if needed
 - Modify: `CLAUDE.md` — update quick reference table
 - Modify: `AGENTS.md` (stub) — note canonical location
 

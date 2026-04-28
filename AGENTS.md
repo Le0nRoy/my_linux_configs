@@ -12,8 +12,8 @@ These rules apply to **Claude Code** (and any other AI agents) working on **any 
 | Resource | Location |
 |----------|----------|
 | User-level skills | `~/.agents/skills/` (symlinked from `~/.claude/skills/`) |
-| Orchestrator prompt | `~/.local/share/chezmoi/bin/claude_wrapper_data/orchestrator-prompt.md` |
-| Bulletproof prompt | `~/.local/share/chezmoi/bin/claude_wrapper_data/bulletproof-prompt.md` |
+| Orchestrator prompt | `~/.local/share/chezmoi/bin/ai_wrapper_data/orchestrator-prompt.md` |
+| Bulletproof prompt | `~/.local/share/chezmoi/bin/ai_wrapper_data/bulletproof-prompt.md` |
 | Installed plugins | `~/.claude/settings.json` → `enabledPlugins` |
 | Plugin marketplace | `~/.claude/plugins/marketplaces/claude-plugins-official/plugins/` |
 
