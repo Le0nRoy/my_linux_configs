@@ -64,11 +64,16 @@ if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
     account=$(select_claude_account)
 else
     account="${CLAUDE_ACCOUNT:-}"
+    if [[ -n "${account}" && ! "${account}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+        echo "Invalid CLAUDE_ACCOUNT '${account}': must contain only letters, digits, hyphens, underscores" >&2
+        exit 1
+    fi
 fi
 
 # Map account name to credential paths; update display name so the menu header reflects it
 if [[ -n "${account}" ]]; then
     claude_dir="${HOME}/.claude-${account}"
+    [[ -d "${claude_dir}" ]] || { echo "Account profile directory not found: ${claude_dir}" >&2; exit 1; }
     if [[ -f "${HOME}/.claude-${account}.json" ]]; then
         claude_json_src="${HOME}/.claude-${account}.json"
     else
