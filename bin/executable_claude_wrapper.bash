@@ -3,9 +3,12 @@
 # Uses the universal AI agent wrapper with claude-specific configuration.
 #
 # Features:
+# - Multi-account credential management (auto-discovers ~/.claude-<name>/ profiles)
 # - Agent orchestration (plan → implement → test → review → merge)
 # - Sandboxed execution with resource limits
 # - Session resume support
+#
+# Non-interactive account selection: set CLAUDE_ACCOUNT=<name> in the environment.
 
 source "$(dirname "${BASH_SOURCE[0]}")/ai_agent_universal_wrapper.bash"
 
@@ -18,12 +21,71 @@ export RLIMIT_CPU=unlimited                      # Unlimited CPU time
 export RLIMIT_NOFILE=4096                        # Higher limit for browsers and test files
 export RLIMIT_NPROC=4096                         # High limit for parallel test workers and browser processes
 
+# Discover available account profiles from ~/.claude-<name>/ directories.
+# With 0 or 1 profiles, returns the name silently (or "" for default).
+# With 2+ profiles, shows an interactive selection menu.
+select_claude_account() {
+    local -a profiles=()
+    for dir in "${HOME}/.claude-"*/; do
+        [[ -d "${dir}" ]] || continue
+        local name="${dir#"${HOME}/.claude-"}"
+        profiles+=("${name%/}")
+    done
+
+    [[ ${#profiles[@]} -eq 0 ]] && { echo ""; return 0; }
+    [[ ${#profiles[@]} -eq 1 ]] && { echo "${profiles[0]}"; return 0; }
+
+    echo "==========================================" >/dev/tty
+    echo "    Claude CLI - Account Selection"        >/dev/tty
+    echo "==========================================" >/dev/tty
+    echo ""                                          >/dev/tty
+    local i=1
+    for name in "${profiles[@]}"; do
+        printf "  %d) %s\n" "${i}" "${name}" >/dev/tty
+        i=$((i + 1))
+    done
+    echo "" >/dev/tty
+
+    local choice
+    while true; do
+        printf "Choose account [1-%d]: " "${#profiles[@]}" >/dev/tty
+        read -r choice </dev/tty
+        if [[ "${choice}" =~ ^[0-9]+$ && "${choice}" -ge 1 && "${choice}" -le ${#profiles[@]} ]]; then
+            echo "${profiles[$((choice - 1))]}"
+            return 0
+        fi
+        echo "Invalid choice, try again." >/dev/tty
+    done
+}
+
+# Resolve account: interactive menu for terminal sessions, CLAUDE_ACCOUNT env var otherwise
+if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
+    check_agent_binary
+    account=$(select_claude_account)
+else
+    account="${CLAUDE_ACCOUNT:-}"
+fi
+
+# Map account name to credential paths; update display name so the menu header reflects it
+if [[ -n "${account}" ]]; then
+    claude_dir="${HOME}/.claude-${account}"
+    if [[ -f "${HOME}/.claude-${account}.json" ]]; then
+        claude_json_src="${HOME}/.claude-${account}.json"
+    else
+        claude_json_src="${HOME}/.claude.json"
+    fi
+    AI_WRAPPER_AGENT_NAME="Claude CLI [${account}]"
+else
+    claude_dir="${HOME}/.claude"
+    claude_json_src="${HOME}/.claude.json"
+fi
+
 # Bubblewrap (sandbox) flags - filesystem bindings
 WRAPPER_FLAGS=(
-    --bind "${HOME}/.claude" "${HOME}/.claude"
-    --bind "${HOME}/.claude.json" "${HOME}/.claude.json"
+    --bind "${claude_dir}" "${HOME}/.claude"
     --bind "/Data/Job/secrets/kuber/dot_kube_devenv" "${HOME}/.kube"
 )
+[[ -f "${claude_json_src}" ]] && WRAPPER_FLAGS+=(--bind "${claude_json_src}" "${HOME}/.claude.json")
 
 # Claude CLI flags - full autonomy within sandbox (no approvals needed)
 AGENT_FLAGS=(
@@ -32,7 +94,6 @@ AGENT_FLAGS=(
 
 # Interactive session selection (only if no arguments provided and stdin/stdout are terminals)
 if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
-    check_agent_binary
     action=$(show_main_menu)
 
     case "${action}" in

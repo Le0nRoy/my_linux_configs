@@ -1,7 +1,46 @@
 # Claude Wrapper Help
 
 This wrapper provides an interactive menu for starting Claude CLI sessions with
-optional orchestration workflows.
+optional orchestration workflows. It also supports multiple Claude accounts
+(e.g. personal and corporate) with automatic profile selection.
+
+## Account Selection
+
+On each interactive launch, the wrapper checks for account profile directories
+at `~/.claude-<name>/`. If two or more exist, an account picker is shown before
+the session menu. The chosen account's credentials are bound into the sandbox;
+the session menu header reflects the active account (e.g. `Claude CLI [private]`).
+
+### Setting up profiles
+
+```bash
+# Copy your current ~/.claude into named profiles
+cp -a ~/.claude ~/.claude-private
+cp -a ~/.claude ~/.claude-corporate   # then log in to the corporate account
+
+# Optional: separate settings files per profile
+cp ~/.claude.json ~/.claude-private.json
+cp ~/.claude.json ~/.claude-corporate.json
+```
+
+Inside the corporate profile, run `claude auth login` (or set the API key) to
+authenticate that account. The two profiles are fully isolated — each session
+only sees its own credentials.
+
+### Non-interactive / scripted use
+
+Set the `CLAUDE_ACCOUNT` environment variable to skip the menu:
+
+```bash
+CLAUDE_ACCOUNT=corporate claude_wrapper.bash --some-flag
+```
+
+### Fallback behaviour
+
+- **No profiles** (`~/.claude-*/` directories absent): uses `~/.claude` as-is,
+  no account prompt shown. Fully backwards-compatible.
+- **Single profile**: auto-selected silently, no prompt.
+- **`~/.claude-<name>.json` absent**: falls back to the shared `~/.claude.json`.
 
 ## Menu Options
 
