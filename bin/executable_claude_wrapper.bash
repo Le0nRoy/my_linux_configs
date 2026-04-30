@@ -29,11 +29,16 @@ select_claude_account() {
     for dir in "${HOME}/.claude-"*/; do
         [[ -d "${dir}" ]] || continue
         local name="${dir#"${HOME}/.claude-"}"
-        profiles+=("${name%/}")
+        name="${name%/}"
+        if [[ ! "${name}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+            echo "Skipping profile with invalid name '${name}' (must match [a-zA-Z0-9_-]+)" >/dev/tty
+            continue
+        fi
+        profiles+=("${name}")
     done
 
     [[ ${#profiles[@]} -eq 0 ]] && { echo ""; return 0; }
-    [[ ${#profiles[@]} -eq 1 ]] && { echo "${profiles[0]}"; return 0; }
+    [[ ${#profiles[@]} -eq 1 ]] && { echo "Using account: ${profiles[0]}" >/dev/tty; echo "${profiles[0]}"; return 0; }
 
     echo "==========================================" >/dev/tty
     echo "    Claude CLI - Account Selection"        >/dev/tty
@@ -59,8 +64,8 @@ select_claude_account() {
 }
 
 # Resolve account: interactive menu for terminal sessions, CLAUDE_ACCOUNT env var otherwise
+check_agent_binary
 if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
-    check_agent_binary
     account=$(select_claude_account)
 else
     account="${CLAUDE_ACCOUNT:-}"
