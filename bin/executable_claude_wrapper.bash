@@ -63,16 +63,20 @@ select_claude_account() {
     done
 }
 
-# Resolve account: interactive menu for terminal sessions, CLAUDE_ACCOUNT env var otherwise
+# Resolve account: CLAUDE_ACCOUNT env var takes priority in all modes;
+# interactive picker shown as fallback for terminal sessions without arguments.
+# Non-interactive callers without CLAUDE_ACCOUNT always use the default ~/.claude.
 check_agent_binary
-if [[ $# -eq 0 && -t 0 && -t 1 ]]; then
-    account=$(select_claude_account)
-else
-    account="${CLAUDE_ACCOUNT:-}"
-    if [[ -n "${account}" && ! "${account}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+if [[ -n "${CLAUDE_ACCOUNT:-}" ]]; then
+    account="${CLAUDE_ACCOUNT}"
+    if [[ ! "${account}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
         echo "Invalid CLAUDE_ACCOUNT '${account}': must contain only letters, digits, hyphens, underscores" >&2
         exit 1
     fi
+elif [[ $# -eq 0 && -t 0 && -t 1 ]]; then
+    account=$(select_claude_account)
+else
+    account=""
 fi
 
 # Map account name to credential paths; update display name so the menu header reflects it

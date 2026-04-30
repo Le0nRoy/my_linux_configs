@@ -29,17 +29,24 @@ only sees its own credentials.
 
 ### Non-interactive / scripted use
 
-Set the `CLAUDE_ACCOUNT` environment variable to skip the menu:
+Set the `CLAUDE_ACCOUNT` environment variable to skip the menu.
+`CLAUDE_ACCOUNT` takes priority in **all** modes — interactive and non-interactive alike:
 
 ```bash
-CLAUDE_ACCOUNT=corporate claude_wrapper.bash --some-flag
+CLAUDE_ACCOUNT=corporate claude_wrapper.bash --some-flag   # scripted
+CLAUDE_ACCOUNT=corporate claude_wrapper.bash               # interactive, skips picker
 ```
+
+Non-interactive invocations (with arguments, or with stdin/stdout redirected) that do
+**not** set `CLAUDE_ACCOUNT` always use the default `~/.claude` credentials.
 
 ### Fallback behaviour
 
 - **No profiles** (`~/.claude-*/` directories absent): uses `~/.claude` as-is,
   no account prompt shown. Fully backwards-compatible.
-- **Single profile**: auto-selected silently, no prompt.
+- **Single profile**: auto-selected silently in interactive mode, no prompt.
+- **Non-interactive without `CLAUDE_ACCOUNT`**: uses `~/.claude` regardless of how many
+  profiles exist — set `CLAUDE_ACCOUNT` explicitly for scripted multi-profile use.
 - **`~/.claude-<name>.json` absent**: falls back to the shared `~/.claude.json`.
 
 ## Menu Options
