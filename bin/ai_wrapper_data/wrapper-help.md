@@ -44,7 +44,7 @@ Non-interactive invocations (with arguments, or with stdin/stdout redirected) th
 
 - **No profiles** (`~/.claude-*/` directories absent): uses `~/.claude` as-is,
   no account prompt shown. Fully backwards-compatible.
-- **Single profile**: auto-selected silently in interactive mode, no prompt.
+- **Single profile**: auto-selected without a prompt in interactive mode.
 - **Non-interactive without `CLAUDE_ACCOUNT`**: uses `~/.claude` regardless of how many
   profiles exist — set `CLAUDE_ACCOUNT` explicitly for scripted multi-profile use.
 - **`~/.claude-<name>.json` absent**: falls back to the shared `~/.claude.json`.

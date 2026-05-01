@@ -22,7 +22,7 @@ export RLIMIT_NOFILE=4096                        # Higher limit for browsers and
 export RLIMIT_NPROC=4096                         # High limit for parallel test workers and browser processes
 
 # Discover available account profiles from ~/.claude-<name>/ directories.
-# With 0 or 1 profiles, returns the name silently (or "" for default).
+# With 0 or 1 profiles, returns the name without prompting (or "" for default).
 # With 2+ profiles, shows an interactive selection menu.
 select_claude_account() {
     local -a profiles=()
@@ -38,7 +38,7 @@ select_claude_account() {
     done
 
     [[ ${#profiles[@]} -eq 0 ]] && { echo ""; return 0; }
-    [[ ${#profiles[@]} -eq 1 ]] && { echo "Using account: ${profiles[0]}" >/dev/tty; echo "${profiles[0]}"; return 0; }
+    [[ ${#profiles[@]} -eq 1 ]] && { echo "${profiles[0]}"; return 0; }
 
     echo "==========================================" >/dev/tty
     echo "    Claude CLI - Account Selection"        >/dev/tty
@@ -63,10 +63,14 @@ select_claude_account() {
     done
 }
 
+# Verify the agent binary is present before doing anything else — runs unconditionally
+# so that non-interactive/scripted callers also get a clear error rather than a
+# cryptic sandbox failure later.
+check_agent_binary
+
 # Resolve account: CLAUDE_ACCOUNT env var takes priority in all modes;
 # interactive picker shown as fallback for terminal sessions without arguments.
 # Non-interactive callers without CLAUDE_ACCOUNT always use the default ~/.claude.
-check_agent_binary
 if [[ -n "${CLAUDE_ACCOUNT:-}" ]]; then
     account="${CLAUDE_ACCOUNT}"
     if [[ ! "${account}" =~ ^[a-zA-Z0-9_-]+$ ]]; then
