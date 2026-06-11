@@ -16,3 +16,6 @@
 # Documentation for completed tasks (managed separately from dotfiles)
 TODO.md
 docs/
+
+# AI-Wrapper submodule — deployed via run_always_install-ai-wrapper.bash, not chezmoi file copy
+ai-wrapper

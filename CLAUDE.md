@@ -2,27 +2,30 @@
 
 **This file redirects to the main AI agent guidelines.**
 
-All rules for Claude Code (and other AI agents) are maintained in a single source of truth:
+All rules for Claude Code (and other AI agents) are maintained in:
 
 **→ See: [AGENTS.md](AGENTS.md)**
 
 ## This Repository
 
-This is a **chezmoi-managed Linux system configuration** repository (dotfiles):
-- Shell configs (bash, zsh), editor (vim), git
-- Window manager (i3), status bar (polybar), terminal (alacritty)
-- Systemd user services (rclone sync, sshfs, syncthing)
-- Display management (autorandr, xrandr)
-
-> AI orchestration tools (wrappers, skills, AGENTS.md full rules) live in the separate **`ai-wrapper`** repo.
+This is a **chezmoi-managed Linux system configuration** repository:
+- Shell configs: `dot_bashrc`, `dot_bash_profile`, `dot_zshrc`
+- Editor: `dot_vimrc`, `dot_gitconfig`
+- Window manager: `dot_config/i3/`
+- Status bar: `dot_config/polybar/`
+- Terminal: `dot_config/alacritty/`
+- Multiplexer: `dot_config/tmux/`
+- Display management: `dot_config/autorandr/`, `bin/executable_xrandr_manager.bash`
+- Systemd user services: `dot_config/systemd/user/` (rclone, sshfs, syncthing)
+- System utilities: `bin/executable_*.bash`, `bin/helper/`
 
 ## Quick Reference
 
 | Need | Where |
 |------|-------|
-| All AI rules and policies | `ai-wrapper` repo → `AGENTS.md` |
+| All rules and policies | `AGENTS.md` |
 | Chezmoi naming/workflow | `chezmoi-workflow` skill |
-| Sandbox security | `ai-sandboxing` skill |
 | Code standards | `coding-standards` skill |
 | Test writing | `qa-automation` skill |
 | Code review process | `requesting-code-review` skill |
+| Orchestration workflow | `orchestrator-mode` skill |
