@@ -6,6 +6,8 @@
 
 **Architecture:** The ai-wrapper repo is built as a clean new repo (fresh history, no Linux config commits). The current repo is cleaned of AI files after validation. Both repos use chezmoi for deployment. The ai-wrapper repo is designed to be self-contained: someone who only clones it can run `chezmoi apply` and get the AI tools without any Linux-specific configs.
 
+**Deployment method (adopted 2026-06-14):** The ai-wrapper repo is connected as a git submodule at `${CHEZMOI_SOURCE_DIR}/ai-wrapper`. The path is excluded in `.chezmoiignore` so chezmoi never deploys submodule files directly. A `run_always_install-ai-wrapper.bash` script initializes the submodule and applies it as a secondary chezmoi source. This replaces the originally planned standalone clone at `~/.local/share/ai-wrapper`; the submodule approach was chosen because it keeps both repos co-located and eliminates a separate install step without reintroducing chezmoi compatibility risks (the `.chezmoiignore` exclusion is the key guard).
+
 **Tech Stack:** git, chezmoi, bash
 
 ---
@@ -209,8 +211,13 @@ Canonical version lives in ai-wrapper. Dotfiles carries a minimal stub. When bot
 
 ### Two-repo chezmoi workflow
 ```bash
-chezmoi apply                                                         # dotfiles first
-CHEZMOI_SOURCE_DIR="$HOME/.local/share/ai-wrapper" chezmoi apply     # ai-wrapper second
+chezmoi apply   # runs dotfiles first, then run_always_install-ai-wrapper.bash
+                # which initializes the submodule and applies ai-wrapper as secondary source
+```
+
+Manual secondary apply (if needed):
+```bash
+CHEZMOI_SOURCE_DIR="${HOME}/.local/share/chezmoi/ai-wrapper" chezmoi apply
 ```
 
 ### Rollback

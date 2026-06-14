@@ -1,3 +1,3 @@
 [submodule "ai-wrapper"]
 	path = ai-wrapper
-	url = git@github.com:Le0nRoy/AI-Wrapper.git
+	url = https://github.com/Le0nRoy/AI-Wrapper.git

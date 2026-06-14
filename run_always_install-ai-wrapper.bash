@@ -9,14 +9,19 @@ set -euo pipefail
 CHEZMOI_SOURCE_DIR="${CHEZMOI_SOURCE_DIR:-${HOME}/.local/share/chezmoi}"
 AI_WRAPPER_SRC="${CHEZMOI_SOURCE_DIR}/ai-wrapper"
 
-# Initialize submodule if not yet done (fresh clone)
-if [[ ! -f "${AI_WRAPPER_SRC}/AGENTS.md" ]]; then
+# Initialize submodule if not yet done (fresh clone).
+# Use .git dir as sentinel — stable across any repo reorganization.
+if [[ ! -d "${AI_WRAPPER_SRC}/.git" ]]; then
     echo "AI-Wrapper submodule not initialized, running git submodule update..."
-    git -C "${CHEZMOI_SOURCE_DIR}" submodule update --init --recursive ai-wrapper
+    if ! git -C "${CHEZMOI_SOURCE_DIR}" submodule update --init --recursive ai-wrapper 2>&1; then
+        echo "Warning: could not initialize AI-Wrapper submodule." >&2
+        echo "  Ensure network access and retry: git -C \"${CHEZMOI_SOURCE_DIR}\" submodule update --init --recursive ai-wrapper" >&2
+        exit 0
+    fi
 fi
 
 # Apply AI-Wrapper as a secondary chezmoi source
-if [[ -f "${AI_WRAPPER_SRC}/AGENTS.md" ]]; then
+if [[ -d "${AI_WRAPPER_SRC}/.git" ]]; then
     CHEZMOI_SOURCE_DIR="${AI_WRAPPER_SRC}" chezmoi apply
     echo "AI-Wrapper applied from ${AI_WRAPPER_SRC}"
 else

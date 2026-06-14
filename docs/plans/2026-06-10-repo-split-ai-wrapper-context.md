@@ -19,7 +19,7 @@
 
 6. **docs/ not deployed**: `docs/` is in `.chezmoiignore` — docs stay in repo, never touch `~/`.
 
-7. **Supersedes**: `docs/plans/2026-04-02-ai-rules-repository-migration.md` (submodule approach — abandoned due to chezmoi compatibility risks).
+7. **Supersedes**: `docs/plans/2026-04-02-ai-rules-repository-migration.md`. The prior plan abandoned submodules due to chezmoi compatibility risks; after evaluation, the git submodule approach was formally adopted (2026-06-14) because: (a) the `ai-wrapper/` path is excluded via `.chezmoiignore` so chezmoi never tries to deploy submodule files as dotfiles; (b) the submodule is initialized and applied by a dedicated `run_always_` script, keeping the two repos independent at the chezmoi level while sharing a git link for convenient co-deployment.
 
 ---
 
