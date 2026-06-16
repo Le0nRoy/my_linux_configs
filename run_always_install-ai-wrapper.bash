@@ -13,7 +13,7 @@ AI_WRAPPER_SRC="${CHEZMOI_SOURCE_DIR}/ai-wrapper"
 # Use .git dir as sentinel — stable across any repo reorganization.
 if [[ ! -d "${AI_WRAPPER_SRC}/.git" ]]; then
     echo "AI-Wrapper submodule not initialized, running git submodule update..."
-    if ! git -C "${CHEZMOI_SOURCE_DIR}" submodule update --init --recursive ai-wrapper 2>&1; then
+    if ! git -C "${CHEZMOI_SOURCE_DIR}" submodule update --init --recursive ai-wrapper > /dev/null 2>&1; then
         echo "Warning: could not initialize AI-Wrapper submodule." >&2
         echo "  Ensure network access and retry: git -C \"${CHEZMOI_SOURCE_DIR}\" submodule update --init --recursive ai-wrapper" >&2
         exit 0

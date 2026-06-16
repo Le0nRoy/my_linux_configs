@@ -45,12 +45,11 @@
 ## Two-Repo Apply Workflow
 
 ```bash
-# Apply both repos in sequence (recommended)
-chezmoi apply                                                         # dotfiles first
-CHEZMOI_SOURCE_DIR="$HOME/.local/share/ai-wrapper" chezmoi apply     # ai-wrapper second
+# Single apply — run_always_install-ai-wrapper.bash handles AI-Wrapper automatically
+chezmoi apply
 ```
 
-The ai-wrapper `AGENTS.md` overwrites the dotfiles stub because it's applied second.
+The `run_always_install-ai-wrapper.bash` script initializes the `ai-wrapper` submodule and applies it as a secondary chezmoi source in one step. The ai-wrapper `AGENTS.md` overwrites the dotfiles stub because it's applied second.
 
 ---
 
@@ -67,17 +66,6 @@ The file must be in `~/bin/` alongside the wrappers. Check: `ls ~/bin/ai_agent_u
 ls ~/.agents/skills/
 ls -la ~/.claude/skills
 readlink ~/.claude/skills  # must be -> ~/.agents/skills
-```
-
-### AGENTS.md at ~/ is the stub (not full rules)
-
-Apply ai-wrapper second: `CHEZMOI_SOURCE_DIR="$HOME/.local/share/ai-wrapper" chezmoi apply`
-
-### Submodule not initialized after fresh clone
-
-```bash
-git -C "$HOME/.local/share/ai-wrapper" submodule update --init --recursive
-chezmoi apply  # run_always also calls submodule init
 ```
 
 ---
