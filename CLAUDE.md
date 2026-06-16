@@ -1,18 +1,23 @@
-# Claude Code Guidelines — Chezmoi Dotfiles & User-Level AI Policies
+# Claude Code Guidelines — Chezmoi Dotfiles
 
 **This file redirects to the main AI agent guidelines.**
 
-All rules for Claude Code (and other AI agents) are maintained in a single source of truth:
+All rules for Claude Code (and other AI agents) are maintained in:
 
 **→ See: [AGENTS.md](AGENTS.md)**
 
 ## This Repository
 
-This is a **chezmoi-managed dotfiles repository** containing:
-- System configuration files deployed to `~/` via `chezmoi apply`
-- User-level AI agent policies (`AGENTS.md`) deployed system-wide
-- User-level skills (`~/.agents/skills/`) for AI workflow automation
-- AI orchestration configs (`bin/ai_wrapper_data/`)
+This is a **chezmoi-managed Linux system configuration** repository:
+- Shell configs: `dot_bashrc`, `dot_bash_profile`, `dot_zshrc`
+- Editor: `dot_vimrc`, `dot_gitconfig`
+- Window manager: `dot_config/i3/`
+- Status bar: `dot_config/polybar/`
+- Terminal: `dot_config/alacritty/`
+- Multiplexer: `dot_config/tmux/`
+- Display management: `dot_config/autorandr/`, `bin/executable_xrandr_manager.bash`
+- Systemd user services: `dot_config/systemd/user/` (rclone, sshfs, syncthing)
+- System utilities: `bin/executable_*.bash`, `bin/helper/`
 
 ## Quick Reference
 
@@ -20,7 +25,6 @@ This is a **chezmoi-managed dotfiles repository** containing:
 |------|-------|
 | All rules and policies | `AGENTS.md` |
 | Chezmoi naming/workflow | `chezmoi-workflow` skill |
-| Sandbox security | `ai-sandboxing` skill |
 | Code standards | `coding-standards` skill |
 | Test writing | `qa-automation` skill |
 | Code review process | `requesting-code-review` skill |
