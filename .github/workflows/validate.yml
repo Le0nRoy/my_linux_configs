@@ -12,12 +12,12 @@ jobs:
       pull-requests: write
       checks: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
 
       - name: Bash syntax check
         run: |
-          find . -name '*.bash' -o -name '*.sh' \
-            | grep -v '\.git' \
+          find . \( -path './.git' -prune \) -o \
+            \( \( -name '*.bash' -o -name '*.sh' \) -print \) \
             | sort \
             | xargs -I{} bash -n {}
 
@@ -33,6 +33,10 @@ jobs:
 
       - name: .gitmodules HTTPS regression check
         run: |
+          if [ ! -f .gitmodules ]; then
+            echo "OK: no .gitmodules (no submodules)"
+            exit 0
+          fi
           if grep -E 'url\s*=' .gitmodules | grep -qv 'https://'; then
             echo "ERROR: SSH URL found in .gitmodules"
             exit 1
