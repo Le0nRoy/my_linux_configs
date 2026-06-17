@@ -1,0 +1,52 @@
+name: validate
+
+on:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4
+
+      - name: Bash syntax check
+        run: |
+          find . \( -path './.git' -prune \) -o \
+            \( \( -name '*.bash' -o -name '*.sh' \) -print \) \
+            | sort \
+            | xargs -I{} bash -n {}
+
+      - name: ShellCheck
+        uses: reviewdog/action-shellcheck@853366d6a4afe65985b8f9ba43924a4afc0a45c9  # v1.32.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: github-pr-review
+          level: error
+          fail_level: error
+          path: "."
+          pattern: "*.bash *.sh"
+
+      - name: .gitmodules HTTPS regression check
+        run: |
+          if [ ! -f .gitmodules ]; then
+            echo "OK: no .gitmodules (no submodules)"
+            exit 0
+          fi
+          if grep -E 'url\s*=' .gitmodules | grep -qv 'https://'; then
+            echo "ERROR: SSH URL found in .gitmodules"
+            exit 1
+          fi
+          echo "OK: all .gitmodules URLs use HTTPS"
+
+      - name: chezmoi.toml TOML validation
+        run: |
+          python3 - <<'EOF'
+          import tomllib
+          with open('dot_config/chezmoi/chezmoi.toml', 'rb') as f:
+              tomllib.load(f)
+          print('OK: dot_config/chezmoi/chezmoi.toml is valid TOML')
+          EOF
