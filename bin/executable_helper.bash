@@ -159,9 +159,6 @@ case "$1" in
     "i3-reload")
         i3-msg reload
         ;;
-    "run_compositor")
-        picom --backend glx --daemon
-        ;;
     "set_background")
         set_background
         ;;
