@@ -15,7 +15,7 @@ This is a **chezmoi-managed Linux system configuration** repository:
 - Status bar: `dot_config/polybar/`
 - Terminal: `dot_config/alacritty/`
 - Multiplexer: `dot_config/tmux/`
-- Display management: `dot_config/autorandr/`, `bin/executable_xrandr_manager.bash`
+- Display management: `bin/executable_xrandr_manager.bash`
 - Systemd user services: `dot_config/systemd/user/` (rclone, sshfs, syncthing)
 - System utilities: `bin/executable_*.bash`, `bin/helper/`
 
