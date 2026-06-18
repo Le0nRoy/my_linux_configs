@@ -19,7 +19,7 @@ This document provides an overview of the chezmoi dotfiles repository and serves
 This is a [chezmoi](https://www.chezmoi.io/) managed dotfiles repository for an Arch Linux system with i3 window manager. It contains:
 
 - Shell configurations (bash, zsh, vim)
-- Window manager configuration (i3, polybar, picom)
+- Window manager configuration (i3, polybar)
 - System utilities and helper scripts
 - AI agent sandboxing infrastructure
 - Automated backup and sync services
@@ -57,7 +57,6 @@ This is a [chezmoi](https://www.chezmoi.io/) managed dotfiles repository for an 
 │   ├── polybar/                  # Status bar
 │   ├── alacritty/                # Terminal emulator
 │   ├── tmux/                     # Terminal multiplexer
-│   ├── autorandr/                # Display profiles
 │   ├── systemd/user/             # User systemd services
 │   └── ...                       # Other app configs
 │
@@ -204,7 +203,6 @@ Templates can access:
 The repository supports multiple machines through:
 - Template conditionals based on hostname
 - Separate polybar configs in `polybar/configs/`
-- Display profiles in `autorandr/`
 
 ## Chezmoi Naming Conventions
 
