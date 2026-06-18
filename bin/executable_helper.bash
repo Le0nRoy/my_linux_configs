@@ -197,12 +197,6 @@ case "$1" in
         bash "${HOME}/bin/xrandr_manager.bash" dmenu
         polybar_start
         ;;
-    "vnc_over_ssh")
-        shift
-        SSH_ROUTE="$1"
-        PORT="${2:-5900}"
-        vncviewer -via "${SSH_ROUTE}" "localhost::${PORT}"
-        ;;
     "rclone_bisync")
         shift
         rclone_systemd "$@"
