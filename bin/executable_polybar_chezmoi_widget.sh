@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Polybar widget for uncommitted chezmoi changes
 
 WHITELIST=(\

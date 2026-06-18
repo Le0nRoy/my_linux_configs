@@ -49,17 +49,17 @@ _rsync_ssh_complete() {
 
     case "${prev}" in
         -c)
-            COMPREPLY=($(compgen -W \
+            mapfile -t COMPREPLY < <(compgen -W \
                 "aes128-gcm@openssh.com chacha20-poly1305@openssh.com \
                  aes256-gcm@openssh.com aes128-ctr aes256-ctr aes192-ctr" \
-                -- "${cur}"))
+                -- "${cur}")
             return
             ;;
         -p) return ;;
     esac
 
     if [[ "${cur}" == -* ]]; then
-        COMPREPLY=($(compgen -W "-h -n -z -p -c" -- "${cur}"))
+        mapfile -t COMPREPLY < <(compgen -W "-h -n -z -p -c" -- "${cur}")
         return
     fi
 
@@ -72,8 +72,11 @@ _rsync_ssh_complete() {
     _ssh_config_hosts ssh_hosts
 
     _filedir
-    [[ ${#ssh_hosts[@]} -gt 0 ]] && \
-        COMPREPLY+=($(compgen -W "${ssh_hosts[*]}" -- "${cur}"))
+    if [[ ${#ssh_hosts[@]} -gt 0 ]]; then
+        local -a _tmp
+        mapfile -t _tmp < <(compgen -W "${ssh_hosts[*]}" -- "${cur}")
+        COMPREPLY+=("${_tmp[@]}")
+    fi
 }
 
 complete -F _rsync_ssh_complete rsync_ssh
@@ -92,7 +95,7 @@ _rm_ssh_complete() {
     esac
 
     if [[ "${cur}" == -* ]]; then
-        COMPREPLY=($(compgen -W "-h -n -f -p" -- "${cur}"))
+        mapfile -t COMPREPLY < <(compgen -W "-h -n -f -p" -- "${cur}")
         return
     fi
 
@@ -100,6 +103,7 @@ _rm_ssh_complete() {
     # words[0] is the command itself; we need to know if user@host was given.
     local positional=0
     local w
+    # shellcheck disable=SC2154
     for w in "${words[@]:1:${cword}-1}"; do
         [[ "${w}" == -* ]] && continue
         # Skip values consumed by flags that take an argument
@@ -111,7 +115,7 @@ _rm_ssh_complete() {
         local -a ssh_hosts=()
         _ssh_config_hosts ssh_hosts
         [[ ${#ssh_hosts[@]} -gt 0 ]] && \
-            COMPREPLY=($(compgen -W "${ssh_hosts[*]}" -- "${cur}"))
+            mapfile -t COMPREPLY < <(compgen -W "${ssh_hosts[*]}" -- "${cur}")
     fi
     # Subsequent positionals are remote paths — no completion without SSH round-trip
 }

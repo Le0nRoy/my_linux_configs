@@ -4,6 +4,8 @@ _helper_script() {
     local cur
     _init_completion || return
 
-    COMPREPLY=($(compgen -W '$(sed --sandbox -En "s/^\s+\"(.*)\"\)/\1/p" "${HOME}/bin/helper.bash")' -- "${cur}"))
+    local cmds
+    cmds="$(sed --sandbox -En 's/^\s+"(.*)"\)/\1/p' "${HOME}/bin/helper.bash")"
+    mapfile -t COMPREPLY < <(compgen -W "${cmds}" -- "${cur}")
 }
 complete -F _helper_script helper.bash

@@ -59,6 +59,7 @@ if [[ ! "$EXEC_NAME" == "$HOME_HELPER_UNIQ_SCRIPT_NAME"  ]]; then
     export PATH="$HOME/bin:$PATH"
 
     if [[ -e "$JOB_SETUP_FILE" ]]; then
+        # shellcheck source=/dev/null
         source $JOB_SETUP_FILE
     fi
 
@@ -109,9 +110,12 @@ case "$1" in
             SINK_NAME=$OPTARG
             shift
               ;;
+            *)
+              ;;
           esac
         done
 
+        # shellcheck disable=SC2034
         ACTION=$1
         SINK_NAME=${SINK_NAME:-@DEFAULT_SINK@}
 

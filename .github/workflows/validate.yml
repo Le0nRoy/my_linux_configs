@@ -25,8 +25,8 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reporter: github-pr-review
-          level: error
-          fail_level: error
+          level: warning
+          fail_level: warning
           path: "."
           pattern: "*.bash *.sh"
 

@@ -187,7 +187,6 @@ get_power() {
     local found_source=0
     local cpu_power gpu_power battery_power
     local is_on_battery=0
-    local power_breakdown=""
 
     # Check if on battery
     for bat in /sys/class/power_supply/BAT*; do
