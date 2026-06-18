@@ -6,7 +6,7 @@
 # Device types: XISlavePointer, XISlaveKeyboard, XIFloatingSlave, XIMasterPointer, XIMasterKeyboard
 
 EVENT="${1}"
-DEVICE_ID="${2}"
+_DEVICE_ID="${2}"
 DEVICE_TYPE="${3}"
 DEVICE_NAME="${4:-}"
 

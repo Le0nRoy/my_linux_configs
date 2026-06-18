@@ -45,7 +45,8 @@ function unzip_books() {
         unzip "${file}"
         rm "${file}"
     done
-    for book in $(ls | grep -E ".*\.[a-zA-Z0-9_\-]+\.[0-9]+\.fb2"); do
+    for book in *.fb2; do
+        [[ "${book}" =~ \.[a-zA-Z0-9_-]+\.[0-9]+\.fb2$ ]] || continue
         local new_name
         new_name="$(echo "${book}" | sed -E 's/(.*)\.[a-zA-Z0-9_\-]+\.[0-9]+\.fb2/\1.fb2/')"
         mv "${book}" "${new_name}"

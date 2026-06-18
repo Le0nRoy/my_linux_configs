@@ -222,7 +222,6 @@ generate_layout_description() {
         local position
         position="$(extract_position "${output}")"
         if [[ -n "${position}" ]]; then
-            local dims offsets
             read -r width height <<< "$(get_display_dimensions "${position}")"
             read -r x_off y_off <<< "$(get_display_offset "${position}")"
             local primary_mark=""
@@ -337,6 +336,7 @@ apply_config_file() {
 
 # Build xrandr arguments for a single output
 build_output_args() {
+    # shellcheck disable=SC2178
     local -n args_ref="${1}"
     local output="${2}" mode="${3}" position="${4}" primary="${5}" enabled="${6}" connected="${7}"
 
@@ -356,6 +356,7 @@ build_output_args() {
 
 # Add mode arguments to xrandr command
 add_mode_args() {
+    # shellcheck disable=SC2178
     local -n args_ref="${1}"
     local mode="${2}"
 
@@ -368,6 +369,7 @@ add_mode_args() {
 
 # Add position arguments to xrandr command
 add_position_args() {
+    # shellcheck disable=SC2178
     local -n args_ref="${1}"
     local position="${2}"
 
@@ -448,7 +450,7 @@ rearrange_displays() {
     local total_displays=0
 
     # Collect display info and calculate average middle axis
-    while IFS='|' read -r x_pos output position; do
+    while IFS='|' read -r _x_pos output position; do
         [[ -z "${output}" ]] && continue
         local middle
         middle="$(calculate_middle_axis "${position}")"

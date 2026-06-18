@@ -38,7 +38,9 @@ function set_background() {
 
 function polybar_start() {
     # Restart polybar by killing supervisor and restarting
-    kill $(ps aux | awk '/polybar-supervisor.bash/{print $2}')
+    local -a _pids
+    mapfile -t _pids < <(ps aux | awk '/polybar-supervisor.bash/{print $2}')
+    [[ ${#_pids[@]} -gt 0 ]] && kill "${_pids[@]}"
     /bin/bash "${HOME}/bin/polybar-supervisor.bash"
 }
 

@@ -42,7 +42,7 @@ get_next_sink() {
     local -a sinks=()
 
     # Get all sink names
-    while IFS=$'\t' read -r index name driver sample_spec state; do
+    while IFS=$'\t' read -r _index name _driver _sample_spec _state; do
         sinks+=("${name}")
     done < <(pactl list sinks short)
 
