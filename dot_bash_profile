@@ -6,6 +6,3 @@
 
 
 
-# Added by Toolbox App
-export PATH="$PATH:/home/lap/.local/share/JetBrains/Toolbox/scripts"
-

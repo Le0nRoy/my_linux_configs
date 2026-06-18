@@ -159,9 +159,6 @@ case "$1" in
     "i3-reload")
         i3-msg reload
         ;;
-    "run_compositor")
-        picom --backend glx --daemon
-        ;;
     "set_background")
         set_background
         ;;
@@ -199,12 +196,6 @@ case "$1" in
         # Launch xrandr rofi menu for screen management
         bash "${HOME}/bin/xrandr_manager.bash" dmenu
         polybar_start
-        ;;
-    "vnc_over_ssh")
-        shift
-        SSH_ROUTE="$1"
-        PORT="${2:-5900}"
-        vncviewer -via "${SSH_ROUTE}" "localhost::${PORT}"
         ;;
     "rclone_bisync")
         shift
