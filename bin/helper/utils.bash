@@ -10,6 +10,7 @@ function upgrade_system() {
 
     # Step 2: npm-based global packages (fast)
     sudo npm install -g @anthropic-ai/claude-code@latest
+    sudo node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs"
     sudo npm cache clean --force
 
     # Step 3: yay-managed AUR packages (slowest due to compilation)
