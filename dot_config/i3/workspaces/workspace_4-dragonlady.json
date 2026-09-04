@@ -114,7 +114,7 @@
                             "percent": 0.3,
                             "swallows": [
                                {
-                               "class": "^Todoist$",
+                               "class": "(?i)^Todoist$",
                                "instance": "^todoist$",
                                "title": "^Today$",
                                "window_role": "^browser\\-window$"

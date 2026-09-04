@@ -321,6 +321,7 @@ for_window [class="(?i)thunderbird|Mail"] floating disable
 for_window [class="(?i)thunderbird|Mail" window_role="GtkFileChooserDialog|Dialog|AlarmWindow|Conflicts"] floating enable
 for_window [instance="Msgcompose"] floating enable
 for_window [class="(?iflameshot" title="Open With"] floating enable resize set 900 600
+for_window [class="flameshot" title="^flameshot$"] floating enable
 # Steam
 for_window [title="Create or select new Steam library folder" class="(?i)steam"] floating enable
 for_window [title="News" class="(?i)steam"] floating enable resize set 600 400
@@ -340,6 +341,9 @@ for_window [class="(?i)zoom" title="zoom"] floating enable
 
 # gThumb
 for_window [class="(?i)gthumb"] floating enable
+
+# Okular
+for_window [class="(?i)okular"] floating enable
 
 # Pritunl VPN client
 for_window [class="(?i)pritunl"] floating enable
