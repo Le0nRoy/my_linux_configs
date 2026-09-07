@@ -39,7 +39,7 @@ function tmux_ide_session() {
         # Use `C-u` (ctrl+u) to remove all special symbols, sent by IDE
         # Window 1 (ai-agents): left pane = claude, right pane = empty
         tmux send-keys -t "${session_name}:ai-agents.0" C-u
-        tmux send-keys -t "${session_name}:ai-agents.0" "${HOME}/bin/claude_wrapper.bash"
+        tmux send-keys -t "${session_name}:ai-agents.0" "${HOME}/ai-wrapper/bin/claude_wrapper.bash"
 
         # Window 2 (dev): left pane = empty, right pane = git watch
         tmux send-keys -t "${session_name}:dev.1" "watch 'git branch --show-current; git status --short'" C-m
@@ -51,7 +51,7 @@ function tmux_ide_session() {
         sleep 0.1
         # Window 1 (ai-agents): left pane = claude, right pane = empty
         tmux send-keys -t "${session_name}:ai-agents.0" C-u
-        tmux send-keys -t "${session_name}:ai-agents.0" "${HOME}/bin/claude_wrapper.bash"
+        tmux send-keys -t "${session_name}:ai-agents.0" "${HOME}/ai-wrapper/bin/claude_wrapper.bash"
 
         # Window 2 (dev): left pane = empty, right pane = git watch
         tmux send-keys -t "${session_name}:dev.1" "watch 'git branch --show-current; git status --short'" C-m
@@ -89,7 +89,7 @@ function tmux_main_session() {
     # Send commands to panes
     # Pane 0 (top 50%): cd to workdir and prepare claude_wrapper.bash to be executed
     tmux send-keys -t "${session_name}:chezmoi.0" "cd ${chezmoi_dir}" C-m C-l
-    tmux send-keys -t "${session_name}:chezmoi.0" "${HOME}/bin/claude_wrapper.bash"
+    tmux send-keys -t "${session_name}:chezmoi.0" "${HOME}/ai-wrapper/bin/claude_wrapper.bash"
 
     # Pane 3 (bottom right bottom 50% of right quarter): watch git status (executed)
     tmux send-keys -t "${session_name}:chezmoi.3" "watch 'git branch --show-current; git status --short'" C-m

@@ -56,7 +56,7 @@ show_error_and_usage() {
 EXEC_NAME=$0
 EXEC_NAME="${EXEC_NAME[0]##*/}"
 if [[ ! "$EXEC_NAME" == "$HOME_HELPER_UNIQ_SCRIPT_NAME"  ]]; then
-    export PATH="$HOME/bin:$PATH"
+    export PATH="$HOME/bin:$HOME/ai-wrapper/bin:$PATH"
 
     if [[ -e "$JOB_SETUP_FILE" ]]; then
         # shellcheck source=/dev/null
