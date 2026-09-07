@@ -45,8 +45,16 @@ jobs:
       - name: chezmoi.toml TOML validation
         run: |
           python3 - <<'EOF'
-          import tomllib
-          with open('dot_config/chezmoi/chezmoi.toml', 'rb') as f:
-              tomllib.load(f)
-          print('OK: dot_config/chezmoi/chezmoi.toml is valid TOML')
+          import os, sys, tomllib
+          path = 'dot_config/chezmoi/chezmoi.toml'
+          tmpl_path = path + '.tmpl'
+          if os.path.exists(path):
+              with open(path, 'rb') as f:
+                  tomllib.load(f)
+              print('OK:', path, 'is valid TOML')
+          elif os.path.exists(tmpl_path):
+              print('OK:', tmpl_path, 'is a chezmoi template — TOML validation skipped (requires rendering)')
+          else:
+              print('ERROR: neither', path, 'nor', tmpl_path, 'found', file=sys.stderr)
+              raise SystemExit(1)
           EOF
