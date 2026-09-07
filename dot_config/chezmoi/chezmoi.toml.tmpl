@@ -1,0 +1,11 @@
+[git]
+	autoCommit = true
+	autoPush = true
+{{- if eq .chezmoi.hostname "dragonlady" }}
+
+[data]
+	# dragonlady's home partition is too small, so ~/.local lives on another
+	# disk and is a symlink to it. See run_always_manage-local-symlink.bash.tmpl
+	# and .chezmoiignore.
+	localSymlinkTarget = "/Data/home_local"
+{{- end }}
