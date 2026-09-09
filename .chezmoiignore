@@ -19,3 +19,12 @@ docs/
 
 # AI-Wrapper submodule — deployed via run_always_install-ai-wrapper.bash, not chezmoi file copy
 ai-wrapper
+
+{{- if and (hasKey . "localSymlinkTarget") .localSymlinkTarget }}
+# ~/.local is a symlink to another disk on this machine (set via localSymlinkTarget
+# in ~/.config/chezmoi/chezmoi.toml). chezmoi cannot manage files nested under a
+# path that is itself meant to be a symlink without fighting the symlink on every
+# apply, so leave it alone entirely here — run_always_manage-local-symlink.bash.tmpl
+# creates the symlink and deploys dot_local's contents directly to the real target.
+.local
+{{- end }}

@@ -1,0 +1,40 @@
+#!/bin/bash
+# Supports two ~/.local setups across machines:
+#   - default: ~/.local is a plain directory, managed normally by chezmoi via
+#     dot_local/ (see dragoncave).
+#   - opt-in: ~/.local is a symlink to a directory on another disk, for machines
+#     with a small home partition (see dragonlady). Enable by setting
+#     localSymlinkTarget in that machine's ~/.config/chezmoi/chezmoi.toml:
+#       [data]
+#           localSymlinkTarget = "/path/on/other/disk"
+#     When set, .chezmoiignore excludes ~/.local from normal management (chezmoi
+#     can't cleanly own files nested under a path that is itself a symlink — it
+#     fights the symlink on every apply), and this script takes over: it creates
+#     the symlink if missing, then re-applies dot_local/ directly onto the real
+#     target directory instead of through ~/.local.
+{{- if not (and (hasKey . "localSymlinkTarget") .localSymlinkTarget) }}
+exit 0
+{{- else }}
+set -euo pipefail
+
+TARGET="{{ .localSymlinkTarget }}"
+
+if [[ -e "${HOME}/.local" && ! -L "${HOME}/.local" ]]; then
+    echo "~/.local exists as a real directory, but localSymlinkTarget=\"${TARGET}\" is configured." >&2
+    echo "Move its contents to ${TARGET}, remove ~/.local, then re-run chezmoi apply." >&2
+    exit 1
+fi
+
+mkdir -p "${TARGET}"
+ln -sfn "${TARGET}" "${HOME}/.local"
+
+
+# --persistent-state must be a separate file: this script runs from inside an
+# in-progress `chezmoi apply`, which already holds the lock on the default
+# state file — reusing it deadlocks with "timeout obtaining persistent state
+# lock".
+chezmoi apply \
+    --source "{{ .chezmoi.sourceDir }}/dot_local" \
+    --destination "${TARGET}" \
+    --persistent-state "${HOME}/.cache/chezmoi/local-symlink-state.boltdb"
+{{- end }}
