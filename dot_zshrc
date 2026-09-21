@@ -5,8 +5,36 @@ HISTFILE=~/.zsh_history
 HISTSIZE=1000
 SAVEHIST=1000
 unsetopt autocd beep extendedglob
+# Each shell keeps its own history file; don't merge across sessions.
+unsetopt share_history
 bindkey -v
 # End of lines configured by zsh-newuser-install
+
+# Require Ctrl+D twice on an empty line to exit (zsh equivalent of bash's
+# IGNOREEOF=1; mirrors the tmux.conf `set-environment -g IGNOREEOF 1`
+# behavior so both shells agree).
+setopt IGNORE_EOF
+_ctrl_d_count=0
+_ctrl_d_exit() {
+    if [[ -n "$BUFFER" ]]; then
+        zle delete-char-or-list
+        _ctrl_d_count=0
+        return
+    fi
+    _ctrl_d_count=$((_ctrl_d_count + 1))
+    if (( _ctrl_d_count >= 2 )); then
+        exit
+    fi
+    zle -M "Press Ctrl+D again to exit shell"
+}
+zle -N _ctrl_d_exit
+bindkey '^D' _ctrl_d_exit
+_reset_ctrl_d_count() { _ctrl_d_count=0; }
+precmd_functions+=(_reset_ctrl_d_count)
+
+# Convenience shortcut for the AI-Wrapper (installed as a submodule via
+# run_always_install-ai-wrapper.bash → ~/ai-wrapper).
+alias claude_wrapper='~/ai-wrapper/bin/executable_claude_wrapper.bash'
 
 # The following lines were added by compinstall
 zstyle :compinstall filename '/home/lap/.zshrc'
