@@ -1,0 +1,20 @@
+[core]
+	editor = vim
+[color]
+	ui = auto
+[init]
+	defaultBranch = main
+[push]
+	autoSetupRemote = true
+
+; user.name / user.email are intentionally not set here. Git itself
+; already requires `git config --global user.name "..."` / `user.email
+; "..."` before it will let you commit, so chezmoi doesn't need to (and
+; shouldn't) own or template identity.
+;
+; Caveat: chezmoi fully re-renders this file from the source template on
+; every `chezmoi apply`, so a `--global` identity written directly into
+; this file gets wiped by the next apply — re-run the two commands
+; after applying, or (simpler, no repeat needed) set identity per-repo
+; via plain `git config user.name "..."` inside each clone instead of
+; `--global`.

@@ -20,6 +20,13 @@ docs/
 # AI-Wrapper submodule — deployed via run_always_install-ai-wrapper.bash, not chezmoi file copy
 ai-wrapper
 
+{{- if not (stat (joinPath .chezmoi.homeDir ".config/keepassxc/keepassxc.ini")) }}
+# KeePassXC not configured on this machine — the modify_ script needs an
+# existing ~/.config/keepassxc/keepassxc.ini to patch. Skip until KeePassXC
+# runs once and writes its own config.
+dot_config/keepassxc/**
+{{- end }}
+
 {{- if and (hasKey . "localSymlinkTarget") .localSymlinkTarget }}
 # ~/.local is a symlink to another disk on this machine (set via localSymlinkTarget
 # in ~/.config/chezmoi/chezmoi.toml). chezmoi cannot manage files nested under a
@@ -27,4 +34,52 @@ ai-wrapper
 # apply, so leave it alone entirely here — run_always_manage-local-symlink.bash.tmpl
 # creates the symlink and deploys dot_local's contents directly to the real target.
 .local
+{{- end }}
+
+{{- if eq .chezmoi.os "darwin" }}
+# ===== macOS: skip Linux-only configs and utilities =====
+# Files below only make sense on a Linux desktop (X11 session, i3wm,
+# polybar, dunst notification daemon, systemd, XDG mime, GTK theming,
+# ASUS laptop tooling, xrandr, rofi/dmenu, Steam Proton, GNU dir-colors,
+# yt-dlp systemd timer). Excluded from macOS `chezmoi apply` so no
+# broken symlink or unmanageable target is created.
+
+# Session / desktop
+.xsessionrc
+.dir_colors
+.config/i3/**
+.config/polybar/**
+.config/dunst/**
+.config/environment.d/**
+.config/systemd/**
+.config/user-dirs.dirs
+.config/mimeapps.list
+.config/gtk-3.0/**
+.config/gtk-4.0/**
+
+# Linux-only one-shot installers
+run_once_create_firefox_profiles.bash
+
+# Linux-only bin/ scripts
+bin/asusctl_rofi.bash
+bin/firefox_rofi.bash
+bin/input_device_handler.bash
+bin/polybar-supervisor.bash
+bin/polybar_chezmoi_widget.sh
+bin/polybar_system_stats.bash
+bin/polybar_volume_all.bash
+bin/proton_install_game.bash
+bin/xrandr_dmenu_test.bash
+bin/xrandr_manager.bash
+bin/yt_playlist_mp3.bash
+
+# Linux-only helpers sourced by helper.bash. common.bash+backup.bash+
+# git.bash+tmux.bash+transfer.bash are portable and stay managed on
+# macOS. The five below reference apt/pacman/systemctl/polybar/rofi
+# directly and would fail at first source.
+bin/helper/firefox.bash
+bin/helper/i3.bash
+bin/helper/storage.bash
+bin/helper/system.bash
+bin/helper/utils.bash
 {{- end }}

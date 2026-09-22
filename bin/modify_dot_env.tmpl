@@ -1,0 +1,35 @@
+#!/bin/bash
+# ~/bin/.env is a shared file: chezmoi owns TMUX_SESSION plus per-host
+# DESKTOP_BG / LOCK_SCREEN_IMAGE, but downstream installers append their
+# own exports (proprietary tool plugins, machine-local overrides). A
+# plain `dot_env.tmpl` would wipe those on every `chezmoi apply`.
+#
+# This is a chezmoi `modify_` script: chezmoi runs it with the current
+# on-disk file content on stdin and replaces the target with our stdout.
+# Strategy: drop the chezmoi-owned keys from stdin, emit the fresh
+# chezmoi-owned values, then append everything else the file contained
+# so plugin additions survive.
+
+set -euo pipefail
+
+OWNED_KEYS_RE='^([[:space:]]*export[[:space:]]+)?(TMUX_SESSION|DESKTOP_BG|LOCK_SCREEN_IMAGE)='
+
+existing="$(cat)"
+preserved="$(printf '%s\n' "${existing}" | /usr/bin/grep -vE "${OWNED_KEYS_RE}" || true)"
+# Trim leading/trailing blank lines from the preserved slice.
+preserved="$(printf '%s' "${preserved}" | awk '/./{seen=1} seen{buf=buf $0 ORS} END{sub(/\n+$/, "", buf); printf "%s", buf}')"
+
+{{ if eq .chezmoi.os "linux" -}}
+echo 'export TMUX_SESSION="i3-tmux-${DISPLAY#*:}"'
+{{ end -}}
+{{ if eq .chezmoi.hostname "dragonlady" -}}
+echo 'DESKTOP_BG="${HOME}/Pictures/png_files/St_Louis_Sciamano.png"'
+echo 'LOCK_SCREEN_IMAGE="${HOME}/Pictures/png_files/maximum_beat.png"'
+{{ else if eq .chezmoi.hostname "dragoncave" -}}
+echo 'DESKTOP_BG="${HOME}/Pictures/png_files/creepy_cars.png"'
+echo 'LOCK_SCREEN_IMAGE="${HOME}/Pictures/png_files/merigold.png"'
+{{ end -}}
+
+if [[ -n "${preserved}" ]]; then
+    printf '\n%s\n' "${preserved}"
+fi

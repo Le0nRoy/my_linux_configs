@@ -45,6 +45,17 @@ if [[ -d ~/.bash_completion.d ]]; then
 	done
 fi
 
+# macOS: brew drops completions in /opt/homebrew/etc/bash_completion.d but
+# no loader is registered without the bash-completion formula.
+if [[ -d /opt/homebrew/etc/bash_completion.d ]]; then
+	for f in /opt/homebrew/etc/bash_completion.d/*; do
+		[ -r "$f" ] && . "$f"
+	done
+fi
+# Apple git ships its own completion outside brew paths
+[ -r /Library/Developer/CommandLineTools/usr/share/git-core/git-completion.bash ] \
+	&& . /Library/Developer/CommandLineTools/usr/share/git-core/git-completion.bash
+
 # Change the window title of X terminals
 case ${TERM} in
 	xterm*|rxvt*|Eterm*|aterm|kterm|gnome*|interix|konsole*)
@@ -56,6 +67,22 @@ case ${TERM} in
 esac
 
 use_color=true
+
+# ` (branch)` fragment for the first PS1 line. Uses `git symbolic-ref`
+# for the common case and falls back to a short SHA for detached HEAD.
+# Silent (empty) when cwd is not a git working tree. No external tooling
+# beyond git itself.
+_bashrc_git_branch() {
+    local ref
+    if ref=$(git symbolic-ref --short HEAD 2>/dev/null); then
+        :
+    elif ref=$(git rev-parse --short HEAD 2>/dev/null); then
+        :
+    else
+        return
+    fi
+    printf ' (%s)' "${ref}"
+}
 
 # Set colorful PS1 only on colorful terminals.
 # dircolors --print-database uses its own built-in database
@@ -88,13 +115,18 @@ if ${use_color} ; then
 		BLUE_COLOR='\[\033[02;36m\]'
 		RED_COLOR='\[\033[02;31m\]'
 		GREEN_COLOR='\[\033[32m\]'
+		MAGENTA_COLOR='\[\033[35m\]'
                 WHITE_COLOR='\[\033[00m\]'
 
                 USER_AND_HOST="${BLUE_COLOR}\u${GREEN_COLOR}@${BLUE_COLOR}\h"
                 WORKDIR="${BLUE_COLOR}:${GREEN_COLOR}\w"
+                # Git branch on the same first line as user@host:cwd.
+                # Empty when not inside a repo. Single-quoted so bash
+                # re-runs the substitution on every prompt render.
+                GIT_BRANCH="${MAGENTA_COLOR}"'$(_bashrc_git_branch)'"${WHITE_COLOR}"
                 WORKSPACE="${BLUE_COLOR}\n\$${WHITE_COLOR} "
 
-		PS1="${USER_AND_HOST}${WORKDIR}${WORKSPACE}"
+		PS1="${USER_AND_HOST}${WORKDIR}${GIT_BRANCH}${WORKSPACE}"
 	fi
 
 	alias ls='ls --color=auto'

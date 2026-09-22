@@ -1,6 +1,15 @@
+{{- /* Clipboard command picked per-OS at chezmoi apply time. Copy bindings run
+       under whatever $SHELL tmux spawns, so use plain executables — no shell
+       functions, no PATH surprises. */ -}}
+{{- $clipCopy  := "xclip -i -sel clipboard" -}}
+{{- $clipPaste := "xclip -o -sel clipboard" -}}
+{{- if eq .chezmoi.os "darwin" -}}
+{{-   $clipCopy  = "pbcopy" -}}
+{{-   $clipPaste = "pbpaste" -}}
+{{- end }}
 #### Shortcuts
-bind C-c run "tmux save-buffer - | xclip -i -sel clipboard"
-bind C-v run "tmux set-buffer \"$(xclip -o -sel clipboard)\"; tmux paste-buffer"
+bind C-c run "tmux save-buffer - | {{ $clipCopy }}"
+bind C-v run "tmux set-buffer \"$({{ $clipPaste }})\"; tmux paste-buffer"
 bind '"' split-window -c "#{pane_current_path}"
 bind % split-window -h -c "#{pane_current_path}"
 bind c new-window -c "#{pane_current_path}"
@@ -12,13 +21,13 @@ set -g mode-keys vi
 set -g mouse on
 
 # Enter → copy and exit (default)
-bind -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "xclip -i -sel clipboard"
+bind -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "{{ $clipCopy }}"
 # Ctrl+w → copy but stay
-bind -T copy-mode-vi C-w send-keys -X copy-pipe "xclip -i -sel clipboard"
+bind -T copy-mode-vi C-w send-keys -X copy-pipe "{{ $clipCopy }}"
 # v → begin visual selection (vi-style)
 bind -T copy-mode-vi v send-keys -X begin-selection
 # y → yank, stay in copy mode, drop selection, park cursor at selection start
-bind -T copy-mode-vi y send-keys -X copy-pipe-no-clear "xclip -i -sel clipboard" \; send-keys -X other-end \; send-keys -X clear-selection
+bind -T copy-mode-vi y send-keys -X copy-pipe-no-clear "{{ $clipCopy }}" \; send-keys -X other-end \; send-keys -X clear-selection
 # Mouse drag → end selection without copying; selection stays visible. Press y/Enter to copy.
 bind -T copy-mode-vi MouseDragEnd1Pane send-keys -X copy-selection-no-clear
 

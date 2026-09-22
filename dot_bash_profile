@@ -2,6 +2,16 @@
 # ~/.bash_profile
 #
 
+# Prepend ~/.local/bin to PATH when it exists — standard XDG-ish location
+# for user-installed CLIs (uv, pipx, plugin-managed binaries, etc.). Skip
+# if already on PATH so re-sourcing this file is idempotent.
+if [[ -d "$HOME/.local/bin" ]]; then
+    case ":$PATH:" in
+        *":$HOME/.local/bin:"*) ;;
+        *) export PATH="$HOME/.local/bin:$PATH" ;;
+    esac
+fi
+
 [[ -f ~/.bashrc ]] && . ~/.bashrc
 
 
