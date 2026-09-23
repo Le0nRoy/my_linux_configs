@@ -10,19 +10,17 @@ HOME_HELPER_UNIQ_SCRIPT_DIR="${HOME_HELPER_UNIQ_SCRIPT_PATH%/*}"
 # Source all helper modules
 HELPER_MODULE_DIR="${HOME_HELPER_UNIQ_SCRIPT_DIR}/helper"
 
-# Load common variables first (other modules depend on it)
+# Load common variables first (other modules depend on it).
 source "${HELPER_MODULE_DIR}/common.bash"
 
-# Load all other modules (order doesn't matter after common)
-source "${HELPER_MODULE_DIR}/tmux.bash"
-source "${HELPER_MODULE_DIR}/git.bash"
-source "${HELPER_MODULE_DIR}/system.bash"
-source "${HELPER_MODULE_DIR}/storage.bash"
-source "${HELPER_MODULE_DIR}/backup.bash"
-source "${HELPER_MODULE_DIR}/utils.bash"
-source "${HELPER_MODULE_DIR}/transfer.bash"
-source "${HELPER_MODULE_DIR}/i3.bash"
-source "${HELPER_MODULE_DIR}/firefox.bash"
+# Load all other modules (order doesn't matter after common). Missing
+# modules are silently skipped so a macOS install (where chezmoi ignores
+# Linux-only firefox/i3/storage/system/utils helpers) still sources what
+# is present without failing on the first missing file.
+for _mod in tmux git system storage backup utils transfer i3 firefox; do
+    [[ -f "${HELPER_MODULE_DIR}/${_mod}.bash" ]] && source "${HELPER_MODULE_DIR}/${_mod}.bash"
+done
+unset _mod
 
 # Load environment variables if present
 if [[ -f "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env" ]]; then

@@ -1,5 +1,15 @@
 # ~/.zshrc
 
+# Prepend ~/.local/bin to PATH when it exists — standard XDG-ish location
+# for user-installed CLIs (uv, pipx, plugin-managed binaries, etc.). Skip
+# if already on PATH so re-sourcing this file is idempotent.
+if [[ -d "$HOME/.local/bin" ]]; then
+    case ":$PATH:" in
+        *":$HOME/.local/bin:"*) ;;
+        *) export PATH="$HOME/.local/bin:$PATH" ;;
+    esac
+fi
+
 # Lines configured by zsh-newuser-install
 HISTFILE=~/.zsh_history
 HISTSIZE=1000
@@ -49,13 +59,23 @@ compinit
 BLUE='%F{cyan}'
 GREEN='%F{green}'
 RED='%F{red}'
+MAGENTA='%F{magenta}'
 RESET='%f'
+
+# Git branch on the first prompt line. Uses zsh's built-in vcs_info so
+# there's no fork-per-prompt cost; empty when cwd is not a git repo.
+autoload -Uz vcs_info
+zstyle ':vcs_info:git:*' formats " ${MAGENTA}(%b)${RESET}"
+zstyle ':vcs_info:git:*' actionformats " ${MAGENTA}(%b|%a)${RESET}"
+precmd_functions+=(vcs_info)
+setopt PROMPT_SUBST
 
 # Prompt pieces
 USER_AND_HOST="${BLUE}%n${GREEN}@${BLUE}%m"
 WORKDIR="${BLUE}:${GREEN}%~"
 
-# Final prompt: insert a real newline before the symbol
-PROMPT="${USER_AND_HOST}${WORKDIR}${RESET}
-${BLUE}%#${RESET} "
+# Final prompt: insert a real newline before the symbol. vcs_info_msg_0_
+# is re-evaluated on every prompt render thanks to PROMPT_SUBST.
+PROMPT='${USER_AND_HOST}${WORKDIR}${vcs_info_msg_0_}${RESET}
+${BLUE}%#${RESET} '
 
