@@ -15,7 +15,7 @@ set -euo pipefail
 OWNED_KEYS_RE='^([[:space:]]*export[[:space:]]+)?(TMUX_SESSION|DESKTOP_BG|LOCK_SCREEN_IMAGE)='
 
 existing="$(cat)"
-preserved="$(printf '%s\n' "${existing}" | /usr/bin/grep -vE "${OWNED_KEYS_RE}" || true)"
+preserved="$(printf '%s\n' "${existing}" | grep -vE "${OWNED_KEYS_RE}" || true)"
 # Trim leading/trailing blank lines from the preserved slice.
 preserved="$(printf '%s' "${preserved}" | awk '/./{seen=1} seen{buf=buf $0 ORS} END{sub(/\n+$/, "", buf); printf "%s", buf}')"
 

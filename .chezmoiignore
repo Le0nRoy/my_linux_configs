@@ -24,7 +24,7 @@ ai-wrapper
 # KeePassXC not configured on this machine — the modify_ script needs an
 # existing ~/.config/keepassxc/keepassxc.ini to patch. Skip until KeePassXC
 # runs once and writes its own config.
-dot_config/keepassxc/**
+.config/keepassxc/**
 {{- end }}
 
 {{- if and (hasKey . "localSymlinkTarget") .localSymlinkTarget }}
