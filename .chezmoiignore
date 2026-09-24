@@ -20,6 +20,10 @@ docs/
 # AI-Wrapper submodule — deployed via run_always_install-ai-wrapper.bash, not chezmoi file copy
 ai-wrapper
 
+# Patch files kept at repo root for upstream PRs — not deployment artifacts
+*.patch
+*.tar.gz
+
 {{- if not (stat (joinPath .chezmoi.homeDir ".config/keepassxc/keepassxc.ini")) }}
 # KeePassXC not configured on this machine — the modify_ script needs an
 # existing ~/.config/keepassxc/keepassxc.ini to patch. Skip until KeePassXC
@@ -82,4 +86,12 @@ bin/helper/i3.bash
 bin/helper/storage.bash
 bin/helper/system.bash
 bin/helper/utils.bash
+{{- end }}
+
+{{- if ne .chezmoi.os "darwin" }}
+# macOS-only: LaunchAgent that owns the tmux server across terminal
+# force-quits and its loader script. Linux uses the systemd unit at
+# dot_config/systemd/user/tmux.service (gated by the darwin block above).
+Library/**
+run_onchange_load-tmux-launchagent.bash
 {{- end }}

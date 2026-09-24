@@ -17,7 +17,7 @@ source "${HELPER_MODULE_DIR}/common.bash"
 # modules are silently skipped so a macOS install (where chezmoi ignores
 # Linux-only firefox/i3/storage/system/utils helpers) still sources what
 # is present without failing on the first missing file.
-for _mod in tmux git system storage backup utils transfer i3 firefox; do
+for _mod in tmux tmux_commands git system storage backup utils transfer i3 firefox; do
     [[ -f "${HELPER_MODULE_DIR}/${_mod}.bash" ]] && source "${HELPER_MODULE_DIR}/${_mod}.bash"
 done
 unset _mod

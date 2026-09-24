@@ -104,3 +104,21 @@ function tmux_main_session() {
     # Attach to the session
     tmux attach-session -t "=${session_name}" -d
 }
+
+# Record the last-typed shell command per tmux pane so tmux-resurrect's
+# post-restore hook (bin/tmux_prefill_last_cmd.bash) can re-arm it after
+# a snapshot restore. File mode 0600 — history may contain secrets.
+function _tmux_log_last_cmd() {
+    [[ -n "${TMUX:-}" ]] || return 0
+    local id state
+    id=$(tmux display-message -p '#S:#I.#P' 2>/dev/null) || return 0
+    state="${XDG_STATE_HOME:-${HOME}/.local/state}/tmux/panes"
+    mkdir -p "${state}"
+    ( umask 077 && history 1 | sed 's/^ *[0-9]* *//' > "${state}/${id}.last" )
+}
+
+# Wire the logger into PROMPT_COMMAND once. Guard against a re-source of
+# helper.bash duplicating the hook.
+if [[ "${PROMPT_COMMAND:-}" != *_tmux_log_last_cmd* ]]; then
+    PROMPT_COMMAND="_tmux_log_last_cmd${PROMPT_COMMAND:+; ${PROMPT_COMMAND}}"
+fi
