@@ -10,6 +10,9 @@ TPM_DIR="${HOME}/.tmux/plugins/tpm"
 # the next chezmoi apply on a fresh host. Bump the tag when tpm ships a
 # release worth taking, and update TPM_TAG_SHA to the tag's commit SHA.
 TPM_TAG="v3.1.0"
+# Cross-check the SHA against the upstream release page before bumping:
+#   https://github.com/tmux-plugins/tpm/releases/tag/v3.1.0
+# or `git ls-remote https://github.com/tmux-plugins/tpm refs/tags/v3.1.0`.
 TPM_TAG_SHA="7bdb7ca33c9cc6440a600202b50142f401b6fe21"
 
 if [[ ! -d "${TPM_DIR}" ]]; then
