@@ -80,9 +80,17 @@ function tmux_main_session() {
     # matters when the user invokes tmux_main_session after a manual
     # `tmux kill-server` or on a host without the service loaded.
     if [[ -e "${snapshot}" && -x "${restore_script}" ]]; then
-        tmux start-server 2>/dev/null || true
         if ! tmux has-session 2>/dev/null; then
+            # Create a throwaway session first: tmux < 3.2 requires a
+            # live session for `run-shell` to work. PID-suffixed name
+            # avoids colliding with a user session called _main_boot.
+            local boot_session="_main_boot_$$"
+            tmux new-session -d -s "${boot_session}"
             tmux run-shell "${restore_script}"
+            # Drop the bootstrap only if resurrect brought real sessions back.
+            if [[ $(tmux list-sessions 2>/dev/null | wc -l) -gt 1 ]]; then
+                tmux kill-session -t "${boot_session}" 2>/dev/null || true
+            fi
         fi
         if tmux has-session 2>/dev/null; then
             if tmux has-session -t "=${session_name}" 2>/dev/null; then

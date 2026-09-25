@@ -8,11 +8,23 @@ set -euo pipefail
 TPM_DIR="${HOME}/.tmux/plugins/tpm"
 # Pin to a tag so a future upstream compromise is not silently adopted on
 # the next chezmoi apply on a fresh host. Bump the tag when tpm ships a
-# release worth taking.
+# release worth taking, and update TPM_TAG_SHA to the tag's commit SHA.
 TPM_TAG="v3.1.0"
+TPM_TAG_SHA="7bdb7ca33c9cc6440a600202b50142f401b6fe21"
 
 if [[ ! -d "${TPM_DIR}" ]]; then
     git clone --depth 1 --branch "${TPM_TAG}" https://github.com/tmux-plugins/tpm "${TPM_DIR}"
+fi
+
+# Verify tpm's cloned HEAD SHA against the pinned commit. Refuses to
+# proceed if the upstream tag was force-pushed to a different commit —
+# defends against a supply-chain compromise where an attacker rewrites
+# the tag between two fresh chezmoi apply runs.
+actual_sha=$(git -C "${TPM_DIR}" rev-parse HEAD)
+if [[ "${actual_sha}" != "${TPM_TAG_SHA}" ]]; then
+    echo "tpm SHA mismatch: expected ${TPM_TAG_SHA}, got ${actual_sha}" >&2
+    echo "Refusing to install plugins. Investigate before bumping TPM_TAG_SHA." >&2
+    exit 1
 fi
 
 # tpm's install_plugins queries a live tmux server via `tmux
