@@ -87,16 +87,13 @@ function tmux_main_session() {
             local boot_session="_main_boot_$$"
             tmux new-session -d -s "${boot_session}"
             tmux run-shell "${restore_script}"
-            # Drop the bootstrap only if resurrect brought real sessions
-            # back. If it did not (stale/empty snapshot), also drop the
-            # bootstrap so has-session below returns false and the code
-            # falls through to build the default layout — otherwise the
-            # user would attach to the empty _main_boot_$$ session.
-            if [[ $(tmux list-sessions 2>/dev/null | wc -l) -gt 1 ]]; then
-                tmux kill-session -t "${boot_session}" 2>/dev/null || true
-            elif tmux has-session -t "=${boot_session}" 2>/dev/null; then
-                tmux kill-session -t "${boot_session}" 2>/dev/null || true
-            fi
+            # Always drop the bootstrap: if resurrect restored real
+            # sessions, they remain and the empty _main_boot_$$ is just
+            # noise; if it restored nothing, killing the bootstrap
+            # makes has-session below return false and the default
+            # layout builder runs. `|| true` covers the missing-target
+            # case with no separate has-session guard.
+            tmux kill-session -t "${boot_session}" 2>/dev/null || true
         fi
         if tmux has-session 2>/dev/null; then
             if tmux has-session -t "=${session_name}" 2>/dev/null; then
