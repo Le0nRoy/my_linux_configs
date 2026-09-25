@@ -95,3 +95,10 @@ bin/helper/utils.bash
 Library/**
 run_onchange_load-tmux-launchagent.bash
 {{- end }}
+
+{{- if ne .chezmoi.os "linux" }}
+# Linux-only: systemd user unit loader mirroring the darwin block above.
+# Kept symmetric so both run_onchange_* scripts drop out via the same
+# .chezmoiignore mechanism, not via inline template guards.
+run_onchange_enable-tmux-service.bash
+{{- end }}

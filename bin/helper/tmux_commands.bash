@@ -8,6 +8,12 @@
 # tmux_boot.bash will spawn a server and fire tmux-resurrect's
 # restore.sh, then this function attaches.
 tmux_restore() {
+    # Nested tmux would fail with "sessions should be nested with care".
+    if [[ -n "${TMUX:-}" ]]; then
+        echo "tmux_restore: already inside tmux (\$TMUX=${TMUX})" >&2
+        return 1
+    fi
+
     if tmux list-sessions >/dev/null 2>&1; then
         tmux attach
         return
@@ -26,9 +32,13 @@ tmux_restore() {
             ;;
     esac
 
-    # Give tmux_boot.bash time to spawn the server and let resurrect
-    # populate sessions before the attach handshake.
-    sleep 3
+    # Poll for tmux_boot.bash to spawn the server + resurrect populate
+    # sessions. 30 * 0.2s = 6s upper bound; typically resolves in < 1s.
+    for _ in $(seq 1 30); do
+        tmux list-sessions >/dev/null 2>&1 && break
+        sleep 0.2
+    done
+
     tmux attach
 }
 

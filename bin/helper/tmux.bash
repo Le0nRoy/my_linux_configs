@@ -42,7 +42,7 @@ function tmux_ide_session() {
         tmux send-keys -t "${session_name}:ai-agents.0" "${HOME}/ai-wrapper/bin/claude_wrapper.bash"
 
         # Window 2 (dev): left pane = empty, right pane = git watch
-        tmux send-keys -t "${session_name}:dev.1" "watch 'git branch --show-current; git status --short'" C-m
+        tmux send-keys -t "${session_name}:dev.1" "git_watch" C-m
 
         # Wait for attach process to complete
         wait "${attach_pid}" 2>/dev/null || true
@@ -54,7 +54,7 @@ function tmux_ide_session() {
         tmux send-keys -t "${session_name}:ai-agents.0" "${HOME}/ai-wrapper/bin/claude_wrapper.bash"
 
         # Window 2 (dev): left pane = empty, right pane = git watch
-        tmux send-keys -t "${session_name}:dev.1" "watch 'git branch --show-current; git status --short'" C-m
+        tmux send-keys -t "${session_name}:dev.1" "git_watch" C-m
 
         echo "Session '${session_name}' created. To attach, run:"
         echo "  tmux attach-session -t '=${session_name}'"
@@ -65,6 +65,8 @@ function tmux_main_session() {
     # Create or attach to main tmux session with chezmoi and WorkSpace windows
     local session_name="${TMUX_SESSION:-tmux-main}"
     local chezmoi_dir="${HOME}/.local/share/chezmoi"
+    local snapshot="${XDG_STATE_HOME:-${HOME}/.local/state}/tmux/resurrect/last"
+    local restore_script="${HOME}/.tmux/plugins/tmux-resurrect/scripts/restore.sh"
 
     # Check if session already exists (use '=' prefix for exact match)
     if tmux has-session -t "=${session_name}" 2>/dev/null; then
@@ -73,6 +75,26 @@ function tmux_main_session() {
         return 0
     fi
 
+    # A saved resurrect snapshot wins over the hardcoded default layout.
+    # LaunchAgent/systemd normally restores at login, so this branch
+    # matters when the user invokes tmux_main_session after a manual
+    # `tmux kill-server` or on a host without the service loaded.
+    if [[ -e "${snapshot}" && -x "${restore_script}" ]]; then
+        tmux start-server 2>/dev/null || true
+        if ! tmux has-session 2>/dev/null; then
+            tmux run-shell "${restore_script}"
+        fi
+        if tmux has-session 2>/dev/null; then
+            if tmux has-session -t "=${session_name}" 2>/dev/null; then
+                tmux attach-session -t "=${session_name}" -d
+            else
+                tmux attach-session -d
+            fi
+            return 0
+        fi
+    fi
+
+    # No snapshot on disk — build the hardcoded default layout.
     # Create new session with first window "chezmoi" in chezmoi directory
     tmux new-session -d -s "${session_name}" -n "chezmoi"
 
@@ -92,7 +114,7 @@ function tmux_main_session() {
     tmux send-keys -t "${session_name}:chezmoi.0" "${HOME}/ai-wrapper/bin/claude_wrapper.bash"
 
     # Pane 3 (bottom right bottom 50% of right quarter): watch git status (executed)
-    tmux send-keys -t "${session_name}:chezmoi.3" "watch 'git branch --show-current; git status --short'" C-m
+    tmux send-keys -t "${session_name}:chezmoi.3" "git_watch" C-m
 
     # Create second window "WorkSpace" with single pane
     tmux new-window -d -t "${session_name}" -n "WorkSpace"

@@ -37,5 +37,8 @@ tmux list-panes -a -F '#{session_name}	#{window_index}	#{pane_index}	#{pane_curr
     # Skip empty / whitespace-only.
     [[ -n "${last// /}" ]] || continue
 
-    tmux send-keys -t "${sess}:${win}.${pane}" -- "${last}"
+    # `|| true`: keep iterating when a pane closed between list-panes
+    # and send-keys (realistic race during a restore). Without it,
+    # `set -euo pipefail` + subshell would abort remaining panes.
+    tmux send-keys -t "${sess}:${win}.${pane}" -- "${last}" || true
 done
