@@ -17,5 +17,11 @@ style = "Bold Italic"
 family = "terminus"
 style = "Regular"
 
+[selection]
+# Do not push mouse-drag selections to the system CLIPBOARD. Selection
+# still populates X11 PRIMARY (middle-click paste); use tmux's `y` /
+# `Enter` bindings for explicit clipboard copy.
+save_to_clipboard = false
+
 [window]
 opacity = 0.8
