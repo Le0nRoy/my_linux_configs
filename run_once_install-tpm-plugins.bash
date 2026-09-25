@@ -21,6 +21,9 @@ fi
 # user's active server — if any — is not disturbed, install, tear down.
 # TMUX_PLUGIN_MANAGER_PATH is set inside tmux.conf itself, so loading
 # the config alone is enough — no per-session `set-environment` needed.
+
+# unset variables set by live tmux session to allow script invocation from live tmux session
+unset TMUX TMUX_PANE
 sock_dir=$(mktemp -d)
 export TMUX_TMPDIR="${sock_dir}"
 trap 'tmux kill-server 2>/dev/null || true; rm -rf "${sock_dir}"' EXIT
