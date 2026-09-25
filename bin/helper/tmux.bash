@@ -42,7 +42,7 @@ function tmux_ide_session() {
         tmux send-keys -t "${session_name}:ai-agents.0" "${HOME}/ai-wrapper/bin/claude_wrapper.bash"
 
         # Window 2 (dev): left pane = empty, right pane = git watch
-        tmux send-keys -t "${session_name}:dev.1" "watch 'git branch --show-current; git status --short'" C-m
+        tmux send-keys -t "${session_name}:dev.1" "git_watch" C-m
 
         # Wait for attach process to complete
         wait "${attach_pid}" 2>/dev/null || true
@@ -54,7 +54,7 @@ function tmux_ide_session() {
         tmux send-keys -t "${session_name}:ai-agents.0" "${HOME}/ai-wrapper/bin/claude_wrapper.bash"
 
         # Window 2 (dev): left pane = empty, right pane = git watch
-        tmux send-keys -t "${session_name}:dev.1" "watch 'git branch --show-current; git status --short'" C-m
+        tmux send-keys -t "${session_name}:dev.1" "git_watch" C-m
 
         echo "Session '${session_name}' created. To attach, run:"
         echo "  tmux attach-session -t '=${session_name}'"
@@ -65,6 +65,8 @@ function tmux_main_session() {
     # Create or attach to main tmux session with chezmoi and WorkSpace windows
     local session_name="${TMUX_SESSION:-tmux-main}"
     local chezmoi_dir="${HOME}/.local/share/chezmoi"
+    local snapshot="${XDG_STATE_HOME:-${HOME}/.local/state}/tmux/resurrect/last"
+    local restore_script="${HOME}/.tmux/plugins/tmux-resurrect/scripts/restore.sh"
 
     # Check if session already exists (use '=' prefix for exact match)
     if tmux has-session -t "=${session_name}" 2>/dev/null; then
@@ -73,6 +75,37 @@ function tmux_main_session() {
         return 0
     fi
 
+    # A saved resurrect snapshot wins over the hardcoded default layout.
+    # LaunchAgent/systemd normally restores at login, so this branch
+    # matters when the user invokes tmux_main_session after a manual
+    # `tmux kill-server` or on a host without the service loaded.
+    if [[ -e "${snapshot}" && -x "${restore_script}" ]]; then
+        if ! tmux has-session 2>/dev/null; then
+            # Create a throwaway session first: tmux < 3.2 requires a
+            # live session for `run-shell` to work. PID-suffixed name
+            # avoids colliding with a user session called _main_boot.
+            local boot_session="_main_boot_$$"
+            tmux new-session -d -s "${boot_session}"
+            tmux run-shell "${restore_script}"
+            # Always drop the bootstrap: if resurrect restored real
+            # sessions, they remain and the empty _main_boot_$$ is just
+            # noise; if it restored nothing, killing the bootstrap
+            # makes has-session below return false and the default
+            # layout builder runs. `|| true` covers the missing-target
+            # case with no separate has-session guard.
+            tmux kill-session -t "${boot_session}" 2>/dev/null || true
+        fi
+        if tmux has-session 2>/dev/null; then
+            if tmux has-session -t "=${session_name}" 2>/dev/null; then
+                tmux attach-session -t "=${session_name}" -d
+            else
+                tmux attach-session -d
+            fi
+            return 0
+        fi
+    fi
+
+    # No snapshot on disk — build the hardcoded default layout.
     # Create new session with first window "chezmoi" in chezmoi directory
     tmux new-session -d -s "${session_name}" -n "chezmoi"
 
@@ -92,7 +125,7 @@ function tmux_main_session() {
     tmux send-keys -t "${session_name}:chezmoi.0" "${HOME}/ai-wrapper/bin/claude_wrapper.bash"
 
     # Pane 3 (bottom right bottom 50% of right quarter): watch git status (executed)
-    tmux send-keys -t "${session_name}:chezmoi.3" "watch 'git branch --show-current; git status --short'" C-m
+    tmux send-keys -t "${session_name}:chezmoi.3" "git_watch" C-m
 
     # Create second window "WorkSpace" with single pane
     tmux new-window -d -t "${session_name}" -n "WorkSpace"
@@ -104,3 +137,21 @@ function tmux_main_session() {
     # Attach to the session
     tmux attach-session -t "=${session_name}" -d
 }
+
+# Record the last-typed shell command per tmux pane so tmux-resurrect's
+# post-restore hook (bin/tmux_prefill_last_cmd.bash) can re-arm it after
+# a snapshot restore. File mode 0600 — history may contain secrets.
+function _tmux_log_last_cmd() {
+    [[ -n "${TMUX:-}" ]] || return 0
+    local id state
+    id=$(tmux display-message -p '#S:#I.#P' 2>/dev/null) || return 0
+    state="${XDG_STATE_HOME:-${HOME}/.local/state}/tmux/panes"
+    mkdir -p "${state}"
+    ( umask 077 && history 1 | sed 's/^ *[0-9]* *//' > "${state}/${id}.last" )
+}
+
+# Wire the logger into PROMPT_COMMAND once. Guard against a re-source of
+# helper.bash duplicating the hook.
+if [[ "${PROMPT_COMMAND:-}" != *_tmux_log_last_cmd* ]]; then
+    PROMPT_COMMAND="_tmux_log_last_cmd${PROMPT_COMMAND:+; ${PROMPT_COMMAND}}"
+fi

@@ -1,0 +1,14 @@
+[Unit]
+Description=tmux server owned by systemd — resurrect + continuum session persistence
+Documentation=https://github.com/tmux-plugins/tmux-resurrect
+After=default.target
+
+[Service]
+Type=forking
+ExecStart=%h/bin/tmux_boot.bash
+Restart=no
+StandardOutput=append:%h/.local/state/tmux/systemd.out.log
+StandardError=append:%h/.local/state/tmux/systemd.err.log
+
+[Install]
+WantedBy=default.target

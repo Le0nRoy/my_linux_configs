@@ -1,0 +1,25 @@
+{{- if eq .chezmoi.os "darwin" -}}
+#!/bin/bash
+# Load / reload the local.tmux LaunchAgent whenever its plist changes.
+# The rendered-plist hash below triggers chezmoi's run_onchange_ contract:
+# chezmoi re-runs this script every time the hash changes.
+#
+# Rendered plist hash: {{ include "Library/LaunchAgents/local.tmux.plist.tmpl" | sha256sum }}
+set -euo pipefail
+
+PLIST="${HOME}/Library/LaunchAgents/local.tmux.plist"
+
+if [[ ! -f "${PLIST}" ]]; then
+    echo "tmux LaunchAgent plist not deployed yet — skip load"
+    exit 0
+fi
+
+# Ensure the log directory exists — launchd refuses to start if the
+# StandardOutPath / StandardErrorPath parent is missing.
+mkdir -p "${HOME}/.local/state/tmux"
+
+# Unload first so a plist change takes effect. `bootout` is the modern
+# equivalent of `launchctl unload`; suppress "not loaded" errors.
+launchctl bootout "gui/$(id -u)" "${PLIST}" 2>/dev/null || true
+launchctl bootstrap "gui/$(id -u)" "${PLIST}"
+{{- end -}}

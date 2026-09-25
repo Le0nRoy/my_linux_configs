@@ -95,3 +95,38 @@ set-window-option -g clock-mode-colour green #green
 # bell
 set-window-option -g window-status-bell-style fg=black,bg=red #base02, red
 
+#### Plugins (tpm) — session persistence
+# Bootstrap: run_once_install-tpm-plugins.bash clones tpm and installs
+# these on chezmoi apply. On macOS a LaunchAgent starts the tmux server
+# at login so a Terminal.app cmd+Q or crash cannot take sessions with it.
+
+# tpm reads this to locate the plugin dir. Setting it explicitly avoids
+# tpm's `show-environment` fallback path (which prints
+# "unknown variable: TMUX_PLUGIN_MANAGER_PATH" to stderr when unset).
+set-environment -g TMUX_PLUGIN_MANAGER_PATH "$HOME/.tmux/plugins/"
+
+set -g @plugin 'tmux-plugins/tpm'
+set -g @plugin 'tmux-plugins/tmux-resurrect'
+set -g @plugin 'tmux-plugins/tmux-continuum'
+
+# Preserve visible pane contents (scrollback) alongside layouts/cwd.
+set -g @resurrect-capture-pane-contents 'on'
+# Extra programs restored inside panes. Tilde prefix = match anywhere in
+# the command line, so `watch '...git status...'` and `journalctl -f`
+# survive. claude_wrapper.bash is intentionally omitted: the pre-fill
+# layer re-arms the last-typed command so the operator confirms with Enter.
+set -g @resurrect-processes '"~watch" "~journalctl -f"'
+# Snapshot lives under runtime state, out of chezmoi source.
+set -g @resurrect-dir '{{ env "XDG_STATE_HOME" | default (joinPath .chezmoi.homeDir ".local/state") }}/tmux/resurrect'
+# Post-restore hook: pre-fill each pane with the shell's last-typed
+# command from ~/.local/state/tmux/panes/<sess:win.pane>.last.
+set -g @resurrect-hook-post-restore-all 'run-shell "${HOME}/bin/tmux_prefill_last_cmd.bash"'
+
+# Autosave every 5 minutes, auto-restore on server start.
+set -g @continuum-save-interval '5'
+set -g @continuum-restore 'on'
+# @continuum-boot stays off — LaunchAgent owns startup on macOS.
+set -g @continuum-boot 'off'
+
+# tpm init — MUST remain the last line of this file.
+run '~/.tmux/plugins/tpm/tpm'

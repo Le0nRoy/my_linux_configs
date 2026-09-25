@@ -79,3 +79,13 @@ WORKDIR="${BLUE}:${GREEN}%~"
 PROMPT='${USER_AND_HOST}${WORKDIR}${vcs_info_msg_0_}${RESET}
 ${BLUE}%#${RESET} '
 
+# Source zsh-side helpers (function bodies live in bin/helper/*).
+# Order matters: zsh-specific overrides (*.zsh) go after any shared *.bash
+# module that might define a bash-only stub with the same name.
+for _mod in \
+    "${HOME}/bin/helper/tmux_commands.bash" \
+    "${HOME}/bin/helper/tmux_last_cmd.zsh"; do
+    [[ -r "${_mod}" ]] && source "${_mod}"
+done
+unset _mod
+
