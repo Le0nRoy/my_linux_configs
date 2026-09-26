@@ -46,6 +46,7 @@ primary = ${colors.yellow}
 secondary = #FDFDFD
 alert = #A54242
 disabled = #707880
+sep_block = #784466
 
 [fonts]
 common-font = monospace:antialias=false:pixelsize=10;2
@@ -71,7 +72,7 @@ monitor-strict = true
 separator = |
 separator-foreground = ${colors.disabled}
 modules-left = i3 xwindow
-modules-center = backlight volume-all
+modules-center = volume-all backlight mic-all
 modules-right = xkeyboard date
 fixed-center = true
 ; Misc
@@ -143,7 +144,7 @@ monitor-strict = true
 separator = |
 separator-foreground = ${colors.disabled}
 modules-left = i3 xwindow
-modules-center = backlight volume-all
+modules-center = volume-all backlight mic-all
 modules-right = xkeyboard date
 fixed-center = true
 ; Misc
@@ -293,9 +294,8 @@ use-actual-brightness = false
 enable-scroll = true
 
 label = %percentage%%
-label-foreground = ${colors.white}
 format = <label>
-format-prefix = "Light " 
+format-prefix = "Light "
 format-prefix-foreground = ${colors.primary}
 
 [module/xkeyboard]
@@ -309,10 +309,29 @@ label-layout-foreground = ${colors.primary}
 type = custom/script
 exec = "${HOME}/bin/polybar_volume_all.bash"
 interval = 0.1
+format = <label>
+format-prefix = "OUT << "
+format-prefix-foreground = ${colors.sep_block}
+format-suffix = " >> OUT"
+format-suffix-foreground = ${colors.sep_block}
 click-left = "${HOME}/bin/polybar_volume_all.bash left"
 click-right = "${HOME}/bin/polybar_volume_all.bash right"
 scroll-up = "${HOME}/bin/polybar_volume_all.bash scroll_up"
 scroll-down = "${HOME}/bin/polybar_volume_all.bash scroll_down"
+
+[module/mic-all]
+type = custom/script
+exec = "${HOME}/bin/polybar_volume_all.bash --source"
+interval = 0.1
+format = <label>
+format-prefix = "IN << "
+format-prefix-foreground = ${colors.sep_block}
+format-suffix = " >> IN"
+format-suffix-foreground = ${colors.sep_block}
+click-left = "${HOME}/bin/polybar_volume_all.bash --source left"
+click-right = "${HOME}/bin/polybar_volume_all.bash --source right"
+scroll-up = "${HOME}/bin/polybar_volume_all.bash --source scroll_up"
+scroll-down = "${HOME}/bin/polybar_volume_all.bash --source scroll_down"
 
 [module/date]
 type = internal/date
