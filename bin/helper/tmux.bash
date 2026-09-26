@@ -155,3 +155,22 @@ function _tmux_log_last_cmd() {
 if [[ "${PROMPT_COMMAND:-}" != *_tmux_log_last_cmd* ]]; then
     PROMPT_COMMAND="_tmux_log_last_cmd${PROMPT_COMMAND:+; ${PROMPT_COMMAND}}"
 fi
+
+# Per-pane bash history: each tmux pane keeps its own history file so an
+# up-arrow after `tmux_restore` shows the commands run in THAT pane,
+# not a shared global list. Relies on the pane id (#S:#I.#P) staying
+# stable across resurrect restore — which it does, because resurrect
+# preserves session names and pane indices.
+if [[ -n "${TMUX:-}" && "${PROMPT_COMMAND:-}" != *"history -a"* ]]; then
+    _tmux_pane_id=$(tmux display-message -p '#S:#I.#P' 2>/dev/null || true)
+    if [[ -n "${_tmux_pane_id}" ]]; then
+        _tmux_pane_state="${XDG_STATE_HOME:-${HOME}/.local/state}/tmux/panes"
+        mkdir -p "${_tmux_pane_state}"
+        HISTFILE="${_tmux_pane_state}/${_tmux_pane_id}.bash_history"
+        # Load prior history for this pane if any.
+        [[ -r "${HISTFILE}" ]] && history -r "${HISTFILE}"
+        # Persist every command immediately so a crash cannot lose it.
+        PROMPT_COMMAND="history -a; ${PROMPT_COMMAND}"
+    fi
+    unset _tmux_pane_id _tmux_pane_state
+fi
