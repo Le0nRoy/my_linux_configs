@@ -1,3 +1,4 @@
+{{- if eq .chezmoi.os "linux" -}}
 #!/bin/bash
 # Reload systemd user units when tmux.service changes; enable + start on
 # first apply. Skip restart when already running so a live tmux server
@@ -5,9 +6,10 @@
 # triggers chezmoi's run_onchange_ contract: chezmoi re-runs this script
 # every time the hash changes.
 #
-# OS gating happens in .chezmoiignore — this script is skipped entirely
-# on non-Linux hosts, matching how run_onchange_load-tmux-launchagent is
-# gated to darwin-only there.
+# Linux-only via inline template guard — `.chezmoiignore` does not gate
+# `run_` scripts by target name, so an inline `{{ "{{" }} if eq .chezmoi.os "linux" }}`
+# block is the only reliable OS gate. Mirrors the darwin guard in
+# `run_onchange_load-tmux-launchagent.bash.tmpl`.
 #
 # Rendered unit hash: {{ include "dot_config/systemd/user/tmux.service" | sha256sum }}
 set -euo pipefail
@@ -22,3 +24,4 @@ else
     echo "tmux.service already active — unit changes take effect on next restart"
     echo "  systemctl --user restart tmux.service   # WARNING: kills running tmux server"
 fi
+{{- end -}}

@@ -15,6 +15,18 @@ TPM_TAG="v3.1.0"
 # or `git ls-remote https://github.com/tmux-plugins/tpm refs/tags/v3.1.0`.
 TPM_TAG_SHA="7bdb7ca33c9cc6440a600202b50142f401b6fe21"
 
+# If tpm is already on disk but at the wrong commit — e.g. cloned from
+# master before the pin was introduced — replace it with a fresh clone
+# of the pinned tag. A subsequent SHA check catches an actual upstream
+# force-push (unpinned SHA still mismatches after the re-clone).
+if [[ -d "${TPM_DIR}" ]]; then
+    on_disk_sha=$(git -C "${TPM_DIR}" rev-parse HEAD 2>/dev/null || echo "")
+    if [[ "${on_disk_sha}" != "${TPM_TAG_SHA}" ]]; then
+        echo "tpm at ${TPM_DIR} is on ${on_disk_sha:-unknown}, expected ${TPM_TAG_SHA} — reinstalling" >&2
+        rm -rf "${TPM_DIR}"
+    fi
+fi
+
 if [[ ! -d "${TPM_DIR}" ]]; then
     git clone --depth 1 --branch "${TPM_TAG}" https://github.com/tmux-plugins/tpm "${TPM_DIR}"
 fi
