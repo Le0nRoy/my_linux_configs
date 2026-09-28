@@ -133,7 +133,7 @@ get_devices() {
 }
 
 format_dev_name() {
-    local desc="${1}" name="${2}"
+    local desc="${1}"
     case "${desc}" in
         *"Built-in Audio Analog Stereo"*) echo "Jack" ;;
         *"HDMI"*|*"DisplayPort"*)
@@ -167,7 +167,7 @@ build_output() {
         is_real_device "${dev_name}" || continue
 
         local label entry
-        label="$(format_dev_name "${desc}" "${dev_name}")"
+        label="$(format_dev_name "${desc}")"
 
         if [[ "${is_chosen}" == "1" ]]; then
             if [[ "${muted}" == "1" ]]; then
@@ -240,7 +240,7 @@ device_label() {
     local target="${1}"
     while IFS='|' read -r dev_name desc _v _m _c; do
         [[ "${dev_name}" == "${target}" ]] || continue
-        echo "$(format_dev_name "${desc}" "${dev_name}") (${dev_name})"
+        echo "$(format_dev_name "${desc}") (${dev_name})"
         return
     done < <(get_devices "")
     echo "${target}"
@@ -272,7 +272,7 @@ context_menu() {
         while IFS='|' read -r dev_name desc _v _m _c; do
             [[ -z "${dev_name}" ]] && continue
             is_real_device "${dev_name}" || continue
-            label="$(format_dev_name "${desc}" "${dev_name}")"
+            label="$(format_dev_name "${desc}")"
             if [[ "${dev_name}" == "${chosen}" ]]; then
                 menu+=("[default] ${label}  —  ${dev_name}")
             else
@@ -387,9 +387,6 @@ handle_click() {
             pactl "${SET_MUTE_CMD}" "${chosen}" false
             pactl "${SET_VOLUME_CMD}" "${chosen}" -5%
             ;;
-        mute)
-            pactl "${SET_MUTE_CMD}" "${chosen}" toggle
-            ;;
     esac
 }
 
@@ -398,9 +395,9 @@ handle_click() {
 self_check() {
     local fail=0
     # format_dev_name pure-string cases
-    [[ "$(format_dev_name 'HDMI 1 Output' 'x')" == "HDMI-1" ]] || { echo "FAIL HDMI"; fail=1; }
-    [[ "$(format_dev_name 'Built-in Audio Analog Stereo' 'x')" == "Jack" ]] || { echo "FAIL Jack"; fail=1; }
-    [[ "$(format_dev_name 'Some USB Mic' 'x')" == "USB" ]] || { echo "FAIL USB"; fail=1; }
+    [[ "$(format_dev_name 'HDMI 1 Output')" == "HDMI-1" ]] || { echo "FAIL HDMI"; fail=1; }
+    [[ "$(format_dev_name 'Built-in Audio Analog Stereo')" == "Jack" ]] || { echo "FAIL Jack"; fail=1; }
+    [[ "$(format_dev_name 'Some USB Mic')" == "USB" ]] || { echo "FAIL USB"; fail=1; }
     # is_real_device: monitor filter only active in source mode
     MODE=source is_real_device "foo.monitor" && { echo "FAIL monitor filter"; fail=1; } || true
     MODE=source is_real_device "real_mic"    || { echo "FAIL real mic"; fail=1; }
