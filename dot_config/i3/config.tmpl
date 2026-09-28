@@ -122,6 +122,9 @@ exec_always --no-startup-id "bash $HOME/bin/xrandr_manager.bash auto"
 ## Input device monitor - auto-apply keyboard layout when new keyboards connect
 exec --no-startup-id inputplug -c $HOME/bin/input_device_handler.bash
 
+## Touchpad gestures (3-finger swipe workspace switching, macOS-like)
+exec_always --no-startup-id libinput-gestures-setup restart
+
 ###############################################################################################
 ## Bindsym section (keybindings)
 ################################################################################################
