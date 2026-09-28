@@ -259,8 +259,8 @@ set $mode_system (l)ock, (h)ibernate, (s)hutdown, (r)eboot
 bindsym $mod+0 mode "$mode_system" 
 mode "$mode_system" {
     bindsym l exec --no-startup-id $LOCK_SCREEN, mode "default"
-    bindsym r exec --no-startup-id "bash $HOME/bin/i3_workspaces.bash save && systemctl reboot", mode "default"
-    bindsym s exec --no-startup-id "bash $HOME/bin/i3_workspaces.bash save && systemctl poweroff", mode "default"
+    bindsym r exec --no-startup-id "bash $HOME/bin/i3_workspaces.bash save; systemctl reboot", mode "default"
+    bindsym s exec --no-startup-id "bash $HOME/bin/i3_workspaces.bash save; systemctl poweroff", mode "default"
     # Exit system mode: "Enter" or "Escape"
     bindsym Return mode "default"
     bindsym Escape mode "default"

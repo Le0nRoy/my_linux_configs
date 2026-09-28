@@ -9,7 +9,7 @@ INTERVAL="${XRANDR_WATCH_INTERVAL:-2}"
 
 prev=""
 while true; do
-    curr=$(xrandr --query 2>/dev/null | sha1sum | awk '{print $1}')
+    curr=$(xrandr --query 2>/dev/null | sha1sum | awk '{print $1}') || curr=""
     if [[ -n "${prev}" && "${curr}" != "${prev}" ]]; then
         "${HOME}/bin/helper.bash" set_us_ru_keymap &>/dev/null || true
     fi
