@@ -125,6 +125,9 @@ exec --no-startup-id inputplug -c $HOME/bin/input_device_handler.bash
 ## Touchpad gestures (3-finger swipe workspace switching, macOS-like)
 exec_always --no-startup-id libinput-gestures-setup restart
 
+## Watch external xrandr changes (nvidia-settings etc.) and restore keymap
+exec --no-startup-id "pkill -f xrandr_keymap_watcher.bash; bash $HOME/bin/xrandr_keymap_watcher.bash"
+
 ###############################################################################################
 ## Bindsym section (keybindings)
 ################################################################################################
