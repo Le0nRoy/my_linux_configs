@@ -89,16 +89,8 @@ bin/helper/utils.bash
 {{- end }}
 
 {{- if ne .chezmoi.os "darwin" }}
-# macOS-only: LaunchAgent that owns the tmux server across terminal
-# force-quits and its loader script. Linux uses the systemd unit at
-# dot_config/systemd/user/tmux.service (gated by the darwin block above).
+# macOS-only files (non-scripts). Both run_onchange_*.bash.tmpl scripts
+# gate themselves via inline `{{ "{{" }} if eq .chezmoi.os "…" }}` because
+# chezmoi's .chezmoiignore does not match `run_` scripts by target name.
 Library/**
-run_onchange_load-tmux-launchagent.bash
-{{- end }}
-
-{{- if ne .chezmoi.os "linux" }}
-# Linux-only: systemd user unit loader mirroring the darwin block above.
-# Kept symmetric so both run_onchange_* scripts drop out via the same
-# .chezmoiignore mechanism, not via inline template guards.
-run_onchange_enable-tmux-service.bash
 {{- end }}
