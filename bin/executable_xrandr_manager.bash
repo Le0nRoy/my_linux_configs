@@ -177,6 +177,12 @@ reload_desktop_environment() {
     if command -v feh &>/dev/null && [[ -n "${DESKTOP_BG:-}" ]]; then
         feh --bg-fill "${DESKTOP_BG}" 2>/dev/null || true
     fi
+
+    # Re-apply keyboard layout: xkb state is often lost after xrandr/nvidia
+    # driver reconfigures the X server, so restore it whenever we touch outputs
+    if [[ -x "${HOME}/bin/helper.bash" ]]; then
+        "${HOME}/bin/helper.bash" set_us_ru_keymap &>/dev/null || true
+    fi
 }
 
 # =============================================================================
