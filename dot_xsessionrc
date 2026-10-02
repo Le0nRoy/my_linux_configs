@@ -21,6 +21,10 @@ apply_xsession_input_settings() {
     xinput list --name-only | grep -i 'Touchpad' | while read -r touchpad; do
         xinput --set-prop "${touchpad}" 'libinput Tapping Enabled' 1 2>/dev/null || true
         xinput --set-prop "${touchpad}" 'libinput Natural Scrolling Enabled' 1 2>/dev/null || true
+        ## macOS-like drag lock: double-tap-and-drag keeps dragging after finger lift
+        ## until next tap (2 = sticky, libinput >= 1.27); fall back to timeout mode (1)
+        xinput --set-prop "${touchpad}" 'libinput Tapping Drag Lock Enabled' 2 2>/dev/null \
+            || xinput --set-prop "${touchpad}" 'libinput Tapping Drag Lock Enabled' 1 2>/dev/null || true
     done
 }
 
