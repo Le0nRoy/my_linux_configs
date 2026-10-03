@@ -8,8 +8,30 @@ set -euo pipefail
 
 STATE_DIR="${HOME}/.config/i3/workspaces/state-$(uname -n)"
 
+# Titles are only needed to tell apart windows of the same class. A lone
+# window's title (unread counters, timers, page names) changes between
+# sessions and would block the swallow, so drop it for single-window classes.
+drop_single_window_titles() {
+    (( $# )) || return 0
+    local single f tmp
+    single=$(jq -cn '[inputs | .. | objects | .swallows? // empty | .[].class]
+        | group_by(.) | map(select(length == 1)[0])' "$@") || return 0
+    for f in "$@"; do
+        tmp=$(mktemp)
+        if jq --argjson single "${single}" 'walk(
+                if type == "object" and has("swallows") then
+                    .swallows |= map(if (.class as $c | any($single[]; . == $c)) then del(.title) else . end)
+                else . end)' "${f}" > "${tmp}"; then
+            mv "${tmp}" "${f}"
+        else
+            rm -f "${tmp}"
+        fi
+    done
+}
+
 save_all() {
     local ws safe tmp
+    local -a saved=()
     while IFS= read -r ws; do
         [[ -z "${ws}" ]] && continue
         # Hex-encode workspace name for reversible filename key
@@ -22,10 +44,12 @@ save_all() {
         if [[ -s "${tmp}" ]]; then
             mkdir -p "${STATE_DIR}"
             mv "${tmp}" "${STATE_DIR}/workspace_${safe}.json"
+            saved+=("${STATE_DIR}/workspace_${safe}.json")
         else
             rm -f "${tmp}"
         fi
     done < <(i3-msg -t get_workspaces | jq -r '.[].name')
+    drop_single_window_titles "${saved[@]}"
 }
 
 restore_all() {
