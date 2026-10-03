@@ -303,7 +303,8 @@ format-prefix-foreground = ${colors.primary}
 type = internal/xkeyboard
 blacklist-0 = num lock
 
-label-layout = %layout%
+; internal/* modules ignore click-* keys, so bind right-click via an action tag
+label-layout = %{A3:$HOME/bin/polybar_lang_menu.bash:}%layout%%{A}
 label-layout-foreground = ${colors.primary}
 
 [module/volume-all]

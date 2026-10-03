@@ -76,11 +76,13 @@ workspace_layout stacking
 exec_always --no-startup-id $SET_EN_RU_LAYOUT
 ## Set background picture
 exec_always --no-startup-id "bash $HOME/bin/helper.bash set_background"
-## Restore layouts on workspaces from files
+## Restore workspace layouts saved on last shutdown/reboot. Falls back to
+## static per-host defaults for workspace 4 when no saved state exists yet.
+exec --no-startup-id "bash $HOME/bin/i3_workspaces.bash restore"
 {{ if eq .chezmoi.hostname "dragonlady" -}}
-exec --no-startup-id "i3-msg 'workspace 4; append_layout ~/.config/i3/workspaces/workspace_4-dragonlady.json'; focus child"
+exec --no-startup-id "[ ! -d ~/.config/i3/workspaces/state-$(uname -n) ] && i3-msg 'workspace 4; append_layout ~/.config/i3/workspaces/workspace_4-dragonlady.json'; focus child"
 {{ else if eq .chezmoi.hostname "dragoncave" -}}
-exec --no-startup-id "i3-msg 'workspace 4; append_layout ~/.config/i3/workspaces/workspace_4-dragoncave.json'; focus child"
+exec --no-startup-id "[ ! -d ~/.config/i3/workspaces/state-$(uname -n) ] && i3-msg 'workspace 4; append_layout ~/.config/i3/workspaces/workspace_4-dragoncave.json'; focus child"
 {{ end -}}
 ## Start applications for workspaces
 exec --no-startup-id firefox
@@ -121,6 +123,12 @@ exec_always --no-startup-id "bash $HOME/bin/xrandr_manager.bash auto"
 
 ## Input device monitor - auto-apply keyboard layout when new keyboards connect
 exec --no-startup-id inputplug -c $HOME/bin/input_device_handler.bash
+
+## Touchpad gestures (3-finger swipe workspace switching, macOS-like)
+exec_always --no-startup-id libinput-gestures-setup restart
+
+## Watch external xrandr changes (nvidia-settings etc.) and restore keymap
+exec --no-startup-id "pkill -f xrandr_keymap_watcher.bash; bash $HOME/bin/xrandr_keymap_watcher.bash"
 
 ###############################################################################################
 ## Bindsym section (keybindings)
@@ -251,8 +259,8 @@ set $mode_system (l)ock, (h)ibernate, (s)hutdown, (r)eboot
 bindsym $mod+0 mode "$mode_system" 
 mode "$mode_system" {
     bindsym l exec --no-startup-id $LOCK_SCREEN, mode "default"
-    bindsym r exec --no-startup-id systemctl reboot, mode "default"
-    bindsym s exec --no-startup-id systemctl poweroff,  mode "default"
+    bindsym r exec --no-startup-id "bash $HOME/bin/i3_workspaces.bash save; systemctl reboot", mode "default"
+    bindsym s exec --no-startup-id "bash $HOME/bin/i3_workspaces.bash save; systemctl poweroff", mode "default"
     # Exit system mode: "Enter" or "Escape"
     bindsym Return mode "default"
     bindsym Escape mode "default"
