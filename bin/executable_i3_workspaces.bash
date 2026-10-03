@@ -30,26 +30,41 @@ drop_single_window_titles() {
 }
 
 save_all() {
-    local ws safe tmp
+    local ws safe file names new_dir
     local -a saved=()
+    # Query i3 first: if it is unreachable, abort before touching saved state
+    names=$(i3-msg -t get_workspaces | jq -r '.[].name')
+
+    # Build the new state in a sibling dir and swap it in at the end, so
+    # workspaces emptied since the last save don't keep stale layout files
+    # and a failed save never leaves a half-written state behind
+    mkdir -p "${STATE_DIR%/*}"
+    new_dir=$(mktemp -d "${STATE_DIR}.new.XXXXXX")
+    trap 'rm -rf "${new_dir:-}"' EXIT
     while IFS= read -r ws; do
         [[ -z "${ws}" ]] && continue
         # Hex-encode workspace name for reversible filename key
         safe=$(printf '%s' "${ws}" | xxd -p | tr -d '\n')
-        tmp=$(mktemp)
+        file="${new_dir}/workspace_${safe}.json"
         i3-save-tree --workspace "${ws}" 2>/dev/null \
             | sed -e 's#^\(\s*\)// \?\("swallows"\|"instance"\|"class"\|"window_role"\|"title"\)#\1\2#' \
                   -e '/^\s*\/\//d' \
-            > "${tmp}" || true
-        if [[ -s "${tmp}" ]]; then
-            mkdir -p "${STATE_DIR}"
-            mv "${tmp}" "${STATE_DIR}/workspace_${safe}.json"
-            saved+=("${STATE_DIR}/workspace_${safe}.json")
+            > "${file}" || true
+        if [[ -s "${file}" ]]; then
+            saved+=("${file}")
         else
-            rm -f "${tmp}"
+            rm -f "${file}"
         fi
-    done < <(i3-msg -t get_workspaces | jq -r '.[].name')
+    done <<< "${names}"
     drop_single_window_titles "${saved[@]}"
+
+    rm -rf "${STATE_DIR}"
+    if (( ${#saved[@]} )); then
+        mv "${new_dir}" "${STATE_DIR}"
+    else
+        # Nothing to restore: let i3 fall back to the static per-host layout
+        rmdir "${new_dir}"
+    fi
 }
 
 restore_all() {
