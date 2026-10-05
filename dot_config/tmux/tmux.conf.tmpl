@@ -83,6 +83,9 @@ set-environment -g 'IGNOREEOF' 1
 # alternative for other shell emulatores
 #bind-key -n C-d detach
 
+# Confirm before `:kill-session` — easy to type when you meant kill-window.
+set -s command-alias[100] "kill-session=confirm-before -p 'kill-session #S? (y/n)' kill-session"
+
 #### STATUS BAR
 # Update status bar every 2 seconds
 set -g status-interval 2
