@@ -273,8 +273,9 @@ render() {
 
 # --- Context menu (right click) -------------------------------------------
 
-# List running streams (sink-inputs or source-outputs) as "index<TAB>label".
-# Label is "AppName — MediaName" pulled from properties; falls back to index.
+# List running streams (sink-inputs or source-outputs) as
+# "index<TAB>label<TAB>device-index". Label is "AppName — MediaName" pulled
+# from properties; falls back to index.
 list_streams() {
     pactl "list" "${STREAM_KIND_PLURAL}" | awk -v k="${STREAM_KIND}" '
         function flush() {
@@ -282,15 +283,16 @@ list_streams() {
                 label = app
                 if (media != "") label = (app == "") ? media : (app " — " media)
                 if (label == "") label = "(stream #" idx ")"
-                print idx "\t" label
+                print idx "\t" label "\t" dev
             }
         }
         /^Source Output #[0-9]+/ || /^Sink Input #[0-9]+/ {
             flush()
             idx = $NF; sub(/^#/, "", idx)
-            app = ""; media = ""
+            app = ""; media = ""; dev = ""
             next
         }
+        /^\t(Sink|Source): [0-9]+/ { dev = $2; next }
         /application\.name = / {
             v = $0; sub(/^[^=]*= "/, "", v); sub(/"[[:space:]]*$/, "", v)
             app = v; next
@@ -301,6 +303,14 @@ list_streams() {
         }
         END { flush() }
     '
+}
+
+# PulseAudio index of a device name (streams refer to devices by index).
+device_index() {
+    local target="${1}" index name
+    while IFS=$'\t' read -r index name _rest; do
+        [[ "${name}" == "${target}" ]] && { echo "${index}"; return; }
+    done < <(pactl ${LIST_SHORT_CMD})
 }
 
 # Human-readable label for a device name (used in the menu).
@@ -333,6 +343,8 @@ ROFI_VOLUME_ARGS=(
     -kb-custom-2 "Left,ScrollDown"
     -kb-custom-3 "Alt+m"
 )
+# Usage hint (-mesg) goes below the list instead of under the prompt.
+ROFI_MESG_BOTTOM=(-theme-str 'mainbox { children: [ inputbar, listview, message ]; }')
 ROFI_VOLUME_HINT="←/→ or wheel: volume ±${VOLUME_STEP}%   ·   Alt+m: mute/unmute"
 
 # Applies a volume/mute rofi exit code to a device. Returns 1 if rc is not
@@ -409,7 +421,7 @@ context_menu() {
         [[ ${#muted_rows[@]} -gt 0 ]] && marks+=(-u "$(IFS=,; echo "${muted_rows[*]}")")
 
         local pick rc
-        pick="$(printf '%s\n' "${menu[@]}" | rofi "${ROFI_VOLUME_ARGS[@]}" \
+        pick="$(printf '%s\n' "${menu[@]}" | rofi "${ROFI_VOLUME_ARGS[@]}" "${ROFI_MESG_BOTTOM[@]}" \
             "${marks[@]}" -selected-row "${sel}" \
             -mesg "${ROFI_VOLUME_HINT}   ·   Enter: actions   ·   Esc: close" \
             -p "${MENU_TITLE} — pick ${KIND}:")"
@@ -425,27 +437,29 @@ context_menu() {
         apply_volume_key "${rc}" "${target}" && continue
         [[ "${rc}" == 0 ]] || return 0
 
-        device_menu "${target}" && return 0
+        device_menu "${target}"
     done
 }
 
-# Per-device action menu. Returns 0 when the whole flow should close and
-# 1 to go back to the device picker (Esc / "Back").
+# Per-device action menu. Every action keeps this menu open; Esc / "Back"
+# returns to the device picker.
 device_menu() {
     local target="${1}" target_label sel=0
     target_label="$(device_label "${target}")"
 
     while true; do
-        local vol muted mute_action
+        local vol muted mute_action default_row
         vol="$(get_volume "${target}")"
         muted="$(get_mute "${target}")"
-        [[ -z "${vol}" ]] && return 1   # device vanished (unplugged)
+        [[ -z "${vol}" ]] && return 0   # device vanished (unplugged)
         if [[ "${muted}" == "1" ]]; then mute_action="Unmute"; else mute_action="Mute"; fi
+        default_row="Set as default"
+        [[ "$(get_default_device)" == "${target}" ]] && default_row="Set as default  (current default)"
 
         local -a rows=(
             "Volume  $(volume_status "${vol}" "${muted}")"
             "${mute_action}"
-            "Set as default"
+            "${default_row}"
             "Move running ${STREAM_KIND_PLURAL} here"
             "Back"
         )
@@ -453,7 +467,7 @@ device_menu() {
         [[ "${muted}" == "1" ]] && marks+=(-u 0)
 
         local pick rc
-        pick="$(printf '%s\n' "${rows[@]}" | rofi "${ROFI_VOLUME_ARGS[@]}" \
+        pick="$(printf '%s\n' "${rows[@]}" | rofi "${ROFI_VOLUME_ARGS[@]}" "${ROFI_MESG_BOTTOM[@]}" \
             "${marks[@]}" -selected-row "${sel}" \
             -mesg "${ROFI_VOLUME_HINT}   ·   Esc: back" \
             -p "${target_label}:")"
@@ -461,7 +475,7 @@ device_menu() {
         [[ "${pick}" =~ ^[0-9]+$ ]] && sel="${pick}"
 
         apply_volume_key "${rc}" "${target}" && continue
-        [[ "${rc}" == 0 ]] || return 1
+        [[ "${rc}" == 0 ]] || return 0
 
         case "${pick}" in
             0)  continue ;;   # volume row: adjust with ←/→, Enter is a no-op
@@ -470,47 +484,68 @@ device_menu() {
                 pactl "${SET_DEFAULT_CMD}" "${target}"
                 notify-send -u low -a "polybar-audio" \
                     "Default ${KIND}" "${target_label}" 2>/dev/null || true
-                return 0
                 ;;
-            3)
-                move_streams_menu "${target}" "${target_label}"
-                return 0
-                ;;
-            *)  return 1 ;;
+            3)  move_streams_menu "${target}" "${target_label}" ;;
+            *)  return 0 ;;
         esac
     done
 }
 
+# Stream picker. Stays open after moving (rows already on the target are
+# marked "[here]") so more streams can be moved; Esc returns to the device
+# menu. With no running streams it notifies and returns straight away.
 move_streams_menu() {
-    local target="${1}" target_label="${2}"
-    local streams
-    streams="$(list_streams)"
-    if [[ -z "${streams}" ]]; then
-        notify-send -u low -a "polybar-audio" \
-            "No running ${STREAM_KIND_PLURAL}" "" 2>/dev/null || true
-        return 0
-    fi
+    local target="${1}" target_label="${2}" sel=0
+    while true; do
+        local target_index
+        target_index="$(device_index "${target}")"
 
-    # rofi -multi-select for multi-select; user confirms with Enter.
-    local selected
-    selected="$(printf '%s\n' "${streams}" \
-        | rofi -dmenu -i -multi-select \
-               -p "Move to ${target_label} (Shift+Enter to mark, Enter to apply):")" \
-        || return 0
+        local -a rows=() stream_ids=() here_rows=()
+        local idx label dev mark
+        while IFS=$'\t' read -r idx label dev; do
+            [[ -z "${idx}" ]] && continue
+            mark="      "
+            if [[ -n "${target_index}" && "${dev}" == "${target_index}" ]]; then
+                mark="[here]"
+                here_rows+=("${#rows[@]}")
+            fi
+            rows+=("${mark} ${label}")
+            stream_ids+=("${idx}")
+        done < <(list_streams)
 
-    [[ -z "${selected}" ]] && return 0
-
-    local line idx moved=0
-    while IFS= read -r line; do
-        [[ -z "${line}" ]] && continue
-        idx="${line%%$'\t'*}"
-        if pactl "${STREAM_MOVE_CMD}" "${idx}" "${target}" 2>/dev/null; then
-            moved=$((moved + 1))
+        if [[ ${#rows[@]} -eq 0 ]]; then
+            notify-send -u low -a "polybar-audio" \
+                "No running ${STREAM_KIND_PLURAL}" "" 2>/dev/null || true
+            return 0
         fi
-    done <<< "${selected}"
+        (( sel >= ${#rows[@]} )) && sel=0
 
-    notify-send -u low -a "polybar-audio" \
-        "Moved ${moved} ${STREAM_KIND_PLURAL}" "to ${target_label}" 2>/dev/null || true
+        local -a marks=()
+        [[ ${#here_rows[@]} -gt 0 ]] && marks+=(-a "$(IFS=,; echo "${here_rows[*]}")")
+
+        # -multi-select: Shift+Enter marks rows, Enter moves the marked rows
+        # (or the highlighted one when nothing is marked).
+        local selected
+        selected="$(printf '%s\n' "${rows[@]}" \
+            | rofi -dmenu -i -no-custom -multi-select -format i \
+                   "${ROFI_MESG_BOTTOM[@]}" "${marks[@]}" -selected-row "${sel}" \
+                   -mesg "Shift+Enter: mark   ·   Enter: move here   ·   Esc: back" \
+                   -p "Move to ${target_label}:")" \
+            || return 0
+        [[ -z "${selected}" ]] && return 0
+
+        local line moved=0
+        while IFS= read -r line; do
+            [[ "${line}" =~ ^[0-9]+$ ]] && (( line < ${#stream_ids[@]} )) || continue
+            sel="${line}"
+            if pactl "${STREAM_MOVE_CMD}" "${stream_ids[$line]}" "${target}" 2>/dev/null; then
+                moved=$((moved + 1))
+            fi
+        done <<< "${selected}"
+
+        notify-send -u low -a "polybar-audio" \
+            "Moved ${moved} ${STREAM_KIND_PLURAL}" "to ${target_label}" 2>/dev/null || true
+    done
 }
 
 # --- Click dispatch --------------------------------------------------------
