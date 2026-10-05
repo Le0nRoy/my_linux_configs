@@ -84,7 +84,10 @@ set-environment -g 'IGNOREEOF' 1
 #bind-key -n C-d detach
 
 # Confirm before `:kill-session` — easy to type when you meant kill-window.
-set -s command-alias[100] "kill-session=confirm-before -p 'kill-session #S? (y/n)' kill-session"
+# The inner command must be `kill-ses` (unique prefix), not `kill-session`:
+# confirm-before re-parses its command on 'y', which would re-expand this
+# alias and just show the prompt again forever.
+set -s command-alias[100] "kill-session=confirm-before -p 'kill-session #S? (y/n)' kill-ses"
 
 #### STATUS BAR
 # Update status bar every 2 seconds
