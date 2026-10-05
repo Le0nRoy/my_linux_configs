@@ -594,6 +594,9 @@ self_check() {
     [[ "$(volume_bar 50 10)"  == "█████░░░░░  50%" ]] || { echo "FAIL bar 50"; fail=1; }
     [[ "$(volume_bar 0 4)"    == "░░░░   0%" ]]       || { echo "FAIL bar 0"; fail=1; }
     [[ "$(volume_bar 130 4)"  == "████ 130%" ]]       || { echo "FAIL bar 130"; fail=1; }
+    # volume_status (bar + optional mute marker)
+    [[ "$(volume_status 60 0)" == "$(volume_bar 60)" ]] || { echo "FAIL vol_status unmuted"; fail=1; }
+    [[ "$(volume_status 60 1)" == "$(volume_bar 60)  [muted]" ]] || { echo "FAIL vol_status muted"; fail=1; }
     if [[ "${fail}" == 0 ]]; then echo "self-check OK"; else return 1; fi
 }
 
