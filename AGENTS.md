@@ -11,7 +11,7 @@ These rules apply to AI agents working in this repository.
 
 This is a **chezmoi-managed Linux system configuration** repository:
 - Shell configs: `dot_bashrc`, `dot_bash_profile`, `dot_zshrc`
-- Editor: `dot_vimrc`, `dot_gitconfig`
+- Editor: `dot_vimrc`, `modify_dot_gitconfig` (enforces shared git defaults, keeps local edits)
 - Window manager: `dot_config/i3/`
 - Status bar: `dot_config/polybar/`
 - Terminal: `dot_config/alacritty/`
