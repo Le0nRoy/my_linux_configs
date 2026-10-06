@@ -12,3 +12,5 @@
 .cursor
 .config/cursor
 .local/share/cursor-agent
+
+/worktrees/

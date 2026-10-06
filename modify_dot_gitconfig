@@ -1,0 +1,63 @@
+#!/bin/bash
+# ~/.gitconfig is a shared file: chezmoi owns a handful of machine-wide
+# defaults (OWNED_KEYS below), but the user and tools write their own
+# settings into it — `git config --global user.name/user.email`, aliases,
+# credential helpers, [include] lines, hand edits. A plain `dot_gitconfig`
+# would wipe those on every `chezmoi apply`.
+#
+# This is a chezmoi `modify_` script: chezmoi runs it with the current
+# on-disk file content on stdin (empty when the file does not exist yet)
+# and replaces the target with our stdout.
+# Strategy: copy stdin to a temp file, let `git config --file` set each
+# owned key in place (so git's own parser handles sections, comments and
+# quoting), then print the result. Everything not in OWNED_KEYS — comments,
+# [user], [alias], includes, repeated keys — passes through untouched.
+#
+# Notes:
+#   - Owned keys are ENFORCED on every apply: a `git config --global` change
+#     to one of them is reverted. Change the value here instead.
+#   - Identity is intentionally not owned: set it per machine with
+#     `git config --global user.name "..."` / `user.email "..."`; it survives
+#     apply.
+#   - Removing a key from OWNED_KEYS stops enforcing it but does NOT remove
+#     it from existing ~/.gitconfig files; delete it there by hand
+#     (`git config --global --unset <key>`) if that is what you want.
+#   - If `git` is not installed, the file is passed through unchanged (with a
+#     warning on stderr) rather than wiped.
+
+set -euo pipefail
+
+# key=value, one per entry. Keys use git's dotted form (section.name).
+OWNED_KEYS=(
+    'core.editor=vim'
+    'color.ui=auto'
+    'init.defaultBranch=main'
+    'push.autoSetupRemote=true'
+)
+
+tmp="$(mktemp)"
+trap 'rm -f "${tmp}" "${tmp}.lock"' EXIT
+
+cat > "${tmp}"
+
+passthrough() {
+    echo "modify_dot_gitconfig: $1; leaving ~/.gitconfig unchanged" >&2
+    cat "${tmp}"
+    exit 0
+}
+
+command -v git >/dev/null 2>&1 || passthrough "git not found in PATH"
+
+# Snapshot the original so a mid-loop failure never emits a half-edited file.
+original="$(cat "${tmp}"; printf x)"
+
+for entry in "${OWNED_KEYS[@]}"; do
+    key="${entry%%=*}"
+    value="${entry#*=}"
+    if ! git config --file "${tmp}" --replace-all "${key}" "${value}"; then
+        printf '%s' "${original%x}" > "${tmp}"
+        passthrough "git config failed to set ${key} (malformed file?)"
+    fi
+done
+
+cat "${tmp}"
