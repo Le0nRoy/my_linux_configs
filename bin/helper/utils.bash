@@ -9,8 +9,18 @@ function upgrade_system() {
     sudo pacman -Syu
 
     # Step 2: npm-based global packages (fast)
-    sudo npm install -g @anthropic-ai/claude-code@latest
-    sudo node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs"
+    # Only upgrade agents that are already installed — never install new ones
+    if command -v claude >/dev/null 2>&1; then
+        sudo npm install -g @anthropic-ai/claude-code@latest
+        sudo node "$(npm root -g)/@anthropic-ai/claude-code/install.cjs"
+    else
+        echo "claude not installed, skipping upgrade"
+    fi
+    if command -v codex >/dev/null 2>&1; then
+        sudo npm install -g @openai/codex@latest
+    else
+        echo "codex not installed, skipping upgrade"
+    fi
     sudo npm cache clean --force
 
     # Step 3: yay-managed AUR packages (slowest due to compilation)
