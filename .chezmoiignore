@@ -1,6 +1,8 @@
 # AI agent runtime directories - these are created and managed by the agents themselves
 # and should not be tracked by chezmoi
 
+worktrees/
+
 # Claude Code directories
 .claude
 .claude.json
