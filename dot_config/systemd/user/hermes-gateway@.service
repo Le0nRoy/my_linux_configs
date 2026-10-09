@@ -1,0 +1,22 @@
+[Unit]
+Description=Hermes sandbox gateway for profile %i
+Requires=hermes-control.service
+After=network.target hermes-control.service
+ConditionPathExists=%h/.config/hermes-sandbox/profiles/%i.json
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=exec
+WorkingDirectory=%h
+UMask=0077
+ExecStart=%h/ai-wrapper/bin/hermes_wrapper.bash --profile %i gateway run --external-supervisor
+Restart=on-failure
+RestartForceExitStatus=75
+RestartSec=10
+KillMode=control-group
+TimeoutStopSec=30
+Slice=hermes.slice
+
+[Install]
+WantedBy=default.target

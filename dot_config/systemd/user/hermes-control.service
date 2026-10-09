@@ -1,0 +1,21 @@
+[Unit]
+Description=Hermes sandbox control broker
+After=network.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=exec
+WorkingDirectory=%h
+RuntimeDirectory=hermes-sandbox
+RuntimeDirectoryMode=0700
+UMask=0077
+ExecStart=/usr/bin/python3 %h/ai-wrapper/bin/ai_wrapper_data/hermes_sandbox/control.py serve --profiles-dir %h/.config/hermes-sandbox/profiles --spool-dir %h/.local/share/hermes-sandbox/control/spool --wrapper %h/ai-wrapper/bin/hermes_wrapper.bash --socket %t/hermes-sandbox/control.sock
+Restart=on-failure
+RestartSec=10
+KillMode=control-group
+TimeoutStopSec=30
+Slice=hermes.slice
+
+[Install]
+WantedBy=default.target

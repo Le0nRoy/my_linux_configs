@@ -2,7 +2,7 @@
 
 This file tracks ongoing development tasks for the dotfiles system and AI agent configuration.
 
-**Last Updated**: 2026-04-08
+**Last Updated**: 2026-10-09
 
 ---
 
@@ -335,6 +335,46 @@ audio_profile.bash status            # Show current routing
 - Where will `ai-rules` be hosted? (GitHub/GitLab/private)
 - Should it be public?
 - Confirm bulletproof submodule remote URL
+
+---
+
+### 15. Hermes Sandbox Deferred Options
+
+**Status**: Deferred / Not started
+**Priority**: Medium
+**Description**: Track follow-up options deferred from the accepted full Hermes sandbox implementation. All tasks below remain unimplemented.
+
+**Core Scope**: The accepted implementation includes confined DesktopPTY and browser preview/`drive_preview`, unified profile state (memory, skills, history, and session handoff), and the cron/Kanban worker broker with restart recovery. These remain core requirements, not deferred options.
+
+**Deferred Tasks**:
+- [ ] Add MCP integration through the Hermes sandbox boundary.
+- [ ] Add computer-use support separately from the core confined browser preview.
+- [ ] Add secure multi-target Desktop connections for local and remote Hermes agents. Keep remote backends loopback-bound on the homelab and use an authenticated tunnel; protect and scope each profile's connection credentials.
+- [ ] Allow one Hermes profile to register multiple explicit read-write workspace directories, preserving shared profile memory/settings while validating each path and preventing overlap with protected state or policy. Do not accept arbitrary bind paths from agent arguments.
+- [ ] Design and integrate the full CLIProxyAPI / `hermes-codex-pool` credential, proxy, and account-rotation subsystem, including service supervision, watchdogs, cooldowns, quota reporting, and token backups.
+- [ ] Extend Competitive Intelligence with funnel traversal using separate email/browser identities and Telegram-account automation. Public-web research can be included in the initial optional pack.
+- [ ] Enforce restricted egress with a network policy compatible with approved web, messaging, and model providers; the initial shared-network setup does not enforce this restriction.
+- [ ] Provide confined replacements for unsupported host Docker and SSH-agent access without exposing host sockets or credentials.
+- [ ] Define isolation and review requirements for arbitrary unreviewed host-native Desktop plugins before supporting them. Reviewed UI additions require explicit trust; backend plugin execution remains confined.
+- [ ] Add reviewed private-Desktop bridges for host conveniences such as clipboard, drag-and-drop/file transfer, opening host files/URLs, notifications, and audio. These bridges are deliberately disabled in the initial Xpra transport; confined DesktopPTY and browser preview remain core requirements.
+- [ ] Add universal/live accounting CRM, 1C, and Excel importers separately from Financial Manager's local normalized-record support.
+- [ ] Add Customer Problem Researcher live service connectors separately from local export analysis.
+- [ ] Verify optional-pack artifact provenance, pin reviewed versions, and validate optional add-on updates before activation; keep signed download links private. Core runtime/adapter update validation remains part of the accepted implementation.
+- [ ] If the `hermes-codex-limits` adapter cannot be safely supported initially, defer its integration pending confined quota collection, explicit credential paths, reviewed Desktop UI code, and managed updates. The current optional-pack manifest marks `codex-limits` deferred; safe adapter support is required before enabling it.
+- [ ] Independently verify `hermes-models-table` model IDs, prices, and subscription assumptions before using them in configuration or purchase decisions. Reference-only inclusion can proceed without importing those assumptions.
+
+**Optional Pack References**:
+- [Start Second Brain](https://github.com/artemiimillier/start-second-brain)
+- [Hermes Codex Pool](https://github.com/artemiimillier/hermes-codex-pool)
+- [Hermes Codex Limits](https://github.com/artemiimillier/hermes-codex-limits)
+- [Hermes Models Table](https://github.com/artemiimillier/hermes-models-table)
+- [Competitive Intelligence — Конкурентная разведка](https://smyslokod.ru/i/QRHtw_1KankvcT7Jpj72dTQxqDdeINj5)
+- [Customer Problem Researcher — Исследователь проблем клиентов](https://smyslokod.ru/i/NFUVK5U6N1fPUCeb_3zYAbaHSuR6OsqD)
+- [Financial Manager — Финансовый менеджер](https://smyslokod.ru/i/Cj8Wz-a5Zl1TmkqGYYz-fWfoosyUNMNY)
+- [Make Feature — Сделай мне функцию](https://smyslokod.ru/i/GT66LItIs82h6JsvqqXMGG-2U9FahFNw)
+
+**Related Tasks**: Task 10 (Fully sandboxed environment), Task 12 (RO mode), Task 13 (Subagent capabilities)
+**Related Documentation**: [AI Agent Sandboxing Architecture](docs/ai-agent-sandboxing.md)
 
 ---
 
