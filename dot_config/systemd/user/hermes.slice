@@ -1,0 +1,10 @@
+[Unit]
+Description=Hermes sandbox aggregate resource budget
+
+[Slice]
+MemoryAccounting=yes
+TasksAccounting=yes
+CPUQuota=200%
+MemoryHigh=3G
+MemoryMax=4G
+TasksMax=512

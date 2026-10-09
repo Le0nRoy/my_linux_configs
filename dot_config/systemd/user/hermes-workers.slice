@@ -1,0 +1,7 @@
+[Unit]
+Description=Hermes sandbox independent workers
+
+[Slice]
+MemoryAccounting=yes
+TasksAccounting=yes
+CPUWeight=50
