@@ -340,9 +340,9 @@ audio_profile.bash status            # Show current routing
 
 ### 15. Hermes Sandbox Deferred Options
 
-**Status**: Deferred / Not started
+**Status**: In progress (interactive setup/launch menus and multi-workspace profiles implemented; remaining options pending)
 **Priority**: Medium
-**Description**: Track follow-up options deferred from the accepted full Hermes sandbox implementation. All tasks below remain unimplemented.
+**Description**: Track follow-up options deferred from the accepted full Hermes sandbox implementation. Interactive setup and launch menus and the multi-workspace profile option are implemented; integration, security, and live acceptance work remains.
 
 **Core Scope**: The accepted implementation includes confined DesktopPTY and browser preview/`drive_preview`, unified profile state (memory, skills, history, and session handoff), and the cron/Kanban worker broker with restart recovery. These remain core requirements, not deferred options.
 
@@ -350,7 +350,7 @@ audio_profile.bash status            # Show current routing
 - [ ] Add MCP integration through the Hermes sandbox boundary.
 - [ ] Add computer-use support separately from the core confined browser preview.
 - [ ] Add secure multi-target Desktop connections for local and remote Hermes agents. Keep remote backends loopback-bound on the homelab and use an authenticated tunnel; protect and scope each profile's connection credentials.
-- [ ] Allow one Hermes profile to register multiple explicit read-write workspace directories, preserving shared profile memory/settings while validating each path and preventing overlap with protected state or policy. Do not accept arbitrary bind paths from agent arguments.
+- [x] Allow one Hermes profile to register multiple explicit read-write workspace directories, preserving shared profile memory/settings while validating each path and preventing overlap with protected state or policy. Do not accept arbitrary bind paths from agent arguments. Implemented and covered by focused tests; live acceptance remains pending.
 - [ ] Design and integrate the full CLIProxyAPI / `hermes-codex-pool` credential, proxy, and account-rotation subsystem, including service supervision, watchdogs, cooldowns, quota reporting, and token backups.
 - [ ] Extend Competitive Intelligence with funnel traversal using separate email/browser identities and Telegram-account automation. Public-web research can be included in the initial optional pack.
 - [ ] Enforce restricted egress with a network policy compatible with approved web, messaging, and model providers; the initial shared-network setup does not enforce this restriction.
@@ -362,6 +362,8 @@ audio_profile.bash status            # Show current routing
 - [ ] Verify optional-pack artifact provenance, pin reviewed versions, and validate optional add-on updates before activation; keep signed download links private. Core runtime/adapter update validation remains part of the accepted implementation.
 - [ ] If the `hermes-codex-limits` adapter cannot be safely supported initially, defer its integration pending confined quota collection, explicit credential paths, reviewed Desktop UI code, and managed updates. The current optional-pack manifest marks `codex-limits` deferred; safe adapter support is required before enabling it.
 - [ ] Independently verify `hermes-models-table` model IDs, prices, and subscription assumptions before using them in configuration or purchase decisions. Reference-only inclusion can proceed without importing those assumptions.
+
+**Implementation Notes**: Setup now collects the primary and additional workspace roots interactively; launch presents registered roots and CLI, private Desktop, Gateway, or quit choices. Workspaces remain explicitly registered and validated, not user/agent supplied mounts. Focused tests cover profile/broker validation, mounted roots, selected CLI working directory, and PTY setup; live multi-root Desktop/Gateway acceptance remains outstanding. MCP and computer-use remain disabled because the current design shares the network namespace and profile credentials with runtime processes; enabling either without a separately confined process boundary would materially weaken the sandbox. Remote Desktop, restricted egress, provider/account management, service connectors, host bridges, and live integrations require separate designs, credentials/services, or host acceptance and are not claimed as implemented.
 
 **Optional Pack References**:
 - [Start Second Brain](https://github.com/artemiimillier/start-second-brain)
