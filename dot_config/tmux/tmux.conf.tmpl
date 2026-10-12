@@ -20,6 +20,46 @@ set -g mode-keys vi
 # Enable mouse: scroll, select pane, drag-select to copy
 set -g mouse on
 
+# Forward OSC 52 clipboard writes from applications (Claude Code's
+# in-TUI scroll+copy, nvim's "+y, etc.) to the outer terminal's system
+# clipboard AND populate tmux's own paste buffer. `external` only did
+# the forward and only when the outer client reported the `clipboard`
+# feature AND was viewing the emitting pane — fragile. `on` keeps both
+# paths filled so copy works even when the emitting pane isn't the
+# attached client's current view.
+set -g set-clipboard on
+# Belt-and-braces: declare the clipboard capability for alacritty and
+# tmux-256color terminfo entries. The xterm*:clipboard default already
+# covers the common Alacritty-reporting-as-xterm-256color case, but a
+# future TERM switch (or a nested tmux reporting tmux-256color to the
+# outer tmux) would silently drop OSC 52 without these.
+set -ag terminal-features ',alacritty*:clipboard'
+set -ag terminal-features ',tmux*:clipboard'
+{{- if eq .chezmoi.os "darwin" }}
+# macOS Terminal.app has no OSC 52 handler and tmux 3.7c's after-set-buffer
+# hook does NOT fire on the OSC 52 → paste_add path (confirmed by probe:
+# the hook fires on `set-buffer` command only). Bridge via pipe-pane: a
+# streaming Python filter extracts OSC 52 payloads from raw pane output
+# and pbcopy's the decoded bytes. Covers Claude Code's scroll+copy,
+# nvim `+y, and any OSC 52 writer.
+# The after-set-buffer hook is kept as a secondary path for the
+# `tmux set-buffer` command (manual, or future tmux versions that route
+# OSC 52 through set-buffer).
+set-hook -g after-set-buffer 'run-shell -b "tmux save-buffer - | pbcopy"'
+
+# Install OSC 52 filter on every new pane. tmux hook actions run with
+# the triggering pane as context, so pipe-pane without -t targets the
+# right pane. `-o` is "only open if not already piped" — idempotent.
+set-hook -g session-created 'pipe-pane -o "~/bin/tmux_osc52_pbcopy.py"'
+set-hook -g after-new-window 'pipe-pane -o "~/bin/tmux_osc52_pbcopy.py"'
+set-hook -g after-split-window 'pipe-pane -o "~/bin/tmux_osc52_pbcopy.py"'
+
+# One-shot install for panes that already exist at config load (the
+# hooks only fire for new panes). Backgrounded so a slow tmux round-trip
+# never blocks source-file.
+run-shell -b '~/bin/tmux_pipe_pane_init.bash'
+{{- end }}
+
 # Enter → copy and exit (default)
 bind -T copy-mode-vi Enter send-keys -X copy-pipe-and-cancel "{{ $clipCopy }}"
 # Ctrl+w → copy but stay
