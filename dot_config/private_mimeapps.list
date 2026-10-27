@@ -27,6 +27,7 @@ image/png=org.gnome.gThumb.desktop
 image/webp=feh.desktop
 x-scheme-handler/jetbrains=jetbrains-toolbox.desktop
 x-scheme-handler/tonsite=org.telegram.desktop.desktop
+x-scheme-handler/claude-cli=claude-code-url-handler.desktop
 
 [Added Associations]
 x-scheme-handler/tg=userapp-Telegram Desktop-6LVWQ1.desktop;org.telegram.desktop.desktop;
