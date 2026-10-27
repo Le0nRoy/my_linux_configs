@@ -27,5 +27,5 @@ This is a **chezmoi-managed Linux system configuration** repository:
 | Chezmoi naming/workflow | `chezmoi-workflow` skill |
 | Code standards | `coding-standards` skill |
 | Test writing | `qa-automation` skill |
-| Code review process | `requesting-code-review` skill |
-| Orchestration workflow | `orchestrator-mode` skill |
+| Orchestration workflow | Shared `orchestrator-mode` skill |
+| Tortuga task operations | Shared `tortuga` skill; only on request |
