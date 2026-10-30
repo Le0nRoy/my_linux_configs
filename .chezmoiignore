@@ -19,6 +19,9 @@ worktrees/
 TODO.md
 docs/
 
+# Repository regression tests — not deployment artifacts
+tests/
+
 # AI-Wrapper submodule — deployed via run_always_install-ai-wrapper.bash, not chezmoi file copy
 ai-wrapper
 
