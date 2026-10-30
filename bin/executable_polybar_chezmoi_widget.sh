@@ -6,9 +6,7 @@
 # change on disk. Those are noise for the widget — the operator only
 # cares about real file adds/mods/deletes. Filter `R` rows out.
 
-WHITELIST=(\
-    .config/KeePass/KeePass.config.xml \
-)
+WHITELIST=()
 CHANGES=$(chezmoi status | awk '$1 !~ /R/ {print $2}')
 
 for f in "${WHITELIST[@]}"; do
