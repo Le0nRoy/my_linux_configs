@@ -19,6 +19,9 @@ worktrees/
 TODO.md
 docs/
 
+# Repository regression tests — not deployment artifacts
+tests/
+
 # AI-Wrapper submodule — deployed via run_always_install-ai-wrapper.bash, not chezmoi file copy
 ai-wrapper
 
@@ -46,7 +49,7 @@ ai-wrapper
 # ===== macOS: skip Linux-only configs and utilities =====
 # Files below only make sense on a Linux desktop (X11 session, i3wm,
 # polybar, dunst notification daemon, systemd, XDG mime, GTK theming,
-# ASUS laptop tooling, xrandr, rofi/dmenu, Steam Proton, GNU dir-colors,
+# ASUS laptop tooling, xrandr, rofi/dmenu, GNU dir-colors,
 # yt-dlp systemd timer). Excluded from macOS `chezmoi apply` so no
 # broken symlink or unmanageable target is created.
 
@@ -74,7 +77,6 @@ bin/polybar-supervisor.bash
 bin/polybar_chezmoi_widget.sh
 bin/polybar_system_stats.bash
 bin/polybar_volume_all.bash
-bin/proton_install_game.bash
 bin/xrandr_dmenu_test.bash
 bin/xrandr_manager.bash
 bin/yt_playlist_mp3.bash

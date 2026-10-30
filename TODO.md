@@ -292,7 +292,6 @@ audio_profile.bash status            # Show current routing
 #### 13.3 Information Collection Use Cases
 - Collect system state to improve dotfiles scripts:
   - `xrandr` screen management
-  - Proton game launcher configuration
   - Hardware sensors reading
   - NVIDIA GPU info retrieval
   - System installation reproduction script
