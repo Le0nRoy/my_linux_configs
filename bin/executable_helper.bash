@@ -13,20 +13,53 @@ HELPER_MODULE_DIR="${HOME_HELPER_UNIQ_SCRIPT_DIR}/helper"
 # Load common variables first (other modules depend on it).
 source "${HELPER_MODULE_DIR}/common.bash"
 
-# Load all other modules (order doesn't matter after common). Missing
+# Sourced (interactive shell) or executed as a script
+EXEC_NAME=$0
+EXEC_NAME="${EXEC_NAME[0]##*/}"
+
+# Load the other modules (order doesn't matter after common). Missing
 # modules are silently skipped so a macOS install (where chezmoi ignores
 # Linux-only firefox/i3/storage/system/utils helpers) still sources what
 # is present without failing on the first missing file.
-for _mod in tmux tmux_commands git system storage backup utils transfer i3 firefox; do
+if [[ ! "$EXEC_NAME" == "$HOME_HELPER_UNIQ_SCRIPT_NAME"  ]]; then
+    # Interactive shell: public helpers plus the tmux prompt callbacks only.
+    # Script-private modules (tmux session builders, system, backup,
+    # firefox) are loaded in script mode only.
+    _helper_modules=(tmux_last_cmd tmux_commands git storage utils transfer)
+else
+    _helper_modules=(tmux tmux_commands git system storage backup utils transfer i3 firefox)
+fi
+for _mod in "${_helper_modules[@]}"; do
     [[ -f "${HELPER_MODULE_DIR}/${_mod}.bash" ]] && source "${HELPER_MODULE_DIR}/${_mod}.bash"
 done
-unset _mod
+unset _mod _helper_modules
+
+# Public i3 helpers run the unchanged module in a subshell, so its private
+# _i3_* helpers never enter the interactive shell. `&&` keeps a failed
+# source from recursing into the wrapper itself.
+if [[ ! "$EXEC_NAME" == "$HOME_HELPER_UNIQ_SCRIPT_NAME" && -f "${HELPER_MODULE_DIR}/i3.bash" ]]; then
+    i3_save_chezmoi_ws() { ( source "${HELPER_MODULE_DIR}/i3.bash" && i3_save_chezmoi_ws "$@" ); }
+    i3_save_ws() { ( source "${HELPER_MODULE_DIR}/i3.bash" && i3_save_ws "$@" ); }
+    i3_restore_ws() { ( source "${HELPER_MODULE_DIR}/i3.bash" && i3_restore_ws "$@" ); }
+fi
 
 # Load environment variables if present
 if [[ -f "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env" ]]; then
     source "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env"
 else
     source "${HOME_HELPER_UNIQ_SCRIPT_DIR}/.env.template"
+fi
+
+# Do not execute script if it was called with `source` command, just do mandatory exports
+if [[ ! "$EXEC_NAME" == "$HOME_HELPER_UNIQ_SCRIPT_NAME"  ]]; then
+    export PATH="$HOME/bin:$HOME/ai-wrapper/bin:$PATH"
+
+    if [[ -e "$JOB_SETUP_FILE" ]]; then
+        # shellcheck source=/dev/null
+        source $JOB_SETUP_FILE
+    fi
+
+    return
 fi
 
 show_error_and_usage() {
@@ -49,20 +82,6 @@ show_error_and_usage() {
 
 # All function implementations have been moved to helper/ modules
 # Functions are automatically available after sourcing modules above
-
-# Do not execute script if it was called with `source` command, just do mandatory exports
-EXEC_NAME=$0
-EXEC_NAME="${EXEC_NAME[0]##*/}"
-if [[ ! "$EXEC_NAME" == "$HOME_HELPER_UNIQ_SCRIPT_NAME"  ]]; then
-    export PATH="$HOME/bin:$HOME/ai-wrapper/bin:$PATH"
-
-    if [[ -e "$JOB_SETUP_FILE" ]]; then
-        # shellcheck source=/dev/null
-        source $JOB_SETUP_FILE
-    fi
-
-    return
-fi
 
 ## Main body of script
 case "$1" in
