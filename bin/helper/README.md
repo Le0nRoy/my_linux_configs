@@ -9,6 +9,7 @@ helper/
 ├── README.md        # This file
 ├── common.bash      # Shared variables and constants
 ├── tmux.bash        # Tmux session management
+├── tmux_last_cmd.bash # Tmux pane prompt/history callbacks (bash)
 ├── git.bash         # Git utilities
 ├── system.bash      # System/display/notifications
 ├── storage.bash     # Mount/unmount operations
@@ -33,6 +34,13 @@ helper/
 **Functions**:
 - `tmux_ide_session()` - Create/attach IDE-focused tmux session
 - `tmux_main_session()` - Create/attach main tmux session with custom layout
+- Sources `tmux_last_cmd.bash` for the pane history callbacks
+
+### tmux_last_cmd.bash - Tmux Pane Plumbing
+**Dependencies**: None
+**Functions**: `_tmux_log_last_cmd`, `_tmux_pane_hist_path`, `_tmux_pane_hist_claim`,
+`_tmux_pane_hist_sync` and their `PROMPT_COMMAND` registration. Interactive shells
+load only this file, not the session builders.
 
 ### git.bash - Git Utilities
 **Dependencies**: None
@@ -109,15 +117,20 @@ set_background
 ```
 
 ### Via Main Script
-The main `helper.bash` script sources all modules automatically:
+Sourcing `helper.bash` (as `.bashrc` does) loads public helpers only:
+`tmux_last_cmd`, `tmux_commands`, `git`, `storage`, `utils` and `transfer`,
+plus `i3_*` wrappers that run `i3.bash` in a subshell. Script-private modules
+(tmux session builders, `system`, `backup`, `firefox`) and their `_`-prefixed
+or nested helpers are never defined in the interactive shell; they load only
+when `helper.bash` runs as a command.
 
 ```bash
-# Source main script (sources all modules)
+# Source main script (public helpers only)
 source ~/bin/helper.bash
 
-# Call any function
+# Call a public function
 git_cleanout
-tmux_main_session
+i3_save_ws 1
 ```
 
 ### Command-Line Interface
@@ -196,14 +209,17 @@ helper.bash tmux_session
 
 # Test function sourcing
 source ~/bin/helper.bash
-tmux_main_session
+git_cleanout
+
+# Interactive isolation regression (synthetic HOME, fake commands)
+bash tests/test_shell_helper_isolation.bash
 ```
 
 ## Backward Compatibility
 
 All existing `helper.bash` commands remain unchanged:
 - Command-line: `helper.bash command_name`
-- Sourcing: `source ~/bin/helper.bash; function_name`
+- Sourcing: `source ~/bin/helper.bash; function_name` for public helpers
 - .bashrc integration continues to work
 
 ## Maintenance
