@@ -39,10 +39,10 @@ _i3_clean_layout() {
 # Save all active i3 workspaces to both the live config dir and the chezmoi repo.
 # Files in both locations: workspace_<num>-<host>.json
 #
-# Usage: i3_save_chezmoi_ws
-i3_save_chezmoi_ws() {
+# Usage: hh_i3_save_chezmoi_ws
+hh_i3_save_chezmoi_ws() {
     if [[ "${1}" == "-h" || "${1}" == "--help" ]]; then
-        echo "Usage: i3_save_chezmoi_ws"
+        echo "Usage: hh_i3_save_chezmoi_ws"
         echo ""
         echo "Save all active i3 workspaces to both the live config dir and the chezmoi repo."
         echo ""
@@ -102,10 +102,10 @@ i3_save_chezmoi_ws() {
 }
 
 # Save a single i3 workspace to both the live config dir and the chezmoi repo.
-# Usage: i3_save_ws <ws_num>
-i3_save_ws() {
+# Usage: hh_i3_save_ws <ws_num>
+hh_i3_save_ws() {
     if [[ "${1}" == "-h" || "${1}" == "--help" ]]; then
-        echo "Usage: i3_save_ws <ws_num>"
+        echo "Usage: hh_i3_save_ws <ws_num>"
         echo ""
         echo "Save a single i3 workspace to both the live config dir and the chezmoi repo."
         echo ""
@@ -149,12 +149,12 @@ i3_save_ws() {
 }
 
 # Restore i3 workspace layout from a saved file.
-# Usage: i3_restore_ws <src_ws_num> [target_ws_num]
+# Usage: hh_i3_restore_ws <src_ws_num> [target_ws_num]
 #   src_ws_num    - workspace number whose saved file to load
 #   target_ws_num - workspace to restore into (defaults to src_ws_num)
-i3_restore_ws() {
+hh_i3_restore_ws() {
     if [[ "${1}" == "-h" || "${1}" == "--help" ]]; then
-        echo "Usage: i3_restore_ws <src_ws_num> [target_ws_num]"
+        echo "Usage: hh_i3_restore_ws <src_ws_num> [target_ws_num]"
         echo ""
         echo "Restore an i3 workspace layout from a saved file."
         echo ""

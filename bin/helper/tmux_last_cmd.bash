@@ -1,7 +1,8 @@
 #!/bin/bash
 # Helper Tmux Shell-Plumbing Module - per-pane prompt/history callbacks
 # Loaded by interactive helper.bash startup and by tmux.bash. Defines only
-# the owner-approved _tmux_* callbacks and registers their prompt hooks.
+# the owner-approved _tmux_* callbacks and registers their prompt hooks
+# (idempotently, so re-sourcing .bashrc neither drops nor duplicates them).
 
 # Record the last-typed shell command per tmux pane so tmux-resurrect's
 # post-restore hook (bin/tmux_prefill_last_cmd.bash) can re-arm it after
@@ -22,7 +23,7 @@ if [[ "${PROMPT_COMMAND:-}" != *_tmux_log_last_cmd* ]]; then
 fi
 
 # Per-pane bash history: each tmux pane keeps its own history file so an
-# up-arrow after `tmux_restore` shows the commands run in THAT pane,
+# up-arrow after `hh_tmux_restore` shows the commands run in THAT pane,
 # not a shared global list. Deliberate tradeoff: commands typed inside
 # tmux go only to the per-pane files, not to ~/.bash_history.
 #
@@ -72,13 +73,19 @@ if [[ -n "${TMUX:-}" && -n "${TMUX_PANE:-}" && -z "${_TMUX_PANE_HIST_DIR:-}" ]];
     if _tmux_pane_hist_file=$(_tmux_pane_hist_path); then
         HISTFILE="${_tmux_pane_hist_file}"
         _tmux_pane_hist_claim
-        # Follow the pane if it moved (full rewrite), otherwise append
-        # the new command right away so a crash cannot lose it. Sync
-        # must come first: after a swap-pane, `history -a` would append
-        # to the old file, which another pane may already own. It is
-        # skipped after a rewrite because `history -w` does not stop
-        # `history -a` re-appending the latest command.
-        PROMPT_COMMAND="_tmux_pane_hist_sync || history -a; ${PROMPT_COMMAND}"
     fi
     unset _tmux_pane_hist_file
+fi
+
+# Follow the pane if it moved (full rewrite), otherwise append the new
+# command right away so a crash cannot lose it. Sync must come first:
+# after a swap-pane, `history -a` would append to the old file, which
+# another pane may already own. It is skipped after a rewrite because
+# `history -w` does not stop `history -a` re-appending the latest command.
+# Registered only while this shell owns a per-pane HISTFILE (outside tmux
+# or after a failed pane lookup it never does), and re-added when a
+# re-source of .bashrc has reset PROMPT_COMMAND.
+if [[ -n "${_TMUX_PANE_HIST_DIR:-}" && "${HISTFILE:-}" == "${_TMUX_PANE_HIST_DIR}/"* \
+    && "${PROMPT_COMMAND:-}" != *_tmux_pane_hist_sync* ]]; then
+    PROMPT_COMMAND="_tmux_pane_hist_sync || history -a; ${PROMPT_COMMAND}"
 fi

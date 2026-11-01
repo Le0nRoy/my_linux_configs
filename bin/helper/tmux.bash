@@ -42,7 +42,7 @@ function tmux_ide_session() {
         tmux send-keys -t "${session_name}:ai-agents.0" "${HOME}/ai-wrapper/bin/claude_wrapper.bash"
 
         # Window 2 (dev): left pane = empty, right pane = git watch
-        tmux send-keys -t "${session_name}:dev.1" "git_watch" C-m
+        tmux send-keys -t "${session_name}:dev.1" "hh_git_watch" C-m
 
         # Wait for attach process to complete
         wait "${attach_pid}" 2>/dev/null || true
@@ -54,7 +54,7 @@ function tmux_ide_session() {
         tmux send-keys -t "${session_name}:ai-agents.0" "${HOME}/ai-wrapper/bin/claude_wrapper.bash"
 
         # Window 2 (dev): left pane = empty, right pane = git watch
-        tmux send-keys -t "${session_name}:dev.1" "git_watch" C-m
+        tmux send-keys -t "${session_name}:dev.1" "hh_git_watch" C-m
 
         echo "Session '${session_name}' created. To attach, run:"
         echo "  tmux attach-session -t '=${session_name}'"
@@ -125,7 +125,7 @@ function tmux_main_session() {
     tmux send-keys -t "${session_name}:chezmoi.0" "${HOME}/ai-wrapper/bin/claude_wrapper.bash"
 
     # Pane 3 (bottom right bottom 50% of right quarter): watch git status (executed)
-    tmux send-keys -t "${session_name}:chezmoi.3" "git_watch" C-m
+    tmux send-keys -t "${session_name}:chezmoi.3" "hh_git_watch" C-m
 
     # Create second window "WorkSpace" with single pane
     tmux new-window -d -t "${session_name}" -n "WorkSpace"

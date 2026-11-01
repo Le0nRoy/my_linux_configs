@@ -201,7 +201,7 @@ set -g @resurrect-processes '"~watch" "~journalctl -f"'
 # Save each pane's command from /proc/<pid>/cmdline, shell-quoted per
 # argv element (printf %q). The default `ps` strategy joins argv with
 # spaces, so `watch 'a; b'` is saved as `watch a; b` and restore sends
-# that to the shell, which runs only `watch a` (git_watch lost its
+# that to the shell, which runs only `watch a` (hh_git_watch lost its
 # second command). linux_procfs ships with tmux-resurrect; macOS has no
 # /proc, so it keeps the default there.
 set -g @resurrect-save-command-strategy 'linux_procfs'

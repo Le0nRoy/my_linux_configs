@@ -17,7 +17,7 @@ if [[ ${precmd_functions[(ie)_tmux_log_last_cmd]} -gt ${#precmd_functions} ]]; t
 fi
 
 # Per-pane zsh history: each tmux pane keeps its own history file so an
-# up-arrow after `tmux_restore` shows the commands run in THAT pane,
+# up-arrow after `hh_tmux_restore` shows the commands run in THAT pane,
 # not a shared global list. Deliberate tradeoff: commands typed inside
 # tmux go only to the per-pane files, not to ~/.zsh_history.
 #

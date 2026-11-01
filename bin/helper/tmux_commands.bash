@@ -7,10 +7,10 @@
 # owns the server (LaunchAgent on macOS, systemd --user on Linux) —
 # tmux_boot.bash will spawn a server and fire tmux-resurrect's
 # restore.sh, then this function attaches.
-tmux_restore() {
+hh_tmux_restore() {
     # Nested tmux would fail with "sessions should be nested with care".
     if [[ -n "${TMUX:-}" ]]; then
-        echo "tmux_restore: already inside tmux (\$TMUX=${TMUX})" >&2
+        echo "hh_tmux_restore: already inside tmux (\$TMUX=${TMUX})" >&2
         return 1
     fi
 
@@ -27,7 +27,7 @@ tmux_restore() {
             systemctl --user start tmux.service || return
             ;;
         *)
-            echo "tmux_restore: unsupported OS $(uname -s)" >&2
+            echo "hh_tmux_restore: unsupported OS $(uname -s)" >&2
             return 1
             ;;
     esac
@@ -46,7 +46,7 @@ tmux_restore() {
 # tmux_ide_session pre-runs in its "dev" pane, factored out for reuse.
 # Falls back to a shell loop on hosts without the GNU `watch` utility
 # (default macOS install).
-git_watch() {
+hh_git_watch() {
     if command -v watch >/dev/null 2>&1; then
         watch 'git branch --show-current; git status --short'
     else

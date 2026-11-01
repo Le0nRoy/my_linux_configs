@@ -2,7 +2,7 @@
 # Helper Utils Module - Miscellaneous utility functions
 # No dependencies
 
-function upgrade_system() {
+function hh_upgrade_system() {
     # Upgrade system packages and global npm packages
 
     # Step 1: pacman-managed packages (quick: just download and install)
@@ -38,19 +38,19 @@ function upgrade_system() {
     sudo paccache -rk1
 }
 
-function yay_no_cache() {
+function hh_yay_no_cache() {
     # Upgrade AUR packages via yay (non-interactive, space-efficient)
     yay --noconfirm --nodiffmenu --nocleanmenu --noeditmenu --noupgrademenu \
         --cleanafter --removemake
     sudo paccache -rk1
 }
 
-function adb_pull_music() {
+function hh_adb_pull_music() {
     # Pull music from Android device via ADB
     adb pull /sdcard/Vk/Vkontakte/ /Data/vkDownloads/Music/
 }
 
-function unzip_books() {
+function hh_unzip_books() {
     # Unzip fb2 book files and rename them properly
     for file in *.fb2.zip; do
         unzip "${file}"
@@ -64,9 +64,9 @@ function unzip_books() {
     done
 }
 
-function cut_video() {
+function hh_cut_video() {
     # Cut a segment from video file
-    # Usage: cut_video <input> <start_time> <duration> <output>
+    # Usage: hh_cut_video <input> <start_time> <duration> <output>
     local input="${1}"
     local cut_start="${2}"
     local cut_duration="${3}"
@@ -74,13 +74,13 @@ function cut_video() {
     ffmpeg -ss "${cut_start}" -i "${input}" -t "${cut_duration}" -vcodec copy -acodec copy "${output}"
 }
 
-function gpg_decrypt() {
+function hh_gpg_decrypt() {
     # Decrypt and verify GPG file
     shift
     gpg --decrypt "${1}" | tee "${2}" | gpg --verify
 }
 
-function gpg_encrypt() {
+function hh_gpg_encrypt() {
     # Encrypt and sign file with GPG
     shift
     gpg --local-user Vadim_signature --sign --encrypt --armor --recipient "${1}"
