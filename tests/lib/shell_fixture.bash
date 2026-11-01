@@ -145,3 +145,9 @@ out_value() {
     printf '%s\n' "${RUN_OUT}" | sed -n "s|^${key}=||p" | head -n 1 \
         | sed "s|${home}|<HOME>|g"
 }
+
+# "status=<RUN_STATUS> stderr=<first stderr line>" for failure messages.
+run_summary() {
+    local home="$1"
+    printf 'status=%s stderr=%s' "${RUN_STATUS}" "$(head -n 1 "${home}/stderr.log" 2>/dev/null)"
+}
