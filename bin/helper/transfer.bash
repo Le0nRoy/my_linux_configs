@@ -3,15 +3,15 @@
 # No dependencies
 
 # ---------------------------------------------------------------------------
-# rsync_ssh — transfer files to/from a remote host over SSH
+# hh_rsync_ssh — transfer files to/from a remote host over SSH
 # ---------------------------------------------------------------------------
 
-function rsync_ssh() {
+function hh_rsync_ssh() {
     # Send or receive files over SSH using rsync with a fast hardware-accelerated cipher.
     # Designed for high-throughput transfers on local networks (LAN / Wi-Fi).
     #
-    # Usage: rsync_ssh [OPTIONS] <source> <user@host:/dest>
-    #        rsync_ssh [OPTIONS] <user@host:/source> <dest>
+    # Usage: hh_rsync_ssh [OPTIONS] <source> <user@host:/dest>
+    #        hh_rsync_ssh [OPTIONS] <user@host:/source> <dest>
     #
     # Options:
     #   -h          Show this help
@@ -21,13 +21,13 @@ function rsync_ssh() {
     #   -c CIPHER   SSH cipher (default: aes128-gcm@openssh.com)
     #
     # Examples:
-    #   rsync_ssh ./project/          alice@server:/home/alice/project/
-    #   rsync_ssh -n ./docs/          bob@nas:/backup/docs/
-    #   rsync_ssh -p 2222 ./logs/     user@host:/var/log/archive/
-    #   rsync_ssh user@host:/data/    ./local-copy/
+    #   hh_rsync_ssh ./project/          alice@server:/home/alice/project/
+    #   hh_rsync_ssh -n ./docs/          bob@nas:/backup/docs/
+    #   hh_rsync_ssh -p 2222 ./logs/     user@host:/var/log/archive/
+    #   hh_rsync_ssh user@host:/data/    ./local-copy/
 
-    local usage="Usage: rsync_ssh [OPTIONS] <source> <user@host:/dest>
-       rsync_ssh [OPTIONS] <user@host:/source> <dest>
+    local usage="Usage: hh_rsync_ssh [OPTIONS] <source> <user@host:/dest>
+       hh_rsync_ssh [OPTIONS] <user@host:/source> <dest>
 
 Options:
   -h          Show this help
@@ -43,10 +43,10 @@ Ciphers (fastest first on modern hardware):
   aes128-ctr
 
 Examples:
-  rsync_ssh ./project/        alice@server:/home/alice/project/
-  rsync_ssh -n ./docs/        bob@nas:/backup/docs/
-  rsync_ssh -p 2222 -z ./src/ user@host:/backup/
-  rsync_ssh user@host:/data/  ./local-copy/"
+  hh_rsync_ssh ./project/        alice@server:/home/alice/project/
+  hh_rsync_ssh -n ./docs/        bob@nas:/backup/docs/
+  hh_rsync_ssh -p 2222 -z ./src/ user@host:/backup/
+  hh_rsync_ssh user@host:/data/  ./local-copy/"
 
     local cipher="aes128-gcm@openssh.com"
     local port="22"
@@ -91,14 +91,14 @@ Examples:
 }
 
 # ---------------------------------------------------------------------------
-# rm_ssh — delete files/directories on a remote machine
+# hh_rm_ssh — delete files/directories on a remote machine
 # ---------------------------------------------------------------------------
 
-function rm_ssh() {
+function hh_rm_ssh() {
     # Remove files or directories on a remote host via a single SSH connection.
     # All paths are deleted in one invocation — no per-file round-trips.
     #
-    # Usage: rm_ssh [OPTIONS] <user@host> <remote-path> [path2 ...]
+    # Usage: hh_rm_ssh [OPTIONS] <user@host> <remote-path> [path2 ...]
     #
     # Options:
     #   -h        Show this help
@@ -107,11 +107,11 @@ function rm_ssh() {
     #   -p PORT   SSH port (default: 22)
     #
     # Examples:
-    #   rm_ssh alice@server /tmp/old-build
-    #   rm_ssh -n bob@nas /data/cache /data/tmp
-    #   rm_ssh -f -p 2222 user@host /var/log/old.log
+    #   hh_rm_ssh alice@server /tmp/old-build
+    #   hh_rm_ssh -n bob@nas /data/cache /data/tmp
+    #   hh_rm_ssh -f -p 2222 user@host /var/log/old.log
 
-    local usage="Usage: rm_ssh [OPTIONS] <user@host> <remote-path> [path2 ...]
+    local usage="Usage: hh_rm_ssh [OPTIONS] <user@host> <remote-path> [path2 ...]
 
 Options:
   -h        Show this help
@@ -120,9 +120,9 @@ Options:
   -p PORT   SSH port (default: 22)
 
 Examples:
-  rm_ssh alice@server /tmp/old-build
-  rm_ssh -n bob@nas /data/cache /data/tmp
-  rm_ssh -f -p 2222 user@host /var/log/old.log"
+  hh_rm_ssh alice@server /tmp/old-build
+  hh_rm_ssh -n bob@nas /data/cache /data/tmp
+  hh_rm_ssh -f -p 2222 user@host /var/log/old.log"
 
     local port="22"
     local dry_run=0
@@ -187,4 +187,4 @@ Examples:
     ssh -p "${port}" "${userhost}" "rm -rf -- ${serialized}"
 }
 
-alias cp_ssh='rsync_ssh'
+alias hh_cp_ssh='hh_rsync_ssh'

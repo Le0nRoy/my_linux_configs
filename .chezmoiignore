@@ -82,7 +82,8 @@ bin/xrandr_manager.bash
 bin/yt_playlist_mp3.bash
 
 # Linux-only helpers sourced by helper.bash. common.bash+backup.bash+
-# git.bash+tmux.bash+transfer.bash are portable and stay managed on
+# git.bash+shell.bash+tmux*.bash+transfer.bash (plus aliases.shrc and the
+# *.zsh files) are portable and stay managed on
 # macOS. The five below reference apt/pacman/systemctl/polybar/rofi
 # directly and would fail at first source.
 bin/helper/firefox.bash

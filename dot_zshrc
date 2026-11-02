@@ -40,11 +40,10 @@ _ctrl_d_exit() {
 zle -N _ctrl_d_exit
 bindkey '^D' _ctrl_d_exit
 _reset_ctrl_d_count() { _ctrl_d_count=0; }
-precmd_functions+=(_reset_ctrl_d_count)
-
-# Convenience shortcut for the AI-Wrapper (installed as a submodule via
-# run_always_install-ai-wrapper.bash → ~/ai-wrapper).
-alias claude_wrapper='~/ai-wrapper/bin/executable_claude_wrapper.bash'
+# Membership guards keep re-sourcing this file from duplicating hooks;
+# other entries (vendor hooks) are left as they are.
+(( ${precmd_functions[(Ie)_reset_ctrl_d_count]} )) \
+    || precmd_functions+=(_reset_ctrl_d_count)
 
 # The following lines were added by compinstall
 zstyle :compinstall filename '/home/lap/.zshrc'
@@ -67,7 +66,7 @@ RESET='%f'
 autoload -Uz vcs_info
 zstyle ':vcs_info:git:*' formats " ${MAGENTA}(%b)${RESET}"
 zstyle ':vcs_info:git:*' actionformats " ${MAGENTA}(%b|%a)${RESET}"
-precmd_functions+=(vcs_info)
+(( ${precmd_functions[(Ie)vcs_info]} )) || precmd_functions+=(vcs_info)
 setopt PROMPT_SUBST
 
 # Prompt pieces
@@ -79,13 +78,74 @@ WORKDIR="${BLUE}:${GREEN}%~"
 PROMPT='${USER_AND_HOST}${WORKDIR}${vcs_info_msg_0_}${RESET}
 ${BLUE}%#${RESET} '
 
-# Source zsh-side helpers (function bodies live in bin/helper/*).
-# Order matters: zsh-specific overrides (*.zsh) go after any shared *.bash
-# module that might define a bash-only stub with the same name.
+# ----- Environment and public helpers (parity with ~/.bashrc) -----
+
+# LS_COLORS from the same database bash uses.
+if (( $+commands[dircolors] )); then
+    if [[ -f ~/.dir_colors ]]; then
+        eval "$(dircolors -b ~/.dir_colors)"
+    elif [[ -f /etc/DIR_COLORS ]]; then
+        eval "$(dircolors -b /etc/DIR_COLORS)"
+    fi
+fi
+
+export VBOX_USB=usbfs
+export EDITOR='vim'
+export VISUAL='vim'
+# Create pipenv virtual environment inside project directory
+export PIPENV_VENV_IN_PROJECT=1
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk/
+export USE_GKE_GCLOUD_AUTH_PLUGIN=True
+# Suppress Python HTTP warnings when work with devenv
+export PYTHONWARNINGS="ignore:Unverified HTTPS request"
+
+# Shared helper variables and ~/bin/.env, as bin/helper.bash loads them.
+[[ -r "${HOME}/bin/helper/common.bash" ]] && source "${HOME}/bin/helper/common.bash"
+if [[ -f "${HOME}/bin/.env" ]]; then
+    source "${HOME}/bin/.env"
+elif [[ -f "${HOME}/bin/.env.template" ]]; then
+    source "${HOME}/bin/.env.template"
+fi
+
+# Same managed PATH entries as bin/helper.bash, each added at most once.
+[[ ":${PATH}:" == *":${HOME}/ai-wrapper/bin:"* ]] || export PATH="${HOME}/ai-wrapper/bin:${PATH}"
+[[ ":${PATH}:" == *":${HOME}/bin:"* ]] || export PATH="${HOME}/bin:${PATH}"
+
+# Shared aliases first: helper bodies parsed afterwards expand them, as
+# in bash. Portable and stateful helper modules are sourced in-process
+# (hh_gio_mount must change this shell's cwd); Bash-only helpers run
+# through bash_exec.zsh. Order matters: zsh-specific *.zsh files go after
+# any shared *.bash module that might define a same-named stub. Bash-only
+# modules and completion callbacks are never sourced here.
 for _mod in \
+    "${HOME}/bin/helper/aliases.shrc" \
     "${HOME}/bin/helper/tmux_commands.bash" \
-    "${HOME}/bin/helper/tmux_last_cmd.zsh"; do
+    "${HOME}/bin/helper/git.bash" \
+    "${HOME}/bin/helper/storage.bash" \
+    "${HOME}/bin/helper/tmux_last_cmd.zsh" \
+    "${HOME}/bin/helper/bash_exec.zsh"; do
     [[ -r "${_mod}" ]] && source "${_mod}"
 done
 unset _mod
+
+# Argument completion for the transfer helpers, mirroring
+# ~/.bash_completion.d/transfer.bash with zsh's own _arguments/_files/
+# _ssh_hosts (no extra completion functions). hh_cp_ssh is an alias and
+# completes as hh_rsync_ssh.
+if (( $+functions[compdef] && $+functions[hh_rsync_ssh] )); then
+    compdef '_arguments -s "-h[show help]" "-n[dry run]" "-z[enable compression]" "-p+[SSH port]:port: " "-c+[SSH cipher]:cipher:(aes128-gcm@openssh.com chacha20-poly1305@openssh.com aes256-gcm@openssh.com aes128-ctr aes256-ctr aes192-ctr)" "*:source or destination:{_files; _ssh_hosts}"' hh_rsync_ssh
+    compdef '_arguments -s "-h[show help]" "-n[dry run]" "-f[skip confirmation]" "-p+[SSH port]:port: " "1:remote host:_ssh_hosts" "*:remote path: "' hh_rm_ssh
+fi
+
+# Optional job setup exports, as bin/helper.bash sources them.
+if [[ -e "${JOB_SETUP_FILE:-}" ]]; then
+    source "${JOB_SETUP_FILE}"
+fi
+
+if [[ -d "${HOME}/.pyenv" ]]; then
+    export PYENV_ROOT="${HOME}/.pyenv"
+    [[ -d "${PYENV_ROOT}/bin" && ":${PATH}:" != *":${PYENV_ROOT}/bin:"* ]] \
+        && export PATH="${PYENV_ROOT}/bin:$PATH"
+    eval "$(pyenv init - zsh)"
+fi
 

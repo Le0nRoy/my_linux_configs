@@ -25,7 +25,7 @@ if [[ ! "$EXEC_NAME" == "$HOME_HELPER_UNIQ_SCRIPT_NAME"  ]]; then
     # Interactive shell: public helpers plus the tmux prompt callbacks only.
     # Script-private modules (tmux session builders, system, backup,
     # firefox) are loaded in script mode only.
-    _helper_modules=(tmux_last_cmd tmux_commands git storage utils transfer)
+    _helper_modules=(tmux_last_cmd tmux_commands git storage utils transfer shell)
 else
     _helper_modules=(tmux tmux_commands git system storage backup utils transfer i3 firefox)
 fi
@@ -38,9 +38,9 @@ unset _mod _helper_modules
 # _i3_* helpers never enter the interactive shell. `&&` keeps a failed
 # source from recursing into the wrapper itself.
 if [[ ! "$EXEC_NAME" == "$HOME_HELPER_UNIQ_SCRIPT_NAME" && -f "${HELPER_MODULE_DIR}/i3.bash" ]]; then
-    i3_save_chezmoi_ws() { ( source "${HELPER_MODULE_DIR}/i3.bash" && i3_save_chezmoi_ws "$@" ); }
-    i3_save_ws() { ( source "${HELPER_MODULE_DIR}/i3.bash" && i3_save_ws "$@" ); }
-    i3_restore_ws() { ( source "${HELPER_MODULE_DIR}/i3.bash" && i3_restore_ws "$@" ); }
+    hh_i3_save_chezmoi_ws() { ( source "${HELPER_MODULE_DIR}/i3.bash" && hh_i3_save_chezmoi_ws "$@" ); }
+    hh_i3_save_ws() { ( source "${HELPER_MODULE_DIR}/i3.bash" && hh_i3_save_ws "$@" ); }
+    hh_i3_restore_ws() { ( source "${HELPER_MODULE_DIR}/i3.bash" && hh_i3_restore_ws "$@" ); }
 fi
 
 # Load environment variables if present
@@ -52,7 +52,11 @@ fi
 
 # Do not execute script if it was called with `source` command, just do mandatory exports
 if [[ ! "$EXEC_NAME" == "$HOME_HELPER_UNIQ_SCRIPT_NAME"  ]]; then
-    export PATH="$HOME/bin:$HOME/ai-wrapper/bin:$PATH"
+    # Prepend each managed dir at most once so re-sourcing .bashrc keeps
+    # PATH stable; caller order and unrelated entries are left alone.
+    [[ ":${PATH}:" == *":$HOME/ai-wrapper/bin:"* ]] || PATH="$HOME/ai-wrapper/bin:$PATH"
+    [[ ":${PATH}:" == *":$HOME/bin:"* ]] || PATH="$HOME/bin:$PATH"
+    export PATH
 
     if [[ -e "$JOB_SETUP_FILE" ]]; then
         # shellcheck source=/dev/null
