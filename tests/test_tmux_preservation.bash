@@ -1,0 +1,866 @@
+#!/usr/bin/env bash
+# Regression test for issue #61: tmux session preservation (tmux-resurrect /
+# tmux-continuum snapshots, last-command prefill, per-pane history) and the
+# boot script that the systemd unit / LaunchAgent run.
+#
+# Layers, each labelled in its PASS/GAP lines:
+# - prefill: bin/tmux_prefill_last_cmd.bash against a logging fake tmux
+#   (argv and the bytes tmux would deliver), then those exact bytes typed
+#   into a real interactive Bash (and zsh when installed) through a PTY with
+#   a side-effect sentinel. The pre-fix script is replayed from git
+#   (F_PRE_FIX_REF) to reproduce the old failures;
+# - post-restore hook: the configured hook value run through the same
+#   `eval "$hook $args"` contract tmux-resurrect's restore.sh uses
+#   (emulation, not a plugin run);
+# - boot script: both server branches and both restore outcomes with a fake
+#   tmux routed through an exported shell function (the script resets PATH,
+#   so a PATH wrapper alone would not contain it). The fake applies the
+#   kill-session command-alias read from the real tmux.conf.tmpl;
+# - per-pane history recorder file modes and release ownership rules;
+# - static contracts: systemd unit, enable script, LaunchAgent, clipboard
+#   commands rendered for Linux and (simulated) darwin;
+# - native: real tmux + real tpm/tmux-resurrect/tmux-continuum checkouts on
+#   a private socket under a fresh TMUX_TMPDIR with synthetic HOME/XDG:
+#   save -> kill the verified test-owned server -> boot -> restore. Needs
+#   `tmux` on PATH and F_TMUX_PLUGIN_ROOT=<dir with the three git checkouts>;
+#   nothing is downloaded. Every tmux call goes through a guard that refuses
+#   any socket outside the test root; the owner's default socket is never
+#   listed, probed, attached, killed or restarted.
+#
+# Not covered here (always reported as GAP): systemd user-manager lifecycle
+# (cgroup ownership, active/dead semantics, linger, logout) — see
+# docs/systemd-services.md for the owner-side verification method.
+#
+# Input-mode assumption for the PTY checks: default Readline/ZLE emacs
+# keymaps in a UTF-8 locale. Safety under arbitrary user-rebound printable
+# keys is not claimed.
+#
+# Usage: bash tests/test_tmux_preservation.bash
+#        F_TMUX_PLUGIN_ROOT=/path/to/plugins bash tests/test_tmux_preservation.bash
+
+set -uo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PRE_FIX_REF="${F_PRE_FIX_REF:-6aacb61ffafc0983ef71e08e706509b999dfac78}"
+TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/f-tmux.XXXXXX")"
+PTY_DRIVER="${REPO_ROOT}/tests/pty_drive.py"
+PREFILL_PATH="bin/executable_tmux_prefill_last_cmd.bash"
+BOOT_PATH="bin/executable_tmux_boot.bash"
+RELEASE_PATH="bin/executable_tmux_pane_hist_release.bash"
+RECORDER_PATH="bin/helper/tmux_last_cmd.bash"
+CONF_PATH="dot_config/tmux/tmux.conf.tmpl"
+SERVICE_PATH="dot_config/systemd/user/tmux.service"
+ENABLE_PATH="run_onchange_enable-tmux-service.bash.tmpl"
+PLIST_PATH="Library/LaunchAgents/local.tmux.plist.tmpl"
+PLUGINS=(tpm tmux-resurrect tmux-continuum)
+GUARD_DENY_STATUS=97
+NATIVE_TIMEOUT_TENTHS=150
+PANE="f_sess:0.0"
+NATIVE_SOCKET=""
+
+failures=0
+gaps=0
+
+pass() { printf 'PASS: %s\n' "$1"; }
+fail() { printf 'FAIL: %s\n' "$1"; failures=$((failures + 1)); }
+gap() { printf 'GAP: %s\n' "$1"; gaps=$((gaps + 1)); }
+info() { printf 'INFO: %s\n' "$1"; }
+
+# Stop only the private test server (socket inside TMP_ROOT), then clean up.
+cleanup() {
+    if [[ -n "${NATIVE_SOCKET}" && "${NATIVE_SOCKET}" == "${TMP_ROOT}/"* && -S "${NATIVE_SOCKET}" ]]; then
+        "${F_REAL_TMUX}" -S "${NATIVE_SOCKET}" kill-server 2>/dev/null || true
+    fi
+    rm -rf "${TMP_ROOT}"
+}
+trap cleanup EXIT
+
+assert_eq() {
+    local expected="$1" actual="$2" label="$3"
+    if [[ "${expected}" == "${actual}" ]]; then
+        pass "${label}"
+    else
+        fail "${label}: expected [${expected}] got [${actual}]"
+    fi
+}
+
+assert_file_absent() {
+    local path="$1" label="$2"
+    if [[ -e "${path}" ]]; then
+        fail "${label}: ${path##*/} exists"
+    else
+        pass "${label}"
+    fi
+}
+
+assert_mode() {
+    local expected="$1" path="$2" label="$3"
+    assert_eq "${expected}" "$(stat -c '%a' "${path}" 2>/dev/null)" "${label}"
+}
+
+# pre_fix_file <repo path> <dest>: the file as it was before the #61 fixes.
+pre_fix_file() {
+    git -C "${REPO_ROOT}" show "${PRE_FIX_REF}:$1" > "$2" 2>/dev/null
+}
+
+# ---------------------------------------------------------------------------
+# Fake tmux: logs argv, serves list-panes/list-sessions from state files and
+# records what send-keys would type into each pane. Without -l, a whole
+# argument that is a tmux key name becomes that key (tmux key lookup).
+# ---------------------------------------------------------------------------
+FAKEBIN="${TMP_ROOT}/fakebin"
+mkdir -p "${FAKEBIN}"
+cat > "${FAKEBIN}/tmux" <<'FAKE'
+#!/bin/bash
+state="${F_STATE:?F_STATE must be set}"
+{ printf '%q ' "$@"; printf '\n'; } >> "${state}/argv.log"
+cmd="${1:-}"
+shift || true
+
+# command-alias entries come from the real tmux.conf when the case supplies
+# it; tmux appends the caller's arguments to the expansion.
+if [[ -r "${state}/tmux.conf" ]]; then
+    expansion=$(sed -n "s/^set -s command-alias\[[0-9]*\] \"${cmd}=\(.*\)\"$/\1/p" \
+        "${state}/tmux.conf" | head -n 1)
+    if [[ -n "${expansion}" ]]; then
+        if [[ "${expansion}" == confirm-before* && $# -gt 0 ]]; then
+            echo "command confirm-before: too many arguments" >&2
+        else
+            echo "no current client" >&2
+        fi
+        exit 1
+    fi
+fi
+
+target=""
+literal=0
+case "${cmd}" in
+    list-panes)
+        if [[ "${*: -1}" == *pane_id* ]]; then
+            cat "${state}/live_panes" 2>/dev/null
+        else
+            cat "${state}/panes" 2>/dev/null
+        fi
+        ;;
+    send-keys)
+        while (($#)); do
+            case "$1" in
+                -l) literal=1; shift ;;
+                -t) target="$2"; shift 2 ;;
+                --) shift; break ;;
+                *) break ;;
+            esac
+        done
+        if grep -qxF -- "${target}" "${state}/closed_panes" 2>/dev/null; then
+            echo "can't find pane: ${target}" >&2
+            exit 1
+        fi
+        for arg in "$@"; do
+            if ((literal)); then
+                printf '%s' "${arg}"
+                continue
+            fi
+            case "${arg}" in
+                Enter|C-m) printf '\r' ;;
+                C-j) printf '\n' ;;
+                C-o) printf '\017' ;;
+                BSpace) printf '\177' ;;
+                Tab) printf '\t' ;;
+                Escape) printf '\033' ;;
+                *) printf '%s' "${arg}" ;;
+            esac
+        done >> "${state}/delivered.${target}"
+        ;;
+    list-sessions|has-session)
+        [[ -s "${state}/sessions" ]] || { echo "no server running" >&2; exit 1; }
+        [[ "${cmd}" == list-sessions ]] && cat "${state}/sessions"
+        ;;
+    new-session)
+        while (($#)); do
+            [[ "$1" == -s ]] && { echo "$2" >> "${state}/sessions"; shift; }
+            shift
+        done
+        ;;
+    kill-ses)
+        [[ "${1:-}" == -t ]] || exit 1
+        grep -qxF -- "$2" "${state}/sessions" || { echo "can't find session: $2" >&2; exit 1; }
+        grep -vxF -- "$2" "${state}/sessions" > "${state}/sessions.new"
+        mv "${state}/sessions.new" "${state}/sessions"
+        ;;
+    run-shell)
+        /bin/sh -c "$*"
+        ;;
+    display-message)
+        printf '%s\n' "${F_PANE_POSITION:-}"
+        ;;
+esac
+exit 0
+FAKE
+chmod +x "${FAKEBIN}/tmux"
+
+# new_case: fresh synthetic HOME + fake state; sets CASE/CASE_HOME/CASE_STATE.
+new_case() {
+    CASE="$(mktemp -d "${TMP_ROOT}/case.XXXXXX")"
+    CASE_HOME="${CASE}/home"
+    CASE_STATE="${CASE}/state"
+    mkdir -p "${CASE_HOME}/bin" "${CASE_HOME}/.local/state/tmux/panes" "${CASE_STATE}"
+    printf '%s\t0\t0\tbash\n' "${PANE%%:*}" > "${CASE_STATE}/panes"
+}
+
+case_env() {
+    CASE_ENV=(HOME="${CASE_HOME}" XDG_STATE_HOME="${CASE_HOME}/.local/state"
+        PATH="${FAKEBIN}:/usr/bin:/bin" LANG=C.UTF-8 F_STATE="${CASE_STATE}")
+}
+
+# run_prefill <script>: sets RUN_STATUS; stderr in ${CASE}/stderr.
+run_prefill() {
+    case_env
+    env -i "${CASE_ENV[@]}" bash "$1" > /dev/null 2> "${CASE}/stderr"
+    RUN_STATUS=$?
+}
+
+# write_last <bytes as printf format>: the recorder file for ${PANE}.
+write_last() {
+    # shellcheck disable=SC2059  # the argument is the intended format
+    printf "$1" > "${CASE_HOME}/.local/state/tmux/panes/${PANE}.last"
+}
+
+delivered_file() { printf '%s/delivered.%s' "${CASE_STATE}" "${PANE}"; }
+
+# ---------------------------------------------------------------------------
+# PTY side-effect check: type <pretype> then the delivered bytes into a real
+# interactive shell, clear the line with Ctrl+U (in-order, unlike a signal),
+# optionally press Enter, and report whether the sentinel was written.
+# Sets PTY_EXECUTED (yes/no) and PTY_TRANSCRIPT. Returns 1 on driver error.
+# ---------------------------------------------------------------------------
+escape_bytes() {
+    od -An -v -tx1 "$1" | tr -s ' \n' ' ' | sed 's/ \([0-9a-f][0-9a-f]\)/\\x\1/g; s/ //g'
+}
+
+pty_side_effect() {
+    local shell="$1" payload_file="$2" pretype="$3" press_enter="$4" sentinel="$5"
+    local steps="${CASE}/steps.${shell}" prompt
+    PTY_TRANSCRIPT="${CASE}/transcript.${shell}"
+    case "${shell}" in
+        bash) prompt='\$ $' ;;
+        zsh) prompt='% $' ;;
+    esac
+    {
+        printf 'wait %s\n' "${prompt}"
+        [[ -n "${pretype}" ]] && printf 'send %s\n' "${pretype}"
+        [[ -s "${payload_file}" ]] && printf 'send %s\n' "$(escape_bytes "${payload_file}")"
+        if [[ "${press_enter}" == 1 ]]; then
+            printf 'send \\r\n'
+            printf 'wait %s\n' "${prompt}"
+        fi
+        printf 'send \\x15echo MARK'"''"'ER_DONE\\r\n'
+        printf 'wait MARKER_DONE\n'
+    } > "${steps}"
+    local cmd=(bash --noprofile --norc -i)
+    [[ "${shell}" == zsh ]] && cmd=(zsh -f -i)
+    env -i HOME="${CASE_HOME}" TERM=xterm PATH=/usr/bin:/bin LANG=C.UTF-8 \
+        HISTFILE=/dev/null timeout 60 python3 "${PTY_DRIVER}" "${steps}" \
+        "${PTY_TRANSCRIPT}" -- "${cmd[@]}" 2> "${CASE}/pty.err" || return 1
+    if [[ -e "${sentinel}" ]]; then PTY_EXECUTED=yes; else PTY_EXECUTED=no; fi
+}
+
+PTY_SHELLS=()
+if command -v python3 >/dev/null 2>&1; then
+    PTY_SHELLS+=(bash)
+    if command -v zsh >/dev/null 2>&1; then
+        PTY_SHELLS+=(zsh)
+    else
+        gap "zsh not installed: ZLE side-effect checks not run (Bash only)"
+    fi
+else
+    gap "python3 not installed: real-shell PTY side-effect checks not run"
+fi
+
+PRE_FIX_PREFILL="${TMP_ROOT}/prefill.pre_fix.bash"
+if ! pre_fix_file "${PREFILL_PATH}" "${PRE_FIX_PREFILL}"; then
+    gap "pre-fix ref ${PRE_FIX_REF} unavailable: old prefill failures not replayed"
+    PRE_FIX_PREFILL=""
+fi
+
+# side_effect_case <label> <script> <payload printf format> <pretype> <expect yes|no>
+# Payload commands write ${CASE}/sentinel; {S} in the format is that path.
+side_effect_case() {
+    local label="$1" script="$2" format="$3" pretype="$4" expect="$5" shell
+    for shell in "${PTY_SHELLS[@]}"; do
+        new_case
+        local sentinel="${CASE}/sentinel"
+        write_last "${format//\{S\}/${sentinel}}"
+        run_prefill "${script}"
+        if ! pty_side_effect "${shell}" "$(delivered_file)" "${pretype//\{S\}/${sentinel}}" 0 "${sentinel}"; then
+            fail "${label} [${shell}]: PTY driver error: $(head -n 1 "${CASE}/pty.err")"
+            continue
+        fi
+        assert_eq "${expect}" "${PTY_EXECUTED}" "${label} [${shell}]: executed=${expect}"
+    done
+}
+
+PREFILL="${REPO_ROOT}/${PREFILL_PATH}"
+EXEC_CMD='printf EXECUTED > {S}'
+
+echo "== prefill: real-shell side effects (pre-fix replay vs current) =="
+if ((${#PTY_SHELLS[@]})); then
+    if [[ -n "${PRE_FIX_PREFILL}" ]]; then
+        side_effect_case "pre-fix reproduces: embedded LF without final newline runs" \
+            "${PRE_FIX_PREFILL}" "${EXEC_CMD}\\necho second" "" yes
+        side_effect_case "pre-fix reproduces: trailing Ctrl+O runs the line" \
+            "${PRE_FIX_PREFILL}" "${EXEC_CMD}\\017\\n" "" yes
+        side_effect_case "pre-fix reproduces: text 'Enter' is sent as the Enter key" \
+            "${PRE_FIX_PREFILL}" 'Enter\n' "${EXEC_CMD}" yes
+    fi
+    side_effect_case "embedded LF without final newline is rejected" \
+        "${PREFILL}" "${EXEC_CMD}\\necho second" "" no
+    side_effect_case "embedded LF with final newline is rejected" \
+        "${PREFILL}" "${EXEC_CMD}\\necho second\\n" "" no
+    side_effect_case "trailing Ctrl+O is rejected" "${PREFILL}" "${EXEC_CMD}\\017\\n" "" no
+    side_effect_case "embedded CR is rejected" "${PREFILL}" "${EXEC_CMD}\\r\\n" "" no
+    side_effect_case "embedded Ctrl+J/Ctrl+M bytes after text are rejected" \
+        "${PREFILL}" "${EXEC_CMD}\\012\\015" "" no
+    side_effect_case "text 'Enter' is typed literally" "${PREFILL}" 'Enter\n' "${EXEC_CMD}" no
+    side_effect_case "text 'C-m' is typed literally" "${PREFILL}" 'C-m\n' "${EXEC_CMD}" no
+
+    # Positive control: the accepted command is typed, visible, not run until
+    # the test presses Enter.
+    for shell in "${PTY_SHELLS[@]}"; do
+        new_case
+        sentinel="${CASE}/sentinel"
+        write_last "${EXEC_CMD//\{S\}/${sentinel}}\\n"
+        run_prefill "${PREFILL}"
+        if pty_side_effect "${shell}" "$(delivered_file)" "" 0 "${sentinel}"; then
+            assert_eq no "${PTY_EXECUTED}" "positive control [${shell}]: accepted command not run before Enter"
+            if grep -qF "printf EXECUTED > ${sentinel}" "${PTY_TRANSCRIPT}"; then
+                pass "positive control [${shell}]: accepted command visible in the line buffer"
+            else
+                fail "positive control [${shell}]: command not visible in transcript"
+            fi
+        else
+            fail "positive control [${shell}]: PTY driver error: $(head -n 1 "${CASE}/pty.err")"
+        fi
+        rm -f "${sentinel}"
+        if pty_side_effect "${shell}" "$(delivered_file)" "" 1 "${sentinel}"; then
+            assert_eq yes "${PTY_EXECUTED}" "positive control [${shell}]: command runs after explicit Enter"
+        else
+            fail "positive control [${shell}]: PTY driver error: $(head -n 1 "${CASE}/pty.err")"
+        fi
+    done
+fi
+
+echo "== prefill: send-keys argv and delivered bytes (fake tmux) =="
+# Accepted text, shell punctuation, quoted paths and Unicode go out as one
+# literal argument, without the recorder's trailing line separator.
+ACCEPTED_TEXT='printf "%s\n" "a b" | grep -E '"'"'x|y'"'"' > "/tmp/dir with space/ö" && echo $HOME; ls ~ # ✓'
+new_case
+printf '%s\n' "${ACCEPTED_TEXT}" > "${CASE_HOME}/.local/state/tmux/panes/${PANE}.last"
+run_prefill "${PREFILL}"
+assert_eq 0 "${RUN_STATUS}" "accepted text: exit 0"
+assert_eq "send-keys -l -t ${PANE} -- $(printf '%q' "${ACCEPTED_TEXT}") " \
+    "$(grep '^send-keys' "${CASE_STATE}/argv.log")" "accepted text: one literal send-keys -l argument"
+assert_eq "${ACCEPTED_TEXT}" "$(cat "$(delivered_file)")" "accepted text: delivered bytes match exactly"
+
+# rejected_case <label> <printf format>: nothing is sent, exit 0.
+rejected_case() {
+    new_case
+    write_last "$2"
+    run_prefill "${PREFILL}"
+    if [[ "${RUN_STATUS}" == 0 && ! -e "$(delivered_file)" ]] \
+        && ! grep -q '^send-keys' "${CASE_STATE}/argv.log"; then
+        pass "rejected: $1"
+    else
+        fail "rejected: $1: status=${RUN_STATUS} argv=$(grep '^send-keys' "${CASE_STATE}/argv.log")"
+    fi
+}
+
+rejected_case "empty file" ''
+rejected_case "separator only" '\n'
+rejected_case "spaces only" '   \n'
+rejected_case "tabs only" '\t\t\n'
+rejected_case "mixed whitespace" ' \t \n'
+rejected_case "terminated multi-line" 'echo a\necho b\n'
+rejected_case "unterminated multi-line" 'echo a\necho b'
+rejected_case "NUL byte (would be silently dropped into a different command)" 'echo a\000; rm x\n'
+rejected_case "ESC sequence" 'echo a\033[A\n'
+rejected_case "DEL" 'echo ab\177\n'
+for byte in $(seq 1 31); do
+    [[ "${byte}" == 10 ]] && continue
+    rejected_case "C0 control 0x$(printf '%02x' "${byte}")" "echo a\\$(printf '%03o' "${byte}")b\\n"
+done
+
+# Named key strings go through -l: the bytes are the text, not a key.
+for key in Enter C-m BSpace; do
+    new_case
+    write_last "${key}\\n"
+    run_prefill "${PREFILL}"
+    assert_eq "${key}" "$(cat "$(delivered_file)" 2>/dev/null)" "key name '${key}' delivered as literal text"
+done
+if [[ -n "${PRE_FIX_PREFILL}" ]]; then
+    new_case
+    write_last 'BSpace\n'
+    run_prefill "${PRE_FIX_PREFILL}"
+    assert_eq "7f" "$(od -An -tx1 "$(delivered_file)" | tr -d ' \n')" \
+        "pre-fix reproduces: 'BSpace' sent as the Backspace key"
+fi
+
+new_case
+printf 'f_sess\t0\t0\tvim\nf_sess\t0\t1\tsleep\n' > "${CASE_STATE}/panes"
+printf 'echo a\n' > "${CASE_HOME}/.local/state/tmux/panes/f_sess:0.0.last"
+printf 'echo b\n' > "${CASE_HOME}/.local/state/tmux/panes/f_sess:0.1.last"
+run_prefill "${PREFILL}"
+assert_eq "0:0" "${RUN_STATUS}:$(grep -c "^send-keys" "${CASE_STATE}/argv.log")" \
+    "non-shell panes (vim, sleep) receive nothing"
+
+# Closed-pane race: a failing send-keys does not stop later panes.
+new_case
+printf 'f_sess\t0\t0\tbash\nf_sess\t0\t1\tzsh\nf_sess\t1\t0\tbash\n' > "${CASE_STATE}/panes"
+printf 'echo gone\n' > "${CASE_HOME}/.local/state/tmux/panes/f_sess:0.0.last"
+printf 'echo zsh_pane\n' > "${CASE_HOME}/.local/state/tmux/panes/f_sess:0.1.last"
+printf 'f_sess:0.0\n' > "${CASE_STATE}/closed_panes"
+run_prefill "${PREFILL}"
+assert_eq 0 "${RUN_STATUS}" "closed pane: exit 0"
+assert_eq "echo zsh_pane" "$(cat "${CASE_STATE}/delivered.f_sess:0.1" 2>/dev/null)" \
+    "closed pane: later pane still prefilled"
+assert_file_absent "${CASE_STATE}/delivered.f_sess:1.0" "pane without a .last file is skipped"
+
+new_case
+rm -rf "${CASE_HOME}/.local/state/tmux/panes"
+run_prefill "${PREFILL}"
+assert_eq "0:0" "${RUN_STATUS}:$(wc -l 2>/dev/null < "${CASE_STATE}/argv.log" || echo 0)" \
+    "missing state dir: exit 0 without calling tmux"
+
+echo "== post-restore hook (resurrect execute_hook contract, emulated) =="
+HOOK_RE="s/^set -g @resurrect-hook-post-restore-all '\\(.*\\)'\$/\\1/p"
+# run_hook <conf file>: eval "$hook $args" with no args, as restore.sh does.
+run_hook() {
+    local hook
+    hook=$(sed -n "${HOOK_RE}" "$1")
+    new_case
+    cp "${PREFILL}" "${CASE_HOME}/bin/tmux_prefill_last_cmd.bash"
+    chmod +x "${CASE_HOME}/bin/tmux_prefill_last_cmd.bash"
+    write_last 'echo hooked\n'
+    case_env
+    # shellcheck disable=SC2016  # expanded by the inner bash, like restore.sh
+    env -i "${CASE_ENV[@]}" bash -c 'eval "$1 "' _ "${hook}" > /dev/null 2> "${CASE}/stderr"
+    RUN_STATUS=$?
+}
+run_hook "${REPO_ROOT}/${CONF_PATH}"
+assert_eq "0:echo hooked" "${RUN_STATUS}:$(cat "$(delivered_file)" 2>/dev/null)" \
+    "configured hook runs the prefill script"
+PRE_FIX_CONF="${TMP_ROOT}/tmux.conf.pre_fix"
+if pre_fix_file "${CONF_PATH}" "${PRE_FIX_CONF}"; then
+    run_hook "${PRE_FIX_CONF}"
+    if [[ "${RUN_STATUS}" == 127 ]] && grep -q 'run-shell: command not found' "${CASE}/stderr"; then
+        pass "pre-fix reproduces: hook fails with run-shell: command not found"
+    else
+        fail "pre-fix hook replay: status=${RUN_STATUS} $(head -n 1 "${CASE}/stderr")"
+    fi
+    assert_eq "$(grep 'command-alias\[100\] "kill-session=' "${PRE_FIX_CONF}")" \
+        "$(grep 'command-alias\[100\] "kill-session=' "${REPO_ROOT}/${CONF_PATH}")" \
+        "interactive kill-session confirmation alias unchanged"
+fi
+
+echo "== boot script branches (fake tmux via exported function) =="
+# run_boot <script> [restore fixture body]: the real script with PATH reset
+# inside it; tmux resolves to the exported function, which calls the fake.
+run_boot() {
+    local script="$1" restore_body="${2:-}"
+    cp "${REPO_ROOT}/${CONF_PATH}" "${CASE_STATE}/tmux.conf"
+    if [[ -n "${restore_body}" ]]; then
+        mkdir -p "${CASE_HOME}/.tmux/plugins/tmux-resurrect/scripts"
+        printf '#!/bin/bash\n%s\n' "${restore_body}" \
+            > "${CASE_HOME}/.tmux/plugins/tmux-resurrect/scripts/restore.sh"
+        chmod +x "${CASE_HOME}/.tmux/plugins/tmux-resurrect/scripts/restore.sh"
+    fi
+    env -i HOME="${CASE_HOME}" TMUX_TMPDIR="${CASE}/tmuxtmp" PATH=/usr/bin:/bin \
+        F_STATE="${CASE_STATE}" F_FAKE_TMUX="${FAKEBIN}/tmux" \
+        "BASH_FUNC_tmux%%=() { \"\${F_FAKE_TMUX}\" \"\$@\"; }" \
+        bash "${script}" > "${CASE}/stdout" 2> "${CASE}/stderr"
+    RUN_STATUS=$?
+}
+boot_sessions() { tr '\n' ' ' < "${CASE_STATE}/sessions" 2>/dev/null | sed 's/_tmux_boot_[0-9]*/_tmux_boot_PID/g'; }
+# shellcheck disable=SC2016  # expanded by the fixture, not here
+RESTORE_REAL='"${F_FAKE_TMUX}" new-session -d -s restored'
+
+BOOT="${REPO_ROOT}/${BOOT_PATH}"
+new_case
+printf 'work\n' > "${CASE_STATE}/sessions"
+run_boot "${BOOT}" "${RESTORE_REAL}"
+assert_eq "0:work :list-sessions" \
+    "${RUN_STATUS}:$(boot_sessions):$(sed 's/ $//' "${CASE_STATE}/argv.log" | tr '\n' ' ' | sed 's/ $//')" \
+    "existing server: exit 0, only list-sessions, sessions unchanged"
+
+new_case
+run_boot "${BOOT}"
+assert_eq "0:_tmux_boot_PID " "${RUN_STATUS}:$(boot_sessions)" \
+    "no server, no restore script: bootstrap session kept"
+
+new_case
+run_boot "${BOOT}" ":"
+assert_eq "0:_tmux_boot_PID " "${RUN_STATUS}:$(boot_sessions)" \
+    "no server, restore brings nothing back: bootstrap session kept"
+
+new_case
+run_boot "${BOOT}" "${RESTORE_REAL}"
+assert_eq "0:restored " "${RUN_STATUS}:$(boot_sessions)" \
+    "no server, restore succeeds: bootstrap session dropped"
+if grep -q '^kill-ses -t _tmux_boot_' "${CASE_STATE}/argv.log"; then
+    pass "bootstrap cleanup bypasses the interactive kill-session alias"
+else
+    fail "bootstrap cleanup call: $(grep '^kill' "${CASE_STATE}/argv.log")"
+fi
+PRE_FIX_BOOT="${TMP_ROOT}/boot.pre_fix.bash"
+if pre_fix_file "${BOOT_PATH}" "${PRE_FIX_BOOT}"; then
+    new_case
+    run_boot "${PRE_FIX_BOOT}" "${RESTORE_REAL}"
+    assert_eq "0:_tmux_boot_PID restored " "${RUN_STATUS}:$(boot_sessions)" \
+        "pre-fix reproduces: alias turns cleanup into confirm-before, bootstrap leaks"
+fi
+
+echo "== per-pane history recorder modes and release ownership =="
+new_case
+recorder_state="${CASE_HOME}/.local/state/tmux/panes"
+rm -rf "${recorder_state}"
+case_env
+# Real Bash sourcing the real recorder; umask 022 so modes come from the code.
+# shellcheck disable=SC2016  # expanded by the inner bash
+env -i "${CASE_ENV[@]}" TMUX=/fake,1,0 TMUX_PANE=%7 F_PANE_POSITION=rec:0.0 \
+    bash --noprofile --norc -c 'umask 022; HISTFILE=$HOME/.bash_history; set -o history
+        history -s "echo REC_TOKEN"; source "$1"; _tmux_log_last_cmd' _ \
+    "${REPO_ROOT}/${RECORDER_PATH}" 2> "${CASE}/stderr"
+assert_mode 700 "${recorder_state}" "recorder: panes dir mode 0700"
+assert_mode 600 "${recorder_state}/rec:0.0.last" "recorder: .last mode 0600"
+assert_mode 600 "${recorder_state}/rec:0.0.bash_history" "recorder: per-pane history mode 0600"
+assert_mode 600 "${recorder_state}/.owner.%7" "recorder: owner claim mode 0600"
+assert_eq "echo REC_TOKEN|0a" \
+    "$(head -n 1 "${recorder_state}/rec:0.0.last" 2>/dev/null)|$(tail -c 1 "${recorder_state}/rec:0.0.last" | od -An -tx1 | tr -d ' \n')" \
+    "recorder: .last is the command plus one line separator"
+PANE="rec:0.0"
+printf 'rec\t0\t0\tbash\n' > "${CASE_STATE}/panes"
+run_prefill "${PREFILL}"
+assert_eq "echo REC_TOKEN" "$(cat "$(delivered_file)" 2>/dev/null)" \
+    "recorder output is accepted by the prefill script"
+PANE="f_sess:0.0"
+
+RELEASE="${REPO_ROOT}/${RELEASE_PATH}"
+# release_case: dead %1 at d:0.0, live %2 at d:0.1, stale claim %3 at d:1.0.
+release_case() {
+    new_case
+    RS="${CASE_HOME}/.local/state/tmux/panes"
+    local id pos
+    for id_pos in %1=d:0.0 %2=d:0.1 %3=d:1.0; do
+        id="${id_pos%%=*}" pos="${id_pos#*=}"
+        printf 'h\n' > "${RS}/${pos}.bash_history"
+        printf 'echo x\n' > "${RS}/${pos}.last"
+        printf '%s' "${RS}/${pos}.bash_history" > "${RS}/.owner.${id}"
+    done
+    printf '%%2\n' > "${CASE_STATE}/live_panes"
+}
+run_release() {
+    case_env
+    env -i "${CASE_ENV[@]}" bash "${RELEASE}" "$@" 2> "${CASE}/stderr"
+    RUN_STATUS=$?
+}
+release_case
+run_release %1
+if [[ "${RUN_STATUS}" == 0 && ! -e "${RS}/d:0.0.bash_history" && ! -e "${RS}/d:0.0.last" \
+    && ! -e "${RS}/.owner.%1" && -e "${RS}/d:0.1.bash_history" && -e "${RS}/d:0.1.last" \
+    && -e "${RS}/.owner.%2" ]]; then
+    pass "release: exited pane files removed, live pane files kept"
+else
+    fail "release: exited pane: status=${RUN_STATUS} files=$(ls -A "${RS}" | tr '\n' ' ')"
+fi
+assert_file_absent "${RS}/.owner.%3" "release: stale claim of a killed pane dropped"
+release_case
+run_release %1 "${RS}/d:0.1.bash_history"
+if [[ -e "${RS}/d:0.1.bash_history" && -e "${RS}/d:0.1.last" ]]; then
+    pass "release: file still claimed by a live pane is kept"
+else
+    fail "release: live-claimed file removed"
+fi
+release_case
+printf 'x' > "${CASE}/outside.last"
+run_release %2 "${CASE}/outside.bash_history"
+if [[ -e "${CASE}/outside.last" && -e "${RS}/.owner.%2" ]]; then
+    pass "release: path outside the state dir is never removed"
+else
+    fail "release: outside path handling"
+fi
+
+echo "== static contracts (rendered/static, not a service-manager run) =="
+# render_conf <os>: minimal renderer for the template constructs used in
+# tmux.conf.tmpl; fails on any construct it does not know.
+render_conf() {
+    python3 -I - "$1" "${REPO_ROOT}/${CONF_PATH}" "${CASE_HOME}/.local/state" <<'PY'
+import re, sys
+target_os, path, state_home = sys.argv[1:4]
+values, active, out, in_comment = {}, [True], [], False
+for line in open(path, encoding="utf-8"):
+    s = line.strip()
+    if in_comment or s.startswith("{{- /*"):
+        in_comment = "*/" not in s
+        continue
+    m = re.fullmatch(r'\{\{-\s*if eq \.chezmoi\.os "(\w+)"\s*-?\}\}', s)
+    if m:
+        active.append(active[-1] and m.group(1) == target_os)
+        continue
+    if re.fullmatch(r'\{\{-\s*end\s*-?\}\}', s):
+        active.pop()
+        continue
+    m = re.fullmatch(r'\{\{-\s*\$(\w+)\s*:?=\s*"([^"]*)"\s*-\}\}', s)
+    if m:
+        if active[-1]:
+            values[m.group(1)] = m.group(2)
+        continue
+    if not active[-1]:
+        continue
+    line = re.sub(r'\{\{ \$(\w+) \}\}', lambda v: values[v.group(1)], line)
+    line = re.sub(r'\{\{ env "XDG_STATE_HOME" \| default \(joinPath \.chezmoi\.homeDir "\.local/state"\) \}\}', state_home, line)
+    if "{{" in line:
+        sys.exit("unrendered template construct: " + line)
+    out.append(line)
+sys.stdout.write("".join(out))
+PY
+}
+new_case
+if command -v python3 >/dev/null 2>&1; then
+    linux_conf=$(render_conf linux) && darwin_conf=$(render_conf darwin)
+    if [[ -n "${linux_conf}" && -n "${darwin_conf}" ]]; then
+        if grep -q 'copy-pipe-and-cancel "xclip -i -sel clipboard"' <<<"${linux_conf}" \
+            && grep -q 'bind C-v run "tmux set-buffer \\"$(xclip -o -sel clipboard)\\"; tmux paste-buffer"' <<<"${linux_conf}" \
+            && ! grep -q 'pbcopy' <<<"${linux_conf}"; then
+            pass "clipboard (Linux render): xclip copy/paste, no pbcopy"
+        else
+            fail "clipboard (Linux render)"
+        fi
+        if grep -q 'copy-pipe-and-cancel "pbcopy"' <<<"${darwin_conf}" \
+            && grep -q 'tmux_osc52_pbcopy.py' <<<"${darwin_conf}" \
+            && ! grep -q 'xclip' <<<"${darwin_conf}"; then
+            pass "clipboard (darwin render, static simulation only): pbcopy + OSC 52 pipe-pane"
+        else
+            fail "clipboard (darwin render)"
+        fi
+        assert_eq "set -g @resurrect-save-command-strategy 'linux_procfs'" \
+            "$(grep 'save-command-strategy' <<<"${linux_conf}")" "Linux render: linux_procfs save strategy"
+        assert_eq "" "$(grep 'save-command-strategy' <<<"${darwin_conf}")" \
+            "darwin render: default save strategy"
+    else
+        fail "tmux.conf.tmpl render"
+    fi
+else
+    gap "python3 not installed: tmux.conf.tmpl render checks not run"
+fi
+service_conf="${REPO_ROOT}/${SERVICE_PATH}"
+for want in 'Type=forking' 'ExecStart=%h/bin/tmux_boot.bash' 'Restart=no' 'WantedBy=default.target'; do
+    if grep -qxF "${want}" "${service_conf}"; then
+        pass "tmux.service: ${want}"
+    else
+        fail "tmux.service: ${want} missing"
+    fi
+done
+if head -n 1 "${REPO_ROOT}/${ENABLE_PATH}" | grep -qF '{{- if eq .chezmoi.os "linux" -}}' \
+    && grep -qF 'systemctl --user is-active tmux.service' "${REPO_ROOT}/${ENABLE_PATH}"; then
+    pass "enable script: Linux-only, never restarts an active unit"
+else
+    fail "enable script guard"
+fi
+if grep -qF '<string>{{ .chezmoi.homeDir }}/bin/tmux_boot.bash</string>' "${REPO_ROOT}/${PLIST_PATH}" \
+    && grep -A1 'KeepAlive' "${REPO_ROOT}/${PLIST_PATH}" | grep -q '<false/>'; then
+    pass "LaunchAgent (static only, macOS untested): runs tmux_boot.bash, KeepAlive false"
+else
+    fail "LaunchAgent contract"
+fi
+gap "systemd user-manager lifecycle (cgroup ownership, active/dead state, linger, logout) not exercised: needs a service-manager sandbox (docs/systemd-services.md)"
+
+echo "== native tmux + real plugins (private socket) =="
+# The guard every native tmux call goes through: refuse sockets outside the
+# test root (and -L), log the rest, then run the real tmux.
+write_guard() {
+    mkdir -p "$1"
+    cat > "$1/tmux" <<GUARD
+#!/bin/bash
+if [[ "\${1:-}" == -S ]]; then
+    sock="\$2"
+elif [[ "\${1:-}" == -L* ]]; then
+    sock="label:\$1"
+elif [[ -n "\${TMUX:-}" ]]; then
+    sock="\${TMUX%%,*}"
+else
+    sock="\${TMUX_TMPDIR:-/tmp}/tmux-\$(id -u)/default"
+fi
+if [[ "\${sock}" != "\${F_ROOT:?}/"* ]]; then
+    printf '%s %s\n' "\${sock}" "\$*" >> "\${F_ROOT}/denied.log"
+    echo "f-guard: refused tmux socket outside the test root" >&2
+    exit ${GUARD_DENY_STATUS}
+fi
+printf '%s %s\n' "\${sock}" "\$*" >> "\${F_ROOT}/calls.log"
+exec "\${F_REAL_TMUX:?}" "\$@"
+GUARD
+    chmod +x "$1/tmux"
+}
+
+# wait_until <command...>: poll every 0.1s up to NATIVE_TIMEOUT_TENTHS.
+wait_until() {
+    local tries=0
+    until "$@"; do
+        ((tries++ >= NATIVE_TIMEOUT_TENTHS)) && return 1
+        sleep 0.1
+    done
+}
+
+native_tests() {
+    local p sha root home state guardbin
+    F_REAL_TMUX=$(command -v tmux) || { gap "tmux not installed: native save/restore not run"; return; }
+    if [[ -z "${F_TMUX_PLUGIN_ROOT:-}" ]]; then
+        gap "F_TMUX_PLUGIN_ROOT unset: real tpm/resurrect/continuum save/restore not run"
+        return
+    fi
+    info "$("${F_REAL_TMUX}" -V) at ${F_REAL_TMUX}"
+    for p in "${PLUGINS[@]}"; do
+        if ! sha=$(git -C "${F_TMUX_PLUGIN_ROOT}/${p}" rev-parse HEAD 2>/dev/null); then
+            gap "plugin ${p}: not a git checkout under F_TMUX_PLUGIN_ROOT; native run skipped"
+            return
+        fi
+        info "plugin ${p} ${sha}"
+    done
+
+    root="${TMP_ROOT}/native"
+    home="${root}/home"
+    state="${home}/.local/state"
+    guardbin="${root}/guardbin"
+    mkdir -p "${root}"
+    mkdir -m 700 "${root}/tmuxtmp"
+    mkdir -p "${home}/bin/helper" "${home}/.config/tmux" "${home}/.tmux/plugins" \
+        "${home}/project_alpha" "${home}/project beta"
+    NATIVE_SOCKET="${root}/tmuxtmp/tmux-$(id -u)/default"
+    cp "${REPO_ROOT}/${BOOT_PATH}" "${home}/bin/tmux_boot.bash"
+    cp "${PREFILL}" "${home}/bin/tmux_prefill_last_cmd.bash"
+    cp "${RELEASE}" "${home}/bin/tmux_pane_hist_release.bash"
+    chmod +x "${home}/bin/"*.bash
+    cp "${REPO_ROOT}/${RECORDER_PATH}" "${home}/bin/helper/tmux_last_cmd.bash"
+    CASE_HOME="${home}" render_conf linux > "${home}/.config/tmux/tmux.conf" || {
+        fail "native: config render"; return; }
+    for p in "${PLUGINS[@]}"; do
+        ln -s "${F_TMUX_PLUGIN_ROOT}/${p}" "${home}/.tmux/plugins/${p}"
+    done
+    # tmux-continuum's documented halt file: the boot script's restore is
+    # the path under test, not continuum's racing background auto-restore.
+    touch "${home}/tmux_no_auto_restore"
+    # Pane shells: only the real recorder module, a fixed prompt.
+    # shellcheck disable=SC2016  # written for the pane shells
+    printf '%s\n' 'HISTFILE="${HOME}/.bash_history"' "PS1='F\$ '" \
+        '. "${HOME}/bin/helper/tmux_last_cmd.bash"' > "${home}/.bashrc"
+    printf '. "${HOME}/.bashrc"\n' > "${home}/.bash_profile"
+    write_guard "${guardbin}"
+
+    NATIVE_ENV=(HOME="${home}" XDG_STATE_HOME="${state}" XDG_CONFIG_HOME="${home}/.config"
+        TMUX_TMPDIR="${root}/tmuxtmp" PATH="${guardbin}:/usr/bin:/bin" SHELL=/bin/bash
+        TERM=xterm-256color LANG=C.UTF-8 F_ROOT="${root}" F_REAL_TMUX="${F_REAL_TMUX}"
+        "BASH_FUNC_tmux%%=() { \"\${F_ROOT}/guardbin/tmux\" \"\$@\"; }")
+    nt() { env -i "${NATIVE_ENV[@]}" "${guardbin}/tmux" -S "${NATIVE_SOCKET}" "$@"; }
+    inventory() {
+        nt list-windows -a -F '#{session_name}:#{window_index} #{window_name} #{window_layout}'
+        nt list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_width}x#{pane_height} #{pane_current_path}'
+    }
+    last_line() { nt capture-pane -p -t "$1" | sed '/^[[:space:]]*$/d' | tail -n 1; }
+    prompt_ready() { [[ "$(last_line "$1")" == 'F$' ]]; }
+    has_last() { [[ -s "${state}/tmux/panes/$1.last" ]]; }
+    server_gone() { ! kill -0 "$1" 2>/dev/null; }
+    # Stop only the verified test-owned server on NATIVE_SOCKET.
+    stop_test_server() {
+        local pid
+        pid=$(nt display-message -p '#{pid}') || return 1
+        [[ "$(nt display-message -p '#{socket_path}')" == "${NATIVE_SOCKET}" ]] || return 1
+        nt kill-server
+        wait_until server_gone "${pid}"
+    }
+
+    # Before: two sessions, a split window, distinct cwds; each pane runs a
+    # command that writes its own sentinel, so .last and history are real.
+    nt new-session -d -s f_dev -n editor -c "${home}/project_alpha" || { fail "native: start"; return; }
+    nt new-window -d -t f_dev -n term -c "${home}/project beta"
+    nt split-window -d -h -t f_dev:term -c "${home}/project beta"
+    nt new-session -d -s f_ops -n monitor -c "${home}"
+    local panes pane cmd
+    mapfile -t panes < <(nt list-panes -a -F '#{session_name}:#{window_index}.#{pane_index}')
+    for pane in "${panes[@]}"; do
+        wait_until prompt_ready "${pane}" || { fail "native: no prompt in ${pane}"; return; }
+        nt send-keys -t "${pane}" -l -- "printf EXECUTED > ${root}/sentinel.${pane}"
+        nt send-keys -t "${pane}" Enter
+        wait_until has_last "${pane}" || { fail "native: ${pane} .last not recorded"; return; }
+    done
+    local before
+    before=$(inventory)
+    info "before: $(tr '\n' ';' <<<"${before}")"
+    nt run-shell "${home}/.tmux/plugins/tmux-resurrect/scripts/save.sh"
+    assert_eq "0" "$?" "native: resurrect save.sh via run-shell"
+    if [[ -e "${state}/tmux/resurrect/last" ]]; then
+        pass "native: snapshot written under synthetic XDG_STATE_HOME"
+    else
+        fail "native: no snapshot"; return
+    fi
+    rm -f "${root}"/sentinel.*
+    stop_test_server || { fail "native: could not stop the verified test server"; return; }
+    pass "native: verified test-owned server stopped"
+
+    # No-server branch: the real boot script, PATH reset inside, restore.
+    env -i "${NATIVE_ENV[@]}" bash "${home}/bin/tmux_boot.bash" > "${root}/boot.out" 2>&1
+    assert_eq 0 "$?" "native: boot (no server) exit 0"
+    for pane in "${panes[@]}"; do
+        cmd="printf EXECUTED > ${root}/sentinel.${pane}"
+        # shellcheck disable=SC2317  # called through wait_until
+        prefilled() { [[ "$(last_line "$1")" == "F\$ $2" ]]; }
+        if wait_until prefilled "${pane}" "${cmd}"; then
+            pass "native: ${pane} prefilled with its last command"
+        else
+            fail "native: ${pane} last line [$(last_line "${pane}")]"
+        fi
+        assert_file_absent "${root}/sentinel.${pane}" "native: ${pane} prefill not executed"
+        assert_mode 600 "${state}/tmux/panes/${pane}.bash_history" "native: ${pane} history file kept, mode 0600"
+        if grep -qF "${cmd}" "${state}/tmux/panes/${pane}.bash_history" 2>/dev/null; then
+            pass "native: ${pane} history contains its command"
+        else
+            fail "native: ${pane} history lost"
+        fi
+    done
+    assert_eq "${before}" "$(inventory)" "native: sessions/windows/layout/geometry/cwd restored"
+    assert_eq "" "$(nt list-sessions -F '#{session_name}' | grep '^_tmux_boot_')" \
+        "native: bootstrap session dropped after a successful restore"
+    nt send-keys -t "${panes[0]}" Enter
+    sentinel_written() { [[ -e "${root}/sentinel.${panes[0]}" ]]; }
+    if wait_until sentinel_written; then
+        pass "native: prefilled command runs only after explicit Enter"
+    else
+        fail "native: positive control Enter did not run the command"
+    fi
+
+    # Existing-server branch: no change to the session inventory.
+    local sessions_before
+    sessions_before=$(nt list-sessions -F '#{session_name}')
+    env -i "${NATIVE_ENV[@]}" bash "${home}/bin/tmux_boot.bash" > "${root}/boot2.out" 2>&1
+    assert_eq "0:${sessions_before}" "$?:$(nt list-sessions -F '#{session_name}')" \
+        "native: boot with a running server is a no-op"
+    nt kill-session -t f_ops 2>/dev/null
+    assert_eq "${sessions_before}" "$(nt list-sessions -F '#{session_name}')" \
+        "native: interactive kill-session still requires confirmation"
+
+    # Restore-empty branch: no snapshot, bootstrap keeps the server alive.
+    stop_test_server || { fail "native: could not stop the verified test server"; return; }
+    mv "${state}/tmux/resurrect" "${state}/tmux/resurrect.off"
+    env -i "${NATIVE_ENV[@]}" bash "${home}/bin/tmux_boot.bash" > "${root}/boot3.out" 2>&1
+    assert_eq "0:_tmux_boot_" "$?:$(nt list-sessions -F '#{session_name}' | sed 's/[0-9]*$//')" \
+        "native: boot with no snapshot keeps only the bootstrap session"
+    stop_test_server || fail "native: final stop of the test server"
+
+    if [[ -e "${root}/denied.log" ]]; then
+        fail "native: guard refused calls: $(head -n 3 "${root}/denied.log")"
+    else
+        pass "native: every guarded tmux call stayed on the private socket ($(wc -l < "${root}/calls.log") calls)"
+    fi
+}
+native_tests
+
+echo
+echo "failures=${failures} gaps=${gaps}"
+[[ "${failures}" == 0 ]]
