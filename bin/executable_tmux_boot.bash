@@ -37,6 +37,9 @@ BOOT_SESSION="_tmux_boot_$$"
 
 # Drop the bootstrap only if resurrect brought real sessions back;
 # otherwise keep it so the server stays alive for a fresh attach.
+# `kill-ses` (unique prefix), not `kill-session`: tmux.conf aliases
+# kill-session to an interactive confirm-before, which rejects the
+# extra `-t` argument, so the bootstrap session would silently leak.
 if [[ $("${TMUX_BIN}" list-sessions 2>/dev/null | wc -l) -gt 1 ]]; then
-    "${TMUX_BIN}" kill-session -t "${BOOT_SESSION}" 2>/dev/null || true
+    "${TMUX_BIN}" kill-ses -t "${BOOT_SESSION}" 2>/dev/null || true
 fi
