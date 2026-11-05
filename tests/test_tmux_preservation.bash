@@ -219,10 +219,9 @@ run_prefill() {
     RUN_STATUS=$?
 }
 
-# write_last <bytes as printf format>: the recorder file for ${PANE}.
+# write_last <text with printf %b escapes>: the recorder file for ${PANE}.
 write_last() {
-    # shellcheck disable=SC2059  # the argument is the intended format
-    printf "$1" > "${CASE_HOME}/.local/state/tmux/panes/${PANE}.last"
+    printf '%b' "$1" > "${CASE_HOME}/.local/state/tmux/panes/${PANE}.last"
 }
 
 delivered_file() { printf '%s/delivered.%s' "${CASE_STATE}" "${PANE}"; }
@@ -352,7 +351,10 @@ fi
 echo "== prefill: send-keys argv and delivered bytes (fake tmux) =="
 # Accepted text, shell punctuation, quoted paths and Unicode go out as one
 # literal argument, without the recorder's trailing line separator.
-ACCEPTED_TEXT='printf "%s\n" "a b" | grep -E '"'"'x|y'"'"' > "/tmp/dir with space/ö" && echo $HOME; ls ~ # ✓'
+ACCEPTED_TEXT=$(cat <<'TEXT'
+printf "%s\n" "a b" | grep -E 'x|y' > "/tmp/dir with space/ö" && echo $HOME; ls ~ # ✓
+TEXT
+)
 new_case
 printf '%s\n' "${ACCEPTED_TEXT}" > "${CASE_HOME}/.local/state/tmux/panes/${PANE}.last"
 run_prefill "${PREFILL}"
@@ -441,8 +443,8 @@ run_hook() {
     chmod +x "${CASE_HOME}/bin/tmux_prefill_last_cmd.bash"
     write_last 'echo hooked\n'
     case_env
-    # shellcheck disable=SC2016  # expanded by the inner bash, like restore.sh
-    env -i "${CASE_ENV[@]}" bash -c 'eval "$1 "' _ "${hook}" > /dev/null 2> "${CASE}/stderr"
+    # \${1} is expanded by the inner bash, like restore.sh.
+    env -i "${CASE_ENV[@]}" bash -c "eval \"\${1} \"" _ "${hook}" > /dev/null 2> "${CASE}/stderr"
     RUN_STATUS=$?
 }
 run_hook "${REPO_ROOT}/${CONF_PATH}"
@@ -480,8 +482,8 @@ run_boot() {
     RUN_STATUS=$?
 }
 boot_sessions() { tr '\n' ' ' < "${CASE_STATE}/sessions" 2>/dev/null | sed 's/_tmux_boot_[0-9]*/_tmux_boot_PID/g'; }
-# shellcheck disable=SC2016  # expanded by the fixture, not here
-RESTORE_REAL='"${F_FAKE_TMUX}" new-session -d -s restored'
+# \${F_FAKE_TMUX} is expanded by the fixture, not here.
+RESTORE_REAL="\"\${F_FAKE_TMUX}\" new-session -d -s restored"
 
 BOOT="${REPO_ROOT}/${BOOT_PATH}"
 new_case
@@ -524,10 +526,10 @@ recorder_state="${CASE_HOME}/.local/state/tmux/panes"
 rm -rf "${recorder_state}"
 case_env
 # Real Bash sourcing the real recorder; umask 022 so modes come from the code.
-# shellcheck disable=SC2016  # expanded by the inner bash
+# \$ marks what the inner bash expands.
 env -i "${CASE_ENV[@]}" TMUX=/fake,1,0 TMUX_PANE=%7 F_PANE_POSITION=rec:0.0 \
-    bash --noprofile --norc -c 'umask 022; HISTFILE=$HOME/.bash_history; set -o history
-        history -s "echo REC_TOKEN"; source "$1"; _tmux_log_last_cmd' _ \
+    bash --noprofile --norc -c "umask 022; HISTFILE=\${HOME}/.bash_history; set -o history
+        history -s 'echo REC_TOKEN'; source \"\${1}\"; _tmux_log_last_cmd" _ \
     "${REPO_ROOT}/${RECORDER_PATH}" 2> "${CASE}/stderr"
 assert_mode 700 "${recorder_state}" "recorder: panes dir mode 0700"
 assert_mode 600 "${recorder_state}/rec:0.0.last" "recorder: .last mode 0600"
@@ -569,7 +571,7 @@ if [[ "${RUN_STATUS}" == 0 && ! -e "${RS}/d:0.0.bash_history" && ! -e "${RS}/d:0
     && -e "${RS}/.owner.%2" ]]; then
     pass "release: exited pane files removed, live pane files kept"
 else
-    fail "release: exited pane: status=${RUN_STATUS} files=$(ls -A "${RS}" | tr '\n' ' ')"
+    fail "release: exited pane: status=${RUN_STATUS} files=$(find "${RS}" -mindepth 1 -printf '%f ')"
 fi
 assert_file_absent "${RS}/.owner.%3" "release: stale claim of a killed pane dropped"
 release_case
@@ -623,12 +625,16 @@ for line in open(path, encoding="utf-8"):
 sys.stdout.write("".join(out))
 PY
 }
+LINUX_PASTE_BIND=$(cat <<'BIND'
+bind C-v run "tmux set-buffer \"$(xclip -o -sel clipboard)\"; tmux paste-buffer"
+BIND
+)
 new_case
 if command -v python3 >/dev/null 2>&1; then
     linux_conf=$(render_conf linux) && darwin_conf=$(render_conf darwin)
     if [[ -n "${linux_conf}" && -n "${darwin_conf}" ]]; then
         if grep -q 'copy-pipe-and-cancel "xclip -i -sel clipboard"' <<<"${linux_conf}" \
-            && grep -q 'bind C-v run "tmux set-buffer \\"$(xclip -o -sel clipboard)\\"; tmux paste-buffer"' <<<"${linux_conf}" \
+            && grep -qxF "${LINUX_PASTE_BIND}" <<<"${linux_conf}" \
             && ! grep -q 'pbcopy' <<<"${linux_conf}"; then
             pass "clipboard (Linux render): xclip copy/paste, no pbcopy"
         else
@@ -748,10 +754,14 @@ native_tests() {
     # the path under test, not continuum's racing background auto-restore.
     touch "${home}/tmux_no_auto_restore"
     # Pane shells: only the real recorder module, a fixed prompt.
-    # shellcheck disable=SC2016  # written for the pane shells
-    printf '%s\n' 'HISTFILE="${HOME}/.bash_history"' "PS1='F\$ '" \
-        '. "${HOME}/bin/helper/tmux_last_cmd.bash"' > "${home}/.bashrc"
-    printf '. "${HOME}/.bashrc"\n' > "${home}/.bash_profile"
+    cat > "${home}/.bashrc" <<'RC'
+HISTFILE="${HOME}/.bash_history"
+PS1='F$ '
+. "${HOME}/bin/helper/tmux_last_cmd.bash"
+RC
+    cat > "${home}/.bash_profile" <<'RC'
+. "${HOME}/.bashrc"
+RC
     write_guard "${guardbin}"
 
     NATIVE_ENV=(HOME="${home}" XDG_STATE_HOME="${state}" XDG_CONFIG_HOME="${home}/.config"
@@ -809,7 +819,6 @@ native_tests() {
     assert_eq 0 "$?" "native: boot (no server) exit 0"
     for pane in "${panes[@]}"; do
         cmd="printf EXECUTED > ${root}/sentinel.${pane}"
-        # shellcheck disable=SC2317  # called through wait_until
         prefilled() { [[ "$(last_line "$1")" == "F\$ $2" ]]; }
         if wait_until prefilled "${pane}" "${cmd}"; then
             pass "native: ${pane} prefilled with its last command"
