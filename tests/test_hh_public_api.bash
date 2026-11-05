@@ -187,16 +187,57 @@ collect() {
     printf '%s\n' "${RUN_OUT}" | sed "s|${home}|<HOME>|g" > "${dest}/out"
 }
 
-# pipeline_order <file>: the file with the hh_gpg_decrypt pipeline's two
-# gpg calls in a fixed order. Both stages start together, so which one logs
-# first is scheduling, not behaviour; every other line keeps its position.
+# The exercised helpers' pipelines whose two stages are both logging fakes,
+# as "<first stage argv line><Tab><second stage argv line>": hh_gpg_decrypt
+# (gpg --decrypt | tee | gpg --verify) and hh_i3_save_chezmoi_ws
+# (i3-msg -t get_workspaces | jq). Both stages start together, so which one
+# logs first is scheduling, not behaviour.
+PIPELINE_STAGES=$'gpg [--decrypt] [in.asc]\tgpg [--verify]
+i3-msg [-t] [get_workspaces]\tjq [[.[].num] | sort | unique[]]'
+
+# pipeline_order <file>: the file with each adjacent pair of a known
+# pipeline's stages in stage order. Only exact adjacent stage pairs move;
+# every other line keeps its position and every line is kept.
 pipeline_order() {
-    awk '$0 == "gpg [--verify]" { held = $0; next }
-        held != "" && /^gpg \[--decrypt\] / { print; print held; held = ""; next }
+    F_STAGES="${PIPELINE_STAGES}" awk '
+        BEGIN {
+            n = split(ENVIRON["F_STAGES"], pairs, "\n")
+            for (i = 1; i <= n; i++) {
+                split(pairs[i], stage, "\t")
+                first_of[stage[2]] = stage[1]
+            }
+        }
+        held != "" && $0 == first_of[held] { print; print held; held = ""; next }
         held != "" { print held; held = "" }
+        $0 in first_of { held = $0; next }
         { print }
         END { if (held != "") print held }' "$1"
 }
+
+# Controls for pipeline_order: a swapped stage pair is normalised; a swap of
+# unrelated lines, a lost or duplicated stage, or a stage pair split by
+# another call still differs.
+order_case() {
+    local label="$1" expect="$2" a="$3" b="$4" actual
+    if cmp -s <(pipeline_order <(printf '%s\n' "${a}")) <(pipeline_order <(printf '%s\n' "${b}")); then
+        actual=same
+    else
+        actual=differs
+    fi
+    assert_eq "${expect}" "${actual}" "pipeline_order control: ${label}"
+}
+STAGE_I3="i3-msg [-t] [get_workspaces]"
+STAGE_JQ="jq [[.[].num] | sort | unique[]]"
+order_case "i3-msg|jq stages swapped" same \
+    $'a\n'"${STAGE_I3}"$'\n'"${STAGE_JQ}"$'\nb' $'a\n'"${STAGE_JQ}"$'\n'"${STAGE_I3}"$'\nb'
+order_case "gpg stages swapped" same \
+    $'gpg [--decrypt] [in.asc]\ngpg [--verify]' $'gpg [--verify]\ngpg [--decrypt] [in.asc]'
+order_case "unrelated calls swapped" differs $'a\n'"${STAGE_I3}"$'\nb' $'b\n'"${STAGE_I3}"$'\na'
+order_case "stage lost" differs "${STAGE_I3}"$'\n'"${STAGE_JQ}" "${STAGE_I3}"
+order_case "stage duplicated" differs "${STAGE_I3}"$'\n'"${STAGE_JQ}" \
+    "${STAGE_JQ}"$'\n'"${STAGE_I3}"$'\n'"${STAGE_JQ}"
+order_case "stage pair split by another call" differs \
+    "${STAGE_I3}"$'\n'"${STAGE_JQ}"$'\nb' "${STAGE_JQ}"$'\nb\n'"${STAGE_I3}"
 
 # kv <dir> <key>: value of key=value in a collected run.
 kv() { sed -n "s|^$2=||p" "$1/out" | head -n 1; }
@@ -244,6 +285,14 @@ opts="$(kv "${BASH_RES}" opts_sshfs)"
 [[ "${opts}" == *e* && "${opts}" == *u* ]] && pass "bash: hh_sshfsctl sets errexit/nounset in caller" \
     || fail "bash: hh_sshfsctl caller options: ${opts}"
 argv_api="$(cat "${BASH_RES}/argv_api.log")"
+# The pipeline stage table must name lines the helpers really log, or
+# pipeline_order would silently stop normalising them.
+while IFS=$'\t' read -r stage_first stage_second; do
+    for stage in "${stage_first}" "${stage_second}"; do
+        assert_eq 1 "$(grep -cxF -- "${stage}" "${BASH_RES}/argv_api.log")" \
+            "bash: pipeline stage logged exactly once: ${stage}"
+    done
+done <<< "${PIPELINE_STAGES}"
 assert_contains "${argv_api}" "rsync [-aH] [--info=progress2] [--dry-run] [-e] [ssh -c aes128-gcm@openssh.com -p 2222] [src dir/] [bob@alpha:/dst path/]" \
     "bash: hh_rsync_ssh keeps spaced argument boundaries"
 assert_contains "${argv_api}" "rsync [-aH] [--info=progress2] [-z] [-e] [ssh -c aes128-gcm@openssh.com -p 22] [] [beta:*.log]" \
