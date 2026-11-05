@@ -315,7 +315,14 @@ the prefill checks read `capture-pane -J` (long commands wrap at the pane width)
 before/after inventory drops only each `window_layout`'s checksum and pane IDs (tmux gives
 restored panes fresh `%N` IDs; the bootstrap session takes `%0`). Sizes, offsets, split
 orientation, active flags, names and working directories are still compared, with negative
-controls. Real save/restore stays unproven until a native run passes.
+controls. The fourth run left two test-side failures, also fixed in the test only. tmux 3.8
+prints `window_layout` as JSON (`{"V":2,...}`), which the legacy-only normaliser compared raw:
+for JSON layouts it now replaces only each `"I":"%N"` pane ID value (pane index `i` and every
+other field are compared verbatim), with the same negative controls for both formats. The
+Zsh moved-pane fixture started `zsh -f` and sourced the logger with `precmd_functions` unset,
+so the module's guard registered no hook; the fixture now sets the array first, as
+`dot_zshrc` does, and a probe plus a negative control check the hook is really registered.
+Real save/restore stays unproven until a native run passes.
 
 The agent runner has no systemd user manager, no container daemon and no user namespaces,
 so these lifecycle checks stay open acceptance items until the owner either runs them or grants
