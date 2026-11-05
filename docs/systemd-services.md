@@ -309,8 +309,13 @@ parent. The next one started the server but found no `.last` for `f_dev:1.0`: th
 Zsh `_tmux_log_last_cmd` loggers resolved `#S:#I.#P` without a target, i.e. for the client's
 active pane, so a command run in an inactive pane was recorded under another pane's position.
 Both loggers now resolve the calling pane with `-t "$TMUX_PANE"` and skip when `TMUX_PANE` is
-missing, not a `%<n>` pane ID, or unknown to tmux. Real save/restore stays unproven until a
-native run passes.
+missing, not a `%<n>` pane ID, or unknown to tmux. The third run reached the end of the real
+save, stop, boot and restore; its 6 failures were in the test's own assumptions, now fixed:
+the prefill checks read `capture-pane -J` (long commands wrap at the pane width), and the
+before/after inventory drops only each `window_layout`'s checksum and pane IDs (tmux gives
+restored panes fresh `%N` IDs; the bootstrap session takes `%0`). Sizes, offsets, split
+orientation, active flags, names and working directories are still compared, with negative
+controls. Real save/restore stays unproven until a native run passes.
 
 The agent runner has no systemd user manager, no container daemon and no user namespaces,
 so these lifecycle checks stay open acceptance items until the owner either runs them or grants

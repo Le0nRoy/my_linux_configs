@@ -604,14 +604,18 @@ declare -A LOGGER_REC=([bash]="history -s" [zsh]="print -s --")
 # logger_case <shell> <source file> <TMUX_PANE or UNSET> <body>: real shell
 # sources the logger module; `rec <cmd>` adds <cmd> to its history. Every
 # map position starts with a sentinel .last. Sets LS (state dir).
-logger_case() {
-    local shell="$1" src="$2" pane_id="$3" body="$4" pos pane_env=()
+logger_setup() {
+    local pos
     new_case
     LS="${CASE_HOME}/.local/state/tmux/panes"
     printf '%s\n' "${LOGGER_MAP}" > "${CASE_STATE}/pane_map"
     for pos in $(awk '{ print $2 }' "${CASE_STATE}/pane_map" | sort -u); do
         printf '%s\n' "${LOGGER_SENTINEL}" > "${LS}/${pos}.last"
     done
+}
+logger_case() {
+    local shell="$1" src="$2" pane_id="$3" body="$4" pane_env=()
+    logger_setup
     [[ "${pane_id}" == UNSET ]] || pane_env=(TMUX_PANE="${pane_id}")
     case_env
     local script="umask 022; HISTFILE=\${HOME}/.hist; rec() { ${LOGGER_REC[${shell}]} \"\$1\"; }
@@ -623,6 +627,36 @@ logger_case() {
         env -i "${CASE_ENV[@]}" TMUX=/fake,1,0 "${pane_env[@]}" F_ACTIVE_POSITION="${LOGGER_ACTIVE}" \
             zsh -f -i -c "${script}" _ "${src}" 2> "${CASE}/stderr" < /dev/null
     fi
+    RUN_STATUS=$?
+}
+# logger_pty_case <shell> <source file> <TMUX_PANE> <command...>: like
+# logger_case, but a real interactive shell on a PTY sources the logger and
+# runs each command as typed input, so the logger fires from the shell's
+# own prompt hook (PROMPT_COMMAND / precmd) once per command, not from a
+# scripted call after synthetic history seeding.
+logger_pty_case() {
+    local shell="$1" src="$2" pane_id="$3" prompt cmd steps
+    shift 3
+    logger_setup
+    steps="${CASE}/steps.logger"
+    case "${shell}" in
+        bash) prompt='\$ $' ;;
+        zsh) prompt='% $' ;;
+    esac
+    {
+        printf 'wait %s\n' "${prompt}"
+        for cmd in ". '${src}'" "$@" exit; do
+            printf 'send %s\\r\n' "${cmd}"
+            [[ "${cmd}" == exit ]] || printf 'wait %s\n' "${prompt}"
+        done
+        printf 'eof\n'
+    } > "${steps}"
+    local sh_cmd=(bash --noprofile --norc -i)
+    [[ "${shell}" == zsh ]] && sh_cmd=(zsh -f -i)
+    case_env
+    env -i "${CASE_ENV[@]}" TERM=xterm TMUX=/fake,1,0 TMUX_PANE="${pane_id}" \
+        F_ACTIVE_POSITION="${LOGGER_ACTIVE}" timeout 60 python3 "${PTY_DRIVER}" "${steps}" \
+        "${CASE}/transcript.logger" -- "${sh_cmd[@]}" 2> "${CASE}/pty.err"
     RUN_STATUS=$?
 }
 last_of() { cat "${LS}/$1.last" 2>/dev/null; }
@@ -660,14 +694,20 @@ for sh in "${LOGGER_SHELLS[@]}"; do
         "${RUN_STATUS}|$(last_of f_ops:0.0)|$(changed_lasts)" \
         "${sh} logger: pane in another session writes that session's .last"
 
-    logger_case "${sh}" "${src}" %3 "rec 'echo BEFORE_MOVE'; _tmux_log_last_cmd
-        printf '%%3 f_ops:2.1\\n' >> \"\${F_STATE}/pane_map\"
-        sed -i '/^%3 f_dev:1.1\$/d' \"\${F_STATE}/pane_map\"
-        rec 'echo AFTER_MOVE'; _tmux_log_last_cmd"
-    assert_eq "0|echo BEFORE_MOVE|echo AFTER_MOVE|f_dev:1.1.last f_ops:2.1.last" \
-        "${RUN_STATUS}|$(last_of f_dev:1.1)|$(last_of f_ops:2.1)|$(changed_lasts)" \
-        "${sh} logger: after a pane move the next command goes to the new position"
-    assert_mode 600 "${LS}/f_ops:2.1.last" "${sh} logger: new .last mode 0600"
+    # Pane move between two prompts: the shell's own prompt hook logs each
+    # typed command. The move command itself is logged at the new position
+    # and then overwritten by AFTER_MOVE.
+    printf '%s\n' "sed -i 's/^%3 f_dev:1.1\$/%3 f_ops:2.1/' \"\${F_STATE}/pane_map\"" \
+        > "${TMP_ROOT}/move_pane.sh"
+    if [[ -z "${PTY_SHELLS[*]}" ]]; then
+        gap "${sh} logger: pane-move case needs python3 for the PTY driver"
+    else
+        logger_pty_case "${sh}" "${src}" %3 "echo BEFORE_MOVE" "sh '${TMP_ROOT}/move_pane.sh'" "echo AFTER_MOVE"
+        assert_eq "0|echo BEFORE_MOVE|echo AFTER_MOVE|f_dev:1.1.last f_ops:2.1.last" \
+            "${RUN_STATUS}|$(last_of f_dev:1.1)|$(last_of f_ops:2.1)|$(changed_lasts)" \
+            "${sh} logger: after a pane move (interactive prompts) the next command goes to the new position"
+        assert_mode 600 "${LS}/f_ops:2.1.last" "${sh} logger: new .last mode 0600"
+    fi
 
     for bad in UNSET "" %99 f_ops 3 "%3x"; do
         logger_case "${sh}" "${src}" "${bad}" "rec 'echo SHOULD_SKIP'; _tmux_log_last_cmd"
@@ -683,6 +723,11 @@ if pre_fix_file "${RECORDER_PATH}" "${PRE_FIX_RECORDER}"; then
     logger_case bash "${PRE_FIX_RECORDER}" %3 "rec 'echo FROM_INACTIVE'; _tmux_log_last_cmd"
     assert_eq "f_dev:0.0.last" "$(changed_lasts)" \
         "pre-fix reproduces: inactive pane's command lands in the active pane's .last"
+    if [[ -n "${PTY_SHELLS[*]}" ]]; then
+        logger_pty_case bash "${PRE_FIX_RECORDER}" %3 "echo BEFORE_MOVE" "sh '${TMP_ROOT}/move_pane.sh'" "echo AFTER_MOVE"
+        assert_eq "0|echo AFTER_MOVE|f_dev:0.0.last" "${RUN_STATUS}|$(last_of f_dev:0.0)|$(changed_lasts)" \
+            "pre-fix reproduces (interactive prompts): the moved pane's commands land in the active pane's .last"
+    fi
 fi
 
 RELEASE="${REPO_ROOT}/${RELEASE_PATH}"
@@ -973,6 +1018,39 @@ else
     pass "native socket: refuses a symlinked socket parent"
 fi
 
+echo "== native inventory comparison (layout normalisation) =="
+# normalize_inventory: inventory() output with each window_layout's
+# checksum and leaf pane IDs replaced. tmux allocates fresh %N IDs on
+# restore (the bootstrap session takes %0), which also changes the
+# checksum; cell sizes, offsets, nesting and split orientation ({} side by
+# side, [] stacked) are kept, as are every other field and line order.
+normalize_inventory() {
+    sed -E '/^W /{
+        s/^(W [^ ]+ [01] )[0-9a-f]{4},/\1/
+        s/([0-9]+x[0-9]+,[0-9]+,[0-9]+),[0-9]+/\1,ID/g
+    }'
+}
+# inventory_case <label> <same|differs> <after>: compare with INV_BEFORE.
+inventory_case() {
+    local actual=differs
+    [[ "$(normalize_inventory <<<"${INV_BEFORE}")" == "$(normalize_inventory <<<"$3")" ]] && actual=same
+    assert_eq "$2" "${actual}" "inventory normalisation: $1"
+}
+INV_BEFORE=$'W f_dev:1 1 b2a1,80x24,0,0{40x24,0,0,1,39x24,41,0,2} term
+P f_dev:1.0 1 40x24 /h/project beta
+P f_dev:1.1 0 39x24 /h/project beta'
+inventory_case "new pane IDs and checksum only" same \
+    $'W f_dev:1 1 3c4f,80x24,0,0{40x24,0,0,2,39x24,41,0,3} term\n'"${INV_BEFORE#*$'\n'}"
+inventory_case "changed pane size" differs \
+    $'W f_dev:1 1 b2a1,80x24,0,0{41x24,0,0,1,38x24,42,0,2} term\n'"${INV_BEFORE#*$'\n'}"
+inventory_case "changed split orientation" differs \
+    $'W f_dev:1 1 b2a1,80x24,0,0[80x12,0,0,1,80x11,0,13,2] term\n'"${INV_BEFORE#*$'\n'}"
+inventory_case "changed window active flag" differs "${INV_BEFORE/W f_dev:1 1/W f_dev:1 0}"
+inventory_case "changed pane active flag" differs "${INV_BEFORE/P f_dev:1.0 1/P f_dev:1.0 0}"
+inventory_case "changed pane cwd" differs "${INV_BEFORE/1.1 0 39x24 \/h\/project beta/1.1 0 39x24 /h}"
+inventory_case "changed window name" differs "${INV_BEFORE/ term/ shell}"
+inventory_case "lost pane" differs "${INV_BEFORE%$'\n'*}"
+
 echo "== native tmux + real plugins (private socket) =="
 # wait_until <command...>: poll every 0.1s up to NATIVE_TIMEOUT_TENTHS.
 wait_until() {
@@ -1106,10 +1184,12 @@ RC
         "BASH_FUNC_tmux%%=() { \"\${F_ROOT}/guardbin/tmux\" \"\$@\"; }")
     NATIVE_GUARD="${guardbin}/tmux"
     inventory() {
-        nt list-windows -a -F '#{session_name}:#{window_index} #{window_name} #{window_layout}'
-        nt list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_width}x#{pane_height} #{pane_current_path}'
+        nt list-windows -a -F 'W #{session_name}:#{window_index} #{window_active} #{window_layout} #{window_name}'
+        nt list-panes -a -F 'P #{session_name}:#{window_index}.#{pane_index} #{pane_active} #{pane_width}x#{pane_height} #{pane_current_path}'
     }
-    last_line() { nt capture-pane -p -t "$1" | sed '/^[[:space:]]*$/d' | tail -n 1; }
+    # Last logical line: -J joins lines the pane width wrapped (a long
+    # prefilled command spans several rows); -J keeps trailing spaces.
+    last_line() { nt capture-pane -p -J -t "$1" | sed 's/[[:space:]]*$//; /^$/d' | tail -n 1; }
     prompt_ready() { [[ "$(last_line "$1")" == 'F$' ]]; }
     has_last() { [[ -s "${state}/tmux/panes/$1.last" ]]; }
     prefilled() { [[ "$(last_line "$1")" == "F\$ $2" ]]; }
@@ -1165,7 +1245,8 @@ RC
             fail "native: ${pane} history lost"
         fi
     done
-    assert_eq "${before}" "$(inventory)" "native: sessions/windows/layout/geometry/cwd restored"
+    assert_eq "$(normalize_inventory <<<"${before}")" "$(inventory | normalize_inventory)" \
+        "native: sessions/windows/layout/geometry/active/cwd restored"
     assert_eq "" "$(nt list-sessions -F '#{session_name}' | grep '^_tmux_boot_')" \
         "native: bootstrap session dropped after a successful restore"
     if grep -q 'tmux-resurrect/scripts/restore.sh' "${root}/calls.log"; then
