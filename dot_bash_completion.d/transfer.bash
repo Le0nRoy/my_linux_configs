@@ -1,4 +1,4 @@
-# Bash completion for transfer functions: rsync_ssh, cp_ssh, rm_ssh
+# Bash completion for transfer functions: hh_rsync_ssh, hh_cp_ssh, hh_rm_ssh
 
 # ---------------------------------------------------------------------------
 # Internal: populate an array with SSH host entries from ~/.ssh/config.
@@ -40,7 +40,7 @@ _ssh_config_hosts() {
 }
 
 # ---------------------------------------------------------------------------
-# Bash completion for rsync_ssh / cp_ssh
+# Bash completion for hh_rsync_ssh / hh_cp_ssh
 # ---------------------------------------------------------------------------
 
 _rsync_ssh_complete() {
@@ -79,11 +79,11 @@ _rsync_ssh_complete() {
     fi
 }
 
-complete -F _rsync_ssh_complete rsync_ssh
-complete -F _rsync_ssh_complete cp_ssh
+complete -F _rsync_ssh_complete hh_rsync_ssh
+complete -F _rsync_ssh_complete hh_cp_ssh
 
 # ---------------------------------------------------------------------------
-# Bash completion for rm_ssh
+# Bash completion for hh_rm_ssh
 # ---------------------------------------------------------------------------
 
 _rm_ssh_complete() {
@@ -120,4 +120,4 @@ _rm_ssh_complete() {
     # Subsequent positionals are remote paths — no completion without SSH round-trip
 }
 
-complete -F _rm_ssh_complete rm_ssh
+complete -F _rm_ssh_complete hh_rm_ssh

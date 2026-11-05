@@ -1,6 +1,5 @@
 [Default Applications]
 x-scheme-handler/tg=org.telegram.desktop.desktop
-x-scheme-handler/postman=Postman.desktop
 x-scheme-handler/http=firefox.desktop
 x-scheme-handler/https=firefox.desktop
 x-scheme-handler/chrome=firefox.desktop

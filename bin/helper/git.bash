@@ -2,7 +2,7 @@
 # Helper Git Module - Git repository utilities
 # No dependencies
 
-function git_cleanout() {
+function hh_git_cleanout() {
     # Clean and prune git repository
     # Removes merged branches, fetches updates, and performs garbage collection
     git gc

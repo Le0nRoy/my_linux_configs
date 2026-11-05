@@ -1,13 +1,13 @@
 #!/bin/bash
 # Helper Storage Module - Mount and unmount operations
-# Depends on: common.bash (for JOB_* variables)
+# No dependencies
 
-function sshfsctl() {
+function hh_sshfsctl() {
     # Control SSHFS mounts via systemd
-    # Usage: sshfsctl [-h] [-r user@host] <start|stop|status|journal> <remote_path> <local_path>
+    # Usage: hh_sshfsctl [-h] [-r user@host] <start|stop|status|journal> <remote_path> <local_path>
     set -euo pipefail
 
-    local usage="Usage: sshfsctl [-h] [-r user@host] <start|stop|status|journal> <remote_path> <local_path>
+    local usage="Usage: hh_sshfsctl [-h] [-r user@host] <start|stop|status|journal> <remote_path> <local_path>
 Options:
   -h          Show this help message
   -r ADDRESS  Remote host in format user@host (default: caveman@192.168.3.31)"
@@ -66,7 +66,7 @@ Options:
     esac
 }
 
-function gio_mount() {
+function hh_gio_mount() {
     # Mount phone/device via GIO and change to mount point
     local phone_path
     phone_path="$(gio mount -li | grep activation_root | awk 'sub("^.*=", "")')"
@@ -78,7 +78,7 @@ function gio_mount() {
     cd "${mount_point}" || exit 1
 }
 
-function gio_umount() {
+function hh_gio_umount() {
     # Unmount phone/device via GIO
     local phone_path
     phone_path="$(gio mount -li | grep activation_root | awk 'sub("^.*=", "")')"
@@ -90,21 +90,4 @@ function gio_umount() {
         fi
         gio mount -u "${phone_path}"
     fi
-}
-
-function job_mount() {
-    # Mount encrypted job directory using fscrypt
-    if [[ ! -f "${JOB_SETUP_FILE}" ]]; then
-        fscrypt unlock "${JOB_MOUNT_DIR}"
-#        source "${JOB_SETUP_FILE}"
-#        "${JOB_SETUP_FILE}" start
-    else
-        echo "${JOB_MOUNT_DIR} is already mounted"
-    fi
-}
-
-function job_umount() {
-    # Unmount and lock encrypted job directory
-#    source "${JOB_TEARDOWN_FILE}"
-    fscrypt lock "${JOB_MOUNT_DIR}"
 }

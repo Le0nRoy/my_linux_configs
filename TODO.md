@@ -135,11 +135,11 @@ Split monolithic helper.bash into 7 focused modules while maintaining backward c
 
 ---
 
-### 8. Automate upgrade_system Function
+### 8. Automate hh_upgrade_system Function
 
 **Status**: Not started
 **Priority**: Low
-**Description**: Enhance and automate the `upgrade_system` function in helper.bash
+**Description**: Enhance and automate the `hh_upgrade_system` function (bin/helper/utils.bash)
 
 **Goals**:
 - Clean package cache automatically
@@ -292,7 +292,6 @@ audio_profile.bash status            # Show current routing
 #### 13.3 Information Collection Use Cases
 - Collect system state to improve dotfiles scripts:
   - `xrandr` screen management
-  - Proton game launcher configuration
   - Hardware sensors reading
   - NVIDIA GPU info retrieval
   - System installation reproduction script

@@ -201,7 +201,7 @@ set -g @resurrect-processes '"~watch" "~journalctl -f"'
 # Save each pane's command from /proc/<pid>/cmdline, shell-quoted per
 # argv element (printf %q). The default `ps` strategy joins argv with
 # spaces, so `watch 'a; b'` is saved as `watch a; b` and restore sends
-# that to the shell, which runs only `watch a` (git_watch lost its
+# that to the shell, which runs only `watch a` (hh_git_watch lost its
 # second command). linux_procfs ships with tmux-resurrect; macOS has no
 # /proc, so it keeps the default there.
 set -g @resurrect-save-command-strategy 'linux_procfs'
@@ -210,7 +210,9 @@ set -g @resurrect-save-command-strategy 'linux_procfs'
 set -g @resurrect-dir '{{ env "XDG_STATE_HOME" | default (joinPath .chezmoi.homeDir ".local/state") }}/tmux/resurrect'
 # Post-restore hook: pre-fill each pane with the shell's last-typed
 # command from ~/.local/state/tmux/panes/<sess:win.pane>.last.
-set -g @resurrect-hook-post-restore-all 'run-shell "${HOME}/bin/tmux_prefill_last_cmd.bash"'
+# resurrect's restore.sh runs the value with bash `eval` (not as a tmux
+# command), so it is a plain shell command — `run-shell` is not on PATH.
+set -g @resurrect-hook-post-restore-all '"${HOME}/bin/tmux_prefill_last_cmd.bash"'
 # Release a pane's per-pane shell history file when its shell exits by
 # itself, so a new pane taking that #S:#I.#P does not inherit it. tmux
 # does not fire pane-exited on kill-server or a crash, so resurrect
