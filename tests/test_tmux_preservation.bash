@@ -218,7 +218,25 @@ case "${cmd}" in
         /bin/sh -c "$*"
         ;;
     display-message)
-        printf '%s\n' "${F_PANE_POSITION:-}"
+        while (($#)); do
+            case "$1" in
+                -p) shift ;;
+                -t) target="$2"; shift 2 ;;
+                *) break ;;
+            esac
+        done
+        # No -t: the client's active pane, not necessarily the caller's.
+        # With a pane map, -t resolves like tmux: pane IDs, and session
+        # names to that session's active pane; anything else fails.
+        if [[ -z "${target}" ]]; then
+            printf '%s\n' "${F_ACTIVE_POSITION:-${F_PANE_POSITION:-}}"
+        elif [[ -r "${state}/pane_map" ]]; then
+            position=$(awk -v t="${target}" '$1 == t { print $2 }' "${state}/pane_map")
+            [[ -n "${position}" ]] || { echo "can't find pane: ${target}" >&2; exit 1; }
+            printf '%s\n' "${position}"
+        else
+            printf '%s\n' "${F_PANE_POSITION:-}"
+        fi
         ;;
 esac
 exit 0
@@ -571,6 +589,101 @@ run_prefill "${PREFILL}"
 assert_eq "echo REC_TOKEN" "$(cat "$(delivered_file)" 2>/dev/null)" \
     "recorder output is accepted by the prefill script"
 PANE="f_sess:0.0"
+
+echo "== last-command logger resolves the calling pane (Bash, Zsh) =="
+# Two sessions, three windows; the client's active pane is f_dev:0.0 while
+# the logging shell runs elsewhere. f_ops is a session name tmux would also
+# accept as a target (it resolves to that session's active pane).
+LOGGER_MAP=$'%1 f_dev:0.0\n%2 f_dev:1.0\n%3 f_dev:1.1\n%4 f_ops:0.0\nf_ops f_ops:0.0'
+LOGGER_ACTIVE="f_dev:0.0"
+LOGGER_SENTINEL="SENTINEL_UNTOUCHED"
+declare -A LOGGER_SRC=([bash]="${REPO_ROOT}/${RECORDER_PATH}"
+    [zsh]="${REPO_ROOT}/bin/helper/tmux_last_cmd.zsh")
+declare -A LOGGER_REC=([bash]="history -s" [zsh]="print -s --")
+
+# logger_case <shell> <source file> <TMUX_PANE or UNSET> <body>: real shell
+# sources the logger module; `rec <cmd>` adds <cmd> to its history. Every
+# map position starts with a sentinel .last. Sets LS (state dir).
+logger_case() {
+    local shell="$1" src="$2" pane_id="$3" body="$4" pos pane_env=()
+    new_case
+    LS="${CASE_HOME}/.local/state/tmux/panes"
+    printf '%s\n' "${LOGGER_MAP}" > "${CASE_STATE}/pane_map"
+    for pos in $(awk '{ print $2 }' "${CASE_STATE}/pane_map" | sort -u); do
+        printf '%s\n' "${LOGGER_SENTINEL}" > "${LS}/${pos}.last"
+    done
+    [[ "${pane_id}" == UNSET ]] || pane_env=(TMUX_PANE="${pane_id}")
+    case_env
+    local script="umask 022; HISTFILE=\${HOME}/.hist; rec() { ${LOGGER_REC[${shell}]} \"\$1\"; }
+        source \"\${1}\"; ${body}"
+    if [[ "${shell}" == bash ]]; then
+        env -i "${CASE_ENV[@]}" TMUX=/fake,1,0 "${pane_env[@]}" F_ACTIVE_POSITION="${LOGGER_ACTIVE}" \
+            bash --noprofile --norc -c "set -o history; ${script}" _ "${src}" 2> "${CASE}/stderr"
+    else
+        env -i "${CASE_ENV[@]}" TMUX=/fake,1,0 "${pane_env[@]}" F_ACTIVE_POSITION="${LOGGER_ACTIVE}" \
+            zsh -f -i -c "${script}" _ "${src}" 2> "${CASE}/stderr" < /dev/null
+    fi
+    RUN_STATUS=$?
+}
+last_of() { cat "${LS}/$1.last" 2>/dev/null; }
+# Positions whose .last no longer holds the sentinel, space-separated.
+changed_lasts() {
+    local f out=""
+    for f in "${LS}"/*.last; do
+        [[ "$(cat "${f}")" == "${LOGGER_SENTINEL}" ]] || out+="${f##*/} "
+    done
+    printf '%s' "${out% }"
+}
+
+LOGGER_SHELLS=(bash)
+if command -v zsh >/dev/null 2>&1; then
+    LOGGER_SHELLS+=(zsh)
+else
+    gap "zsh not installed: Zsh last-command logger target resolution not run"
+fi
+for sh in "${LOGGER_SHELLS[@]}"; do
+    src="${LOGGER_SRC[${sh}]}"
+    logger_case "${sh}" "${src}" %3 "rec 'echo FROM_INACTIVE'; _tmux_log_last_cmd"
+    assert_eq "0|echo FROM_INACTIVE|f_dev:1.1.last" \
+        "${RUN_STATUS}|$(last_of f_dev:1.1)|$(changed_lasts)" \
+        "${sh} logger: inactive calling pane writes its own .last only"
+    # argv.log is printf %q: the format's leading # is escaped.
+    if ! grep -qxF -- 'display-message -p \#S:#I.#P ' "${CASE_STATE}/argv.log" \
+        && grep -qxF -- 'display-message -p -t %3 \#S:#I.#P ' "${CASE_STATE}/argv.log"; then
+        pass "${sh} logger: no untargeted lookup, only -t \$TMUX_PANE"
+    else
+        fail "${sh} logger: display-message calls: $(grep display "${CASE_STATE}/argv.log" | tr '\n' ';')"
+    fi
+
+    logger_case "${sh}" "${src}" %4 "rec 'echo OTHER_SESSION'; _tmux_log_last_cmd"
+    assert_eq "0|echo OTHER_SESSION|f_ops:0.0.last" \
+        "${RUN_STATUS}|$(last_of f_ops:0.0)|$(changed_lasts)" \
+        "${sh} logger: pane in another session writes that session's .last"
+
+    logger_case "${sh}" "${src}" %3 "rec 'echo BEFORE_MOVE'; _tmux_log_last_cmd
+        printf '%%3 f_ops:2.1\\n' >> \"\${F_STATE}/pane_map\"
+        sed -i '/^%3 f_dev:1.1\$/d' \"\${F_STATE}/pane_map\"
+        rec 'echo AFTER_MOVE'; _tmux_log_last_cmd"
+    assert_eq "0|echo BEFORE_MOVE|echo AFTER_MOVE|f_dev:1.1.last f_ops:2.1.last" \
+        "${RUN_STATUS}|$(last_of f_dev:1.1)|$(last_of f_ops:2.1)|$(changed_lasts)" \
+        "${sh} logger: after a pane move the next command goes to the new position"
+    assert_mode 600 "${LS}/f_ops:2.1.last" "${sh} logger: new .last mode 0600"
+
+    for bad in UNSET "" %99 f_ops 3 "%3x"; do
+        logger_case "${sh}" "${src}" "${bad}" "rec 'echo SHOULD_SKIP'; _tmux_log_last_cmd"
+        assert_eq "0|" "${RUN_STATUS}|$(changed_lasts)" \
+            "${sh} logger: TMUX_PANE=[${bad}] skipped, no .last written"
+    done
+done
+
+# Pre-fix control: the same probe shows the untargeted lookup writing the
+# active pane's file.
+PRE_FIX_RECORDER="${TMP_ROOT}/recorder.pre_fix.bash"
+if pre_fix_file "${RECORDER_PATH}" "${PRE_FIX_RECORDER}"; then
+    logger_case bash "${PRE_FIX_RECORDER}" %3 "rec 'echo FROM_INACTIVE'; _tmux_log_last_cmd"
+    assert_eq "f_dev:0.0.last" "$(changed_lasts)" \
+        "pre-fix reproduces: inactive pane's command lands in the active pane's .last"
+fi
 
 RELEASE="${REPO_ROOT}/${RELEASE_PATH}"
 # release_case: dead %1 at d:0.0, live %2 at d:0.1, stale claim %3 at d:1.0.
