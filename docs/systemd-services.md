@@ -293,6 +293,23 @@ that as GAP. Real tmux + plugin runs need `tmux` installed and local plugin chec
 F_TMUX_PLUGIN_ROOT=/path/with/tpm,tmux-resurrect,tmux-continuum bash tests/test_tmux_preservation.bash
 ```
 
+Plugin inputs must be clean git checkouts outside the host's runtime plugin dirs
+(`~/.tmux/plugins`, `~/.config/tmux/plugins` are refused), with tpm at `TPM_TAG_SHA` from
+`run_once_install-tpm-plugins.bash`. The suite copies them into its temp tree (never links),
+logs each full SHA, and checks after the run that every source is byte-, mode- and
+mtime-identical. Every tmux call goes through a guard that works out the socket the way tmux
+does (`-S`, then `-L`, then `$TMUX`, then the default label, across option order and clusters)
+and refuses anything outside the temp tree. The guard is first on the server's PATH, so pane
+shells and resurrect's `run-shell` scripts reach it too. A test server is stopped only after it
+reports the test socket and a tmux PID, on the normal path and in the exit trap. The native
+section has not yet run on a host with tmux, so its own logic is unproven until the first
+owner-side run.
+
+The agent runner has no systemd user manager, no container daemon and no user namespaces,
+so these lifecycle checks stay open acceptance items until the owner either runs them or grants
+a disposable systemd sandbox (a VM, or a container with systemd as PID 1, which needs a
+privileged or cgroup-delegated runtime).
+
 Smallest systemd verification option (owner-run, in a **disposable VM or systemd-booted
 container with a throwaway user**, never against the owner's live server):
 
@@ -309,6 +326,12 @@ systemctl --user start tmux.service
 systemctl --user show -p ActiveState,SubState tmux.service
 cat /proc/"$(tmux display-message -p '#{pid}')"/cgroup   # still the login scope
 tmux kill-server                                         # throwaway server only
+# boot with linger / logout (root in the VM, throwaway user only)
+systemctl --user enable tmux.service
+loginctl enable-linger throwaway && reboot               # after boot, without logging in:
+systemctl --machine=throwaway@ --user show -p ActiveState,SubState tmux.service
+loginctl terminate-user throwaway                        # logout: server must survive with linger
+systemctl --machine=throwaway@ --user show -p ActiveState,SubState tmux.service
 ```
 
 ### Owner maintenance transition (manual, owner-confirmed)
