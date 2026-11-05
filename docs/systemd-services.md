@@ -300,10 +300,12 @@ logs each full SHA, and checks after the run that every source is byte-, mode- a
 mtime-identical. Every tmux call goes through a guard that works out the socket the way tmux
 does (`-S`, then `-L`, then `$TMUX`, then the default label, across option order and clusters)
 and refuses anything outside the temp tree. The guard is first on the server's PATH, so pane
-shells and resurrect's `run-shell` scripts reach it too. A test server is stopped only after it
-reports the test socket and a tmux PID, on the normal path and in the exit trap. The native
-section has not yet run on a host with tmux, so its own logic is unproven until the first
-owner-side run.
+shells and resurrect's `run-shell` scripts reach it too. Before the first tmux call the suite
+creates the socket parent `<temp>/tmuxtmp/tmux-UID` itself (0700, owned by the test user, not
+a link): tmux does not create the parents of an explicit `-S` path. A test server is stopped
+only after it reports the test socket and a tmux PID, on the normal path and in the exit trap.
+The first owner-side native run (tmux 3.8) failed at server start on that missing socket
+parent; real save/restore stays unproven until a native run passes.
 
 The agent runner has no systemd user manager, no container daemon and no user namespaces,
 so these lifecycle checks stay open acceptance items until the owner either runs them or grants

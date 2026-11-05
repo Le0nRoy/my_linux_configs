@@ -824,6 +824,42 @@ else
     fail "boot script outside the root: calls=$(cat "${G_ROOT}/calls.log" 2>/dev/null) denied=$(cat "${G_ROOT}/denied.log" 2>/dev/null)"
 fi
 
+# native_socket <tmux tmpdir>: create <tmpdir>/tmux-UID (0700, owned by
+# us, not a link) and print the default socket path inside it. tmux does not
+# create the parents of an explicit -S path, so the first native call failed
+# with "error creating .../tmux-UID/default (No such file or directory)".
+# Refuses a pre-existing parent that is not exactly that.
+native_socket() {
+    local dir
+    dir="$1/tmux-$(id -u)"
+    mkdir -m 700 -- "$1" 2>/dev/null
+    mkdir -m 700 -- "${dir}" 2>/dev/null
+    [[ -d "${dir}" && ! -L "${dir}" && -O "${dir}" ]] || return 1
+    [[ "$(stat -c '%a' -- "${dir}")" == 700 ]] || return 1
+    printf '%s/default\n' "${dir}"
+}
+S_ROOT="${TMP_ROOT}/socketcheck"
+mkdir -p "${S_ROOT}"
+if s_sock=$(native_socket "${S_ROOT}/fresh"); then
+    assert_eq "${S_ROOT}/fresh/tmux-$(id -u)/default" "${s_sock}" "native socket: path under the test tmpdir"
+    assert_mode 700 "${S_ROOT}/fresh/tmux-$(id -u)" "native socket: parent created 0700 before first tmux call"
+else
+    fail "native socket: could not create the private socket parent"
+fi
+mkdir -p "${S_ROOT}/loose/tmux-$(id -u)" && chmod 755 "${S_ROOT}/loose/tmux-$(id -u)"
+if native_socket "${S_ROOT}/loose" > /dev/null; then
+    fail "native socket: accepted a 0755 socket parent"
+else
+    pass "native socket: refuses a pre-existing socket parent that is not 0700"
+fi
+mkdir -p "${S_ROOT}/linked" "${S_ROOT}/elsewhere" && chmod 700 "${S_ROOT}/elsewhere"
+ln -s "${S_ROOT}/elsewhere" "${S_ROOT}/linked/tmux-$(id -u)"
+if native_socket "${S_ROOT}/linked" > /dev/null; then
+    fail "native socket: accepted a symlinked socket parent"
+else
+    pass "native socket: refuses a symlinked socket parent"
+fi
+
 echo "== native tmux + real plugins (private socket) =="
 # wait_until <command...>: poll every 0.1s up to NATIVE_TIMEOUT_TENTHS.
 wait_until() {
@@ -923,7 +959,8 @@ native_tests() {
     state="${home}/.local/state"
     guardbin="${root}/guardbin"
     mkdir -p "${root}"
-    mkdir -m 700 "${root}/tmuxtmp"
+    NATIVE_SOCKET=$(native_socket "${root}/tmuxtmp") || {
+        fail "native: could not create the private socket parent under ${root}/tmuxtmp"; return; }
     mkdir -p "${home}/bin/helper" "${home}/.config/tmux" "${home}/.tmux/plugins" \
         "${home}/project_alpha" "${home}/project beta"
     stage_plugins "${home}/.tmux/plugins" || return
@@ -955,7 +992,6 @@ RC
         GIT_ALLOW_PROTOCOL=file GIT_CONFIG_NOSYSTEM=1
         "BASH_FUNC_tmux%%=() { \"\${F_ROOT}/guardbin/tmux\" \"\$@\"; }")
     NATIVE_GUARD="${guardbin}/tmux"
-    NATIVE_SOCKET="${root}/tmuxtmp/tmux-$(id -u)/default"
     inventory() {
         nt list-windows -a -F '#{session_name}:#{window_index} #{window_name} #{window_layout}'
         nt list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_width}x#{pane_height} #{pane_current_path}'
