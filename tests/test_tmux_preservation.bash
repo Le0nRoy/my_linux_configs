@@ -644,7 +644,7 @@ logger_case() {
 declare -A LOGGER_HOOK_INIT=([bash]="" [zsh]="precmd_functions=()")
 declare -A LOGGER_HOOK_PROBE=(
     [bash]='[[ ${PROMPT_COMMAND-} == *_tmux_log_last_cmd* ]]; echo HOOK_STATE_$(( ! $? ))'
-    [zsh]='echo HOOK_STATE_$(( ${#${(M)precmd_functions:#_tmux_log_last_cmd}} > 0 ))')
+    [zsh]='echo HOOK_STATE_$(( ${precmd_functions[(Ie)_tmux_log_last_cmd]:-0} > 0 ))')
 logger_pty_case() {
     local shell="$1" src="$2" pane_id="$3" prompt cmd steps init
     shift 3
@@ -724,6 +724,18 @@ for sh in "${LOGGER_SHELLS[@]}"; do
             "${sh} logger: after a pane move (interactive prompts) the next command goes to the new position"
         assert_mode 600 "${LS}/f_ops:2.1.last" "${sh} logger: new .last mode 0600"
         if [[ "${sh}" == zsh ]]; then
+            # Probe controls: membership must hold whatever else is
+            # registered beside the logger, and be absent otherwise.
+            for hooks in "_tmux_log_last_cmd|1" \
+                "_tmux_log_last_cmd _tmux_pane_hist_detect _tmux_pane_hist_sync|1" \
+                "_tmux_pane_hist_detect _tmux_log_last_cmd _tmux_pane_hist_sync|1" \
+                "_tmux_pane_hist_detect _tmux_pane_hist_sync|0" "|0" "UNSET|0"; do
+                probe_init="precmd_functions=(${hooks%|*})"
+                [[ "${hooks%|*}" == UNSET ]] && probe_init="unset precmd_functions"
+                assert_eq "HOOK_STATE_${hooks#*|}" \
+                    "$(zsh -f -c "${probe_init}; ${LOGGER_HOOK_PROBE[zsh]}" 2>&1)" \
+                    "zsh hook probe: precmd_functions=[${hooks%|*}]"
+            done
             # Negative control: without the dotfile's array init the same
             # fixture registers no hook; the probe and the untouched
             # sentinels both show it, although the shell still exits 0.

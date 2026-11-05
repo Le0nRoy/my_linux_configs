@@ -322,7 +322,12 @@ other field are compared verbatim), with the same negative controls for both for
 Zsh moved-pane fixture started `zsh -f` and sourced the logger with `precmd_functions` unset,
 so the module's guard registered no hook; the fixture now sets the array first, as
 `dot_zshrc` does, and a probe plus a negative control check the hook is really registered.
-Real save/restore stays unproven until a native run passes.
+The fifth run passed the full plugin save, stop, boot and restore, the joined prefill, layout
+geometry, active flags, working directories and the moved-pane logger. Its one failure was the
+new Zsh probe itself: `${#${(M)precmd_functions:#...}}` reads false once other hooks are
+registered beside the logger. The probe now compares the exact-match index
+`${precmd_functions[(Ie)_tmux_log_last_cmd]}` to 0, with controls for the logger alone, among
+other hooks, absent, and an unset array.
 
 The agent runner has no systemd user manager, no container daemon and no user namespaces,
 so these lifecycle checks stay open acceptance items until the owner either runs them or grants
