@@ -305,7 +305,12 @@ creates the socket parent `<temp>/tmuxtmp/tmux-UID` itself (0700, owned by the t
 a link): tmux does not create the parents of an explicit `-S` path. A test server is stopped
 only after it reports the test socket and a tmux PID, on the normal path and in the exit trap.
 The first owner-side native run (tmux 3.8) failed at server start on that missing socket
-parent; real save/restore stays unproven until a native run passes.
+parent. The next one started the server but found no `.last` for `f_dev:1.0`: the Bash and
+Zsh `_tmux_log_last_cmd` loggers resolved `#S:#I.#P` without a target, i.e. for the client's
+active pane, so a command run in an inactive pane was recorded under another pane's position.
+Both loggers now resolve the calling pane with `-t "$TMUX_PANE"` and skip when `TMUX_PANE` is
+missing, not a `%<n>` pane ID, or unknown to tmux. Real save/restore stays unproven until a
+native run passes.
 
 The agent runner has no systemd user manager, no container daemon and no user namespaces,
 so these lifecycle checks stay open acceptance items until the owner either runs them or grants
