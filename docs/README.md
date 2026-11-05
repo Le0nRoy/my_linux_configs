@@ -26,6 +26,7 @@ Use this directory for:
 | [agent-skill-distribution.md](agent-skill-distribution.md) | Shared agent skills (caveman, ponytail): pipeline, agent matrix, verification |
 | [systemd-services.md](systemd-services.md) | User systemd services reference |
 | [helper_refactor_plan.md](helper_refactor_plan.md) | Helper module design document |
+| [cleanup-orphans-audit.md](cleanup-orphans-audit.md) | #62 cleanup orphan audit: config/executable and function/variable orphan groups, regression evidence, host handoff |
 
 ### Related Documentation (Outside docs/)
 
