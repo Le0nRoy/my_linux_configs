@@ -544,6 +544,33 @@ if (( have_baseline )); then
         mkdir -p "${RENAMED_SRC}/$(dirname "${f}")"
         rename_public "${BASE_SRC}/${f}" > "${RENAMED_SRC}/${f}"
     done
+    # Approved calling-pane target resolution (#61): inside
+    # _tmux_log_last_cmd only, the guard line and the lookup line are
+    # replaced (lookup gains a non-empty check). Applied to the renamed
+    # baseline; each site must match exactly once, everything else in the
+    # function and file is still compared byte for byte.
+    LOG_OLD_GUARD='    [[ -n "${TMUX:-}" ]] || return 0'
+    LOG_OLD_LOOKUP="    id=\$(tmux display-message -p '#S:#I.#P' 2>/dev/null) || return 0"
+    LOG_NEW_LOOKUP="    id=\$(tmux display-message -p -t \"\${TMUX_PANE}\" '#S:#I.#P' 2>/dev/null) || return 0
+    [[ -n \"\${id}\" ]] || return 0"
+    # apply_target_fix <renamed baseline file> <new guard line>
+    apply_target_fix() {
+        local file="$1" sites
+        sites=$(OG="${LOG_OLD_GUARD}" NG="$2" OL="${LOG_OLD_LOOKUP}" NL="${LOG_NEW_LOOKUP}" awk '
+            /^(function[ \t]+)?_tmux_log_last_cmd[ \t]*[(][)]/ { on = 1 }
+            on && $0 == ENVIRON["OG"] { print ENVIRON["NG"]; n++; next }
+            on && $0 == ENVIRON["OL"] { print ENVIRON["NL"]; n++; next }
+            on && /^}$/ { on = 0 }
+            { print }
+            END { print n + 0 > "/dev/stderr" }' "${file}" 2>&1 >"${file}.fixed")
+        mv "${file}.fixed" "${file}"
+        assert_eq 2 "${sites}" "approved logger target-resolution sites applied once each: ${file#"${RENAMED_SRC}"/}"
+    }
+    apply_target_fix "${RENAMED_SRC}/bin/helper/tmux.bash" \
+        '    [[ -n "${TMUX:-}" && "${TMUX_PANE:-}" =~ ^%[0-9]+$ ]] || return 0'
+    apply_target_fix "${RENAMED_SRC}/bin/helper/tmux_last_cmd.zsh" \
+        '    [[ -n "${TMUX:-}" && "${TMUX_PANE:-}" == %<-> ]] || return 0'
+
     unchanged=(dot_xsessionrc dot_bash_completion.d/helper.bash
         dot_bash_completion.d/transfer.bash bin/executable_firefox_rofi.bash
         bin/executable_tmux_pane_hist_release.bash bin/helper/tmux_last_cmd.zsh)

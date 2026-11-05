@@ -8,9 +8,10 @@
 # post-restore hook (bin/tmux_prefill_last_cmd.bash) can re-arm it after
 # a snapshot restore. File mode 0600 — history may contain secrets.
 function _tmux_log_last_cmd() {
-    [[ -n "${TMUX:-}" ]] || return 0
+    [[ -n "${TMUX:-}" && "${TMUX_PANE:-}" =~ ^%[0-9]+$ ]] || return 0
     local id state
-    id=$(tmux display-message -p '#S:#I.#P' 2>/dev/null) || return 0
+    id=$(tmux display-message -p -t "${TMUX_PANE}" '#S:#I.#P' 2>/dev/null) || return 0
+    [[ -n "${id}" ]] || return 0
     state="${XDG_STATE_HOME:-${HOME}/.local/state}/tmux/panes"
     mkdir -p "${state}"
     ( umask 077 && history 1 | sed 's/^ *[0-9]* *//' > "${state}/${id}.last" )

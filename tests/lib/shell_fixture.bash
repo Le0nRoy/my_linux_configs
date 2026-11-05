@@ -26,7 +26,10 @@ make_fakebin() {
 #!/bin/bash
 # Logging stand-in for an external command; never touches the host.
 name="${0##*/}"
-{ printf '%s' "${name}"; printf ' [%s]' "$@"; printf '\n'; } >> "${E1_ARGV_LOG:-/dev/null}"
+# One write per line: pipeline stages log concurrently, and O_APPEND keeps a
+# single small write whole, so lines never interleave.
+argv_line="$(printf '%s' "${name}"; printf ' [%s]' "$@")"
+printf '%s\n' "${argv_line}" >> "${E1_ARGV_LOG:-/dev/null}"
 printf '%s %s\n' "${name}" "$*" >> "${E1_CALL_LOG:-/dev/null}"
 case "${name}" in
     tmux)

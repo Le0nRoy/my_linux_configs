@@ -3,9 +3,10 @@
 # bin/helper.bash). File mode 0600 — history may contain secrets.
 
 _tmux_log_last_cmd() {
-    [[ -n "${TMUX:-}" ]] || return 0
+    [[ -n "${TMUX:-}" && "${TMUX_PANE:-}" == %<-> ]] || return 0
     local id state
-    id=$(tmux display-message -p '#S:#I.#P' 2>/dev/null) || return 0
+    id=$(tmux display-message -p -t "${TMUX_PANE}" '#S:#I.#P' 2>/dev/null) || return 0
+    [[ -n "${id}" ]] || return 0
     state="${XDG_STATE_HOME:-${HOME}/.local/state}/tmux/panes"
     mkdir -p "${state}"
     ( umask 077 && fc -ln -1 > "${state}/${id}.last" )

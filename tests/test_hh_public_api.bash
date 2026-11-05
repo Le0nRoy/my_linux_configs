@@ -104,8 +104,8 @@ API_SCRIPT='
 cd "${HOME}/work" || exit 9
 for n in '"${PUBLIC_FUNCS[*]} ${PUBLIC_ALIASES[*]}"'; do echo "kind_${n}=$(kind "${n}")"; done
 for n in '"${OLD_NAMES[*]}"'; do echo "old_${n}=$(kind "${n}")"; done
-for k in '"${ENV_KEYS[*]}"'; do echo "env_${k}=$(printenv "${k}")"; done
-for a in $(anames); do echo "alias_${a}=$(aval "${a}")"; done
+for k in '"${ENV_KEYS[*]}"'; do printf "%s\n" "env_${k}=$(printenv "${k}")"; done
+for a in $(anames); do printf "%s\n" "alias_${a}=$(aval "${a}")"; done
 export E1_ENV_SENTINEL=keep
 cmd=E1_CALLER_CMD
 opts_before="$-"
@@ -187,6 +187,58 @@ collect() {
     printf '%s\n' "${RUN_OUT}" | sed "s|${home}|<HOME>|g" > "${dest}/out"
 }
 
+# The exercised helpers' pipelines whose two stages are both logging fakes,
+# as "<first stage argv line><Tab><second stage argv line>": hh_gpg_decrypt
+# (gpg --decrypt | tee | gpg --verify) and hh_i3_save_chezmoi_ws
+# (i3-msg -t get_workspaces | jq). Both stages start together, so which one
+# logs first is scheduling, not behaviour.
+PIPELINE_STAGES=$'gpg [--decrypt] [in.asc]\tgpg [--verify]
+i3-msg [-t] [get_workspaces]\tjq [[.[].num] | sort | unique[]]'
+
+# pipeline_order <file>: the file with each adjacent pair of a known
+# pipeline's stages in stage order. Only exact adjacent stage pairs move;
+# every other line keeps its position and every line is kept.
+pipeline_order() {
+    F_STAGES="${PIPELINE_STAGES}" awk '
+        BEGIN {
+            n = split(ENVIRON["F_STAGES"], pairs, "\n")
+            for (i = 1; i <= n; i++) {
+                split(pairs[i], stage, "\t")
+                first_of[stage[2]] = stage[1]
+            }
+        }
+        held != "" && $0 == first_of[held] { print; print held; held = ""; next }
+        held != "" { print held; held = "" }
+        $0 in first_of { held = $0; next }
+        { print }
+        END { if (held != "") print held }' "$1"
+}
+
+# Controls for pipeline_order: a swapped stage pair is normalised; a swap of
+# unrelated lines, a lost or duplicated stage, or a stage pair split by
+# another call still differs.
+order_case() {
+    local label="$1" expect="$2" a="$3" b="$4" actual
+    if cmp -s <(pipeline_order <(printf '%s\n' "${a}")) <(pipeline_order <(printf '%s\n' "${b}")); then
+        actual=same
+    else
+        actual=differs
+    fi
+    assert_eq "${expect}" "${actual}" "pipeline_order control: ${label}"
+}
+STAGE_I3="i3-msg [-t] [get_workspaces]"
+STAGE_JQ="jq [[.[].num] | sort | unique[]]"
+order_case "i3-msg|jq stages swapped" same \
+    $'a\n'"${STAGE_I3}"$'\n'"${STAGE_JQ}"$'\nb' $'a\n'"${STAGE_JQ}"$'\n'"${STAGE_I3}"$'\nb'
+order_case "gpg stages swapped" same \
+    $'gpg [--decrypt] [in.asc]\ngpg [--verify]' $'gpg [--verify]\ngpg [--decrypt] [in.asc]'
+order_case "unrelated calls swapped" differs $'a\n'"${STAGE_I3}"$'\nb' $'b\n'"${STAGE_I3}"$'\na'
+order_case "stage lost" differs "${STAGE_I3}"$'\n'"${STAGE_JQ}" "${STAGE_I3}"
+order_case "stage duplicated" differs "${STAGE_I3}"$'\n'"${STAGE_JQ}" \
+    "${STAGE_JQ}"$'\n'"${STAGE_I3}"$'\n'"${STAGE_JQ}"
+order_case "stage pair split by another call" differs \
+    "${STAGE_I3}"$'\n'"${STAGE_JQ}"$'\nb' "${STAGE_JQ}"$'\nb\n'"${STAGE_I3}"
+
 # kv <dir> <key>: value of key=value in a collected run.
 kv() { sed -n "s|^$2=||p" "$1/out" | head -n 1; }
 
@@ -233,6 +285,14 @@ opts="$(kv "${BASH_RES}" opts_sshfs)"
 [[ "${opts}" == *e* && "${opts}" == *u* ]] && pass "bash: hh_sshfsctl sets errexit/nounset in caller" \
     || fail "bash: hh_sshfsctl caller options: ${opts}"
 argv_api="$(cat "${BASH_RES}/argv_api.log")"
+# The pipeline stage table must name lines the helpers really log, or
+# pipeline_order would silently stop normalising them.
+while IFS=$'\t' read -r stage_first stage_second; do
+    for stage in "${stage_first}" "${stage_second}"; do
+        assert_eq 1 "$(grep -cxF -- "${stage}" "${BASH_RES}/argv_api.log")" \
+            "bash: pipeline stage logged exactly once: ${stage}"
+    done
+done <<< "${PIPELINE_STAGES}"
 assert_contains "${argv_api}" "rsync [-aH] [--info=progress2] [--dry-run] [-e] [ssh -c aes128-gcm@openssh.com -p 2222] [src dir/] [bob@alpha:/dst path/]" \
     "bash: hh_rsync_ssh keeps spaced argument boundaries"
 assert_contains "${argv_api}" "rsync [-aH] [--info=progress2] [-z] [-e] [ssh -c aes128-gcm@openssh.com -p 22] [] [beta:*.log]" \
@@ -288,8 +348,8 @@ if git -C "${REPO_ROOT}" cat-file -e "${BASELINE_REF}^{commit}" 2>/dev/null; the
     deploy_tree "${BASE_SRC}" "${BASE_HOME}"
     prepare_work "${BASE_HOME}"
     run_bash "${BASE_HOME}" "${BASH_PRELUDE}"'
-for k in '"${ENV_KEYS[*]}"'; do echo "env_${k}=$(printenv "${k}")"; done
-for a in $(anames); do echo "alias_${a}=$(aval "${a}")"; done'
+for k in '"${ENV_KEYS[*]}"'; do printf "%s\n" "env_${k}=$(printenv "${k}")"; done
+for a in $(anames); do printf "%s\n" "alias_${a}=$(aval "${a}")"; done'
     collect "${BASE_HOME}" "${TMP_ROOT}/res-base"
     expected_aliases="$( (alias_lines "${TMP_ROOT}/res-base" | sed 's/^alias_cp_ssh=rsync_ssh$/alias_hh_cp_ssh=hh_rsync_ssh/'
         echo "alias_claude_wrapper=${CLAUDE_WRAPPER_ALIAS}") | sort)"
@@ -313,7 +373,7 @@ if command -v zsh >/dev/null 2>&1; then
     collect "${NEW_HOME}" "${ZSH_RES}"
     assert_eq yes "$(kv "${ZSH_RES}" api_done)" "zsh API script ran to completion ($(run_summary "${NEW_HOME}"))"
     for f in "${BASH_RES}/"o_* "${BASH_RES}/argv_api.log"; do
-        if cmp -s "${f}" "${ZSH_RES}/${f##*/}"; then
+        if cmp -s <(pipeline_order "${f}") <(pipeline_order "${ZSH_RES}/${f##*/}"); then
             pass "zsh = bash: ${f##*/}"
         else
             fail "zsh differs from bash: ${f##*/}: $(diff "${f}" "${ZSH_RES}/${f##*/}" | head -n 4 | tr '\n' ' ')"
@@ -427,8 +487,12 @@ check_completion() {
     assert_contains "$(pty_section cipher end)" "aes128-gcm@openssh.com" "${shell}: hh_rsync_ssh -c <Tab> offers ciphers"
     for probe in 'hh_rsync_ssh be|hh_rsync_ssh +beta' 'hh_cp_ssh be|hh_cp_ssh +beta' \
         'hh_rm_ssh be|hh_rm_ssh +beta' 'hh_rsync_ssh e1f|hh_rsync_ssh +e1file\.txt'; do
-        pty_run "${shell}" "${shell}-word" "${READY[@]}" "send ${probe%%|*}" "wait ${probe%%|*}" "tabuntil ${probe#*|}" \
-            "${DONE[@]}" 'send exit\r' 'eof'
+        # One Tab completes the unique word; Ctrl+L then redraws prompt and
+        # line buffer, so the match reads the buffer itself. A Tab response
+        # carries only the inserted suffix and redraws the line only when it
+        # lists candidates (no redraw when nothing is left to complete).
+        pty_run "${shell}" "${shell}-word" "${READY[@]}" "send ${probe%%|*}" "wait ${probe%%|*}" 'tab' \
+            'send \x0c' "wait ${probe#*|}" "${DONE[@]}" 'send exit\r' 'eof'
         if [[ "${PTY_STATUS}" -eq 0 ]]; then
             pass "${shell}: '${probe%%|*}<Tab>' completes (${probe#*|})"
         else
