@@ -14,6 +14,9 @@ Each line of <steps_file> is one step:
                     (at most MAX_TABS times) until <regex> matches. One Tab
                     per read: readline inserts a literal Tab when more input
                     is already queued (paste detection).
+    tab             press Tab once and wait for the shell's response
+                    (output pauses); the response is discarded from the
+                    match buffer, so a later wait sees only newer output
     eof             block until the shell exits
 
 The ANSI-stripped transcript is written to <transcript_file>. Exit status:
@@ -87,6 +90,16 @@ def main(argv):
                 os.write(fd, codecs.decode(arg, "unicode_escape").encode("utf-8"))
             elif verb == "mark":
                 transcript.append(f"\n<<MARK {arg}>>\n")
+            elif verb == "tab":
+                deadline = time.monotonic() + STEP_TIMEOUT_SECONDS
+                os.write(fd, b"\t")
+                chunk = read_available(fd, deadline)
+                while chunk:
+                    transcript.append(strip_ansi(chunk))
+                    chunk = read_available(fd, min(deadline, time.monotonic() + QUIET_SECONDS))
+                if chunk is None:
+                    eof = True
+                pending = ""
             elif verb == "tabuntil":
                 pattern = re.compile(arg)
                 deadline = time.monotonic() + STEP_TIMEOUT_SECONDS

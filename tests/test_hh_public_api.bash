@@ -104,8 +104,8 @@ API_SCRIPT='
 cd "${HOME}/work" || exit 9
 for n in '"${PUBLIC_FUNCS[*]} ${PUBLIC_ALIASES[*]}"'; do echo "kind_${n}=$(kind "${n}")"; done
 for n in '"${OLD_NAMES[*]}"'; do echo "old_${n}=$(kind "${n}")"; done
-for k in '"${ENV_KEYS[*]}"'; do echo "env_${k}=$(printenv "${k}")"; done
-for a in $(anames); do echo "alias_${a}=$(aval "${a}")"; done
+for k in '"${ENV_KEYS[*]}"'; do printf "%s\n" "env_${k}=$(printenv "${k}")"; done
+for a in $(anames); do printf "%s\n" "alias_${a}=$(aval "${a}")"; done
 export E1_ENV_SENTINEL=keep
 cmd=E1_CALLER_CMD
 opts_before="$-"
@@ -185,6 +185,17 @@ collect() {
         sed "s|${home}|<HOME>|g" "${f}" > "${dest}/${f##*/}"
     done
     printf '%s\n' "${RUN_OUT}" | sed "s|${home}|<HOME>|g" > "${dest}/out"
+}
+
+# pipeline_order <file>: the file with the hh_gpg_decrypt pipeline's two
+# gpg calls in a fixed order. Both stages start together, so which one logs
+# first is scheduling, not behaviour; every other line keeps its position.
+pipeline_order() {
+    awk '$0 == "gpg [--verify]" { held = $0; next }
+        held != "" && /^gpg \[--decrypt\] / { print; print held; held = ""; next }
+        held != "" { print held; held = "" }
+        { print }
+        END { if (held != "") print held }' "$1"
 }
 
 # kv <dir> <key>: value of key=value in a collected run.
@@ -288,8 +299,8 @@ if git -C "${REPO_ROOT}" cat-file -e "${BASELINE_REF}^{commit}" 2>/dev/null; the
     deploy_tree "${BASE_SRC}" "${BASE_HOME}"
     prepare_work "${BASE_HOME}"
     run_bash "${BASE_HOME}" "${BASH_PRELUDE}"'
-for k in '"${ENV_KEYS[*]}"'; do echo "env_${k}=$(printenv "${k}")"; done
-for a in $(anames); do echo "alias_${a}=$(aval "${a}")"; done'
+for k in '"${ENV_KEYS[*]}"'; do printf "%s\n" "env_${k}=$(printenv "${k}")"; done
+for a in $(anames); do printf "%s\n" "alias_${a}=$(aval "${a}")"; done'
     collect "${BASE_HOME}" "${TMP_ROOT}/res-base"
     expected_aliases="$( (alias_lines "${TMP_ROOT}/res-base" | sed 's/^alias_cp_ssh=rsync_ssh$/alias_hh_cp_ssh=hh_rsync_ssh/'
         echo "alias_claude_wrapper=${CLAUDE_WRAPPER_ALIAS}") | sort)"
@@ -313,7 +324,7 @@ if command -v zsh >/dev/null 2>&1; then
     collect "${NEW_HOME}" "${ZSH_RES}"
     assert_eq yes "$(kv "${ZSH_RES}" api_done)" "zsh API script ran to completion ($(run_summary "${NEW_HOME}"))"
     for f in "${BASH_RES}/"o_* "${BASH_RES}/argv_api.log"; do
-        if cmp -s "${f}" "${ZSH_RES}/${f##*/}"; then
+        if cmp -s <(pipeline_order "${f}") <(pipeline_order "${ZSH_RES}/${f##*/}"); then
             pass "zsh = bash: ${f##*/}"
         else
             fail "zsh differs from bash: ${f##*/}: $(diff "${f}" "${ZSH_RES}/${f##*/}" | head -n 4 | tr '\n' ' ')"
@@ -427,8 +438,12 @@ check_completion() {
     assert_contains "$(pty_section cipher end)" "aes128-gcm@openssh.com" "${shell}: hh_rsync_ssh -c <Tab> offers ciphers"
     for probe in 'hh_rsync_ssh be|hh_rsync_ssh +beta' 'hh_cp_ssh be|hh_cp_ssh +beta' \
         'hh_rm_ssh be|hh_rm_ssh +beta' 'hh_rsync_ssh e1f|hh_rsync_ssh +e1file\.txt'; do
-        pty_run "${shell}" "${shell}-word" "${READY[@]}" "send ${probe%%|*}" "wait ${probe%%|*}" "tabuntil ${probe#*|}" \
-            "${DONE[@]}" 'send exit\r' 'eof'
+        # One Tab completes the unique word; Ctrl+L then redraws prompt and
+        # line buffer, so the match reads the buffer itself. A Tab response
+        # carries only the inserted suffix and redraws the line only when it
+        # lists candidates (no redraw when nothing is left to complete).
+        pty_run "${shell}" "${shell}-word" "${READY[@]}" "send ${probe%%|*}" "wait ${probe%%|*}" 'tab' \
+            'send \x0c' "wait ${probe#*|}" "${DONE[@]}" 'send exit\r' 'eof'
         if [[ "${PTY_STATUS}" -eq 0 ]]; then
             pass "${shell}: '${probe%%|*}<Tab>' completes (${probe#*|})"
         else
