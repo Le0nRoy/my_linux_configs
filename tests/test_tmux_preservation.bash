@@ -19,13 +19,21 @@
 # - per-pane history recorder file modes and release ownership rules;
 # - static contracts: systemd unit, enable script, LaunchAgent, clipboard
 #   commands rendered for Linux and (simulated) darwin;
-# - native: real tmux + real tpm/tmux-resurrect/tmux-continuum checkouts on
-#   a private socket under a fresh TMUX_TMPDIR with synthetic HOME/XDG:
-#   save -> kill the verified test-owned server -> boot -> restore. Needs
-#   `tmux` on PATH and F_TMUX_PLUGIN_ROOT=<dir with the three git checkouts>;
-#   nothing is downloaded. Every tmux call goes through a guard that refuses
-#   any socket outside the test root; the owner's default socket is never
-#   listed, probed, attached, killed or restarted.
+# - socket guard: the guard used by the native layer, checked against a
+#   fake real tmux (option ordering/clusters, -S/-L/$TMUX precedence, the
+#   boot script's PATH reset routed through the exported function);
+# - native: real tmux + real tpm/tmux-resurrect/tmux-continuum on a private
+#   socket under a fresh TMUX_TMPDIR with synthetic HOME/XDG:
+#   save -> stop the verified test-owned server -> boot -> restore. Needs
+#   `tmux` on PATH and F_TMUX_PLUGIN_ROOT=<dir with the three clean git
+#   checkouts; tpm at the pin in run_once_install-tpm-plugins.bash>. The
+#   checkouts are copied into the test tree (full SHAs recorded, sources
+#   fingerprinted before and after); the host's runtime plugin dirs are
+#   refused as input; nothing is downloaded. Every tmux call goes through
+#   the guard, which refuses any socket outside the test root; the owner's
+#   default socket is never listed, probed, attached, killed or restarted.
+#   A server is stopped only after it reports the test socket and a tmux
+#   PID, on the normal path and in the exit trap.
 #
 # Not covered here (always reported as GAP): systemd user-manager lifecycle
 # (cgroup ownership, active/dead semantics, linger, logout) — see
@@ -43,6 +51,8 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PRE_FIX_REF="${F_PRE_FIX_REF:-6aacb61ffafc0983ef71e08e706509b999dfac78}"
 TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/f-tmux.XXXXXX")"
+# Symlink-free, as tmux reports socket paths (it resolves TMUX_TMPDIR).
+TMP_ROOT="$(cd "${TMP_ROOT}" && pwd -P)"
 PTY_DRIVER="${REPO_ROOT}/tests/pty_drive.py"
 PREFILL_PATH="bin/executable_tmux_prefill_last_cmd.bash"
 BOOT_PATH="bin/executable_tmux_boot.bash"
@@ -54,9 +64,15 @@ ENABLE_PATH="run_onchange_enable-tmux-service.bash.tmpl"
 PLIST_PATH="Library/LaunchAgents/local.tmux.plist.tmpl"
 PLUGINS=(tpm tmux-resurrect tmux-continuum)
 GUARD_DENY_STATUS=97
+# tmux global options that take a value (getopt "2c:CDdf:lL:NqS:T:uUvV").
+TMUX_VALUE_FLAGS="cfLST"
+TPM_PIN=$(sed -n 's/^TPM_TAG_SHA="\([0-9a-f]\{40\}\)"$/\1/p' "${REPO_ROOT}/run_once_install-tpm-plugins.bash")
 NATIVE_TIMEOUT_TENTHS=150
 PANE="f_sess:0.0"
 NATIVE_SOCKET=""
+NATIVE_GUARD=""
+NATIVE_ENV=()
+PLUGIN_SOURCES=()
 
 failures=0
 gaps=0
@@ -66,14 +82,25 @@ fail() { printf 'FAIL: %s\n' "$1"; failures=$((failures + 1)); }
 gap() { printf 'GAP: %s\n' "$1"; gaps=$((gaps + 1)); }
 info() { printf 'INFO: %s\n' "$1"; }
 
-# Stop only the private test server (socket inside TMP_ROOT), then clean up.
+# Exit trap, also reached from every early return and on INT/TERM/HUP:
+# stop the private test server only after it proves its identity
+# (stop_native_server); if that fails, keep the tree for inspection.
 cleanup() {
-    if [[ -n "${NATIVE_SOCKET}" && "${NATIVE_SOCKET}" == "${TMP_ROOT}/"* && -S "${NATIVE_SOCKET}" ]]; then
-        "${F_REAL_TMUX}" -S "${NATIVE_SOCKET}" kill-server 2>/dev/null || true
+    local status=$? stop_status=0
+    if [[ -S "${NATIVE_SOCKET}" ]]; then
+        stop_native_server
+        stop_status=$?
+    fi
+    if ((stop_status == 1)); then
+        printf 'FAIL: cleanup: test tmux server on %s not verified/stopped; %s kept\n' \
+            "${NATIVE_SOCKET}" "${TMP_ROOT}"
+        exit 1
     fi
     rm -rf "${TMP_ROOT}"
+    exit "${status}"
 }
 trap cleanup EXIT
+trap 'exit 130' INT TERM HUP
 
 assert_eq() {
     local expected="$1" actual="$2" label="$3"
@@ -679,33 +706,125 @@ else
 fi
 gap "systemd user-manager lifecycle (cgroup ownership, active/dead state, linger, logout) not exercised: needs a service-manager sandbox (docs/systemd-services.md)"
 
-echo "== native tmux + real plugins (private socket) =="
-# The guard every native tmux call goes through: refuse sockets outside the
-# test root (and -L), log the rest, then run the real tmux.
+echo "== tmux socket guard (fake real tmux, no server) =="
+# The guard every native tmux call goes through. It works out the socket the
+# real tmux would use the way tmux does: the last -S wins, else the last -L
+# label under ${TMUX_TMPDIR:-/tmp}/tmux-UID, else $TMUX, else the "default"
+# label. Global options are parsed with tmux's getopt value flags, so
+# clusters (-uS path, -Spath) and options before -S/-L (-f conf, -2) count;
+# arguments after the command name do not. A socket outside the test root
+# is refused. Allowed calls are logged with the calling process, and the real
+# tmux runs with the guard first on PATH: the server and everything it
+# spawns (pane shells, run-shell children such as the resurrect scripts,
+# even under a /bin/sh that drops exported Bash functions) resolve `tmux`
+# to the guard as well.
 write_guard() {
     mkdir -p "$1"
     cat > "$1/tmux" <<GUARD
 #!/bin/bash
-if [[ "\${1:-}" == -S ]]; then
-    sock="\$2"
-elif [[ "\${1:-}" == -L* ]]; then
-    sock="label:\$1"
-elif [[ -n "\${TMUX:-}" ]]; then
+sock="" label=""
+args=("\$@")
+i=0
+while ((i < \${#args[@]})); do
+    arg="\${args[i]}"
+    [[ "\${arg}" == -- || "\${arg}" != -?* ]] && break
+    for ((j = 1; j < \${#arg}; j++)); do
+        flag="\${arg:j:1}"
+        [[ "${TMUX_VALUE_FLAGS}" == *"\${flag}"* ]] || continue
+        value="\${arg:j+1}"
+        if [[ -z "\${value}" ]]; then
+            i=\$((i + 1))
+            value="\${args[i]:-}"
+        fi
+        [[ "\${flag}" == S ]] && sock="\${value}"
+        [[ "\${flag}" == L ]] && label="\${value}"
+        break
+    done
+    i=\$((i + 1))
+done
+if [[ -z "\${sock}" && -z "\${label}" && -n "\${TMUX:-}" ]]; then
     sock="\${TMUX%%,*}"
-else
-    sock="\${TMUX_TMPDIR:-/tmp}/tmux-\$(id -u)/default"
 fi
-if [[ "\${sock}" != "\${F_ROOT:?}/"* ]]; then
+[[ -n "\${sock}" ]] || sock="\${TMUX_TMPDIR:-/tmp}/tmux-\$(id -u)/\${label:-default}"
+sock=\$(realpath -m -- "\${sock}")
+if [[ "\${sock}" != "\$(realpath -m -- "\${F_ROOT:?}")/"* ]]; then
     printf '%s %s\n' "\${sock}" "\$*" >> "\${F_ROOT}/denied.log"
     echo "f-guard: refused tmux socket outside the test root" >&2
     exit ${GUARD_DENY_STATUS}
 fi
-printf '%s %s\n' "\${sock}" "\$*" >> "\${F_ROOT}/calls.log"
+caller=\$(tr '\\0' ' ' < "/proc/\${PPID}/cmdline" 2>/dev/null || ps -o args= -p "\${PPID}" 2>/dev/null)
+printf '%s %s <- %s\n' "\${sock}" "\$*" "\${caller}" >> "\${F_ROOT}/calls.log"
+export PATH="\${0%/*}:\${PATH}"
 exec "\${F_REAL_TMUX:?}" "\$@"
 GUARD
     chmod +x "$1/tmux"
 }
 
+G_ROOT="${TMP_ROOT}/guardcheck"
+G_IN="${G_ROOT}/tmuxtmp/sock"
+G_OUT="${TMP_ROOT}/outside/sock"
+write_guard "${G_ROOT}/guardbin"
+cat > "${G_ROOT}/real-tmux" <<'REAL'
+#!/bin/bash
+printf 'RAN %s\n' "${PATH}"
+REAL
+chmod +x "${G_ROOT}/real-tmux"
+# guard_case <allow|deny> <label> [VAR=value...] -- <tmux args...>
+guard_case() {
+    local expect="$1" label="$2" status ran
+    shift 2
+    local vars=()
+    while [[ "$1" != -- ]]; do vars+=("$1"); shift; done
+    shift
+    env -i PATH=/usr/bin:/bin F_ROOT="${G_ROOT}" F_REAL_TMUX="${G_ROOT}/real-tmux" "${vars[@]}" \
+        "${G_ROOT}/guardbin/tmux" "$@" > "${G_ROOT}/out" 2> /dev/null
+    status=$?
+    ran=$(cat "${G_ROOT}/out")
+    if [[ "${expect}" == allow ]]; then
+        assert_eq "0:RAN ${G_ROOT}/guardbin:/usr/bin:/bin" "${status}:${ran}" \
+            "guard allows ${label} (real tmux runs with the guard first on PATH)"
+    else
+        assert_eq "${GUARD_DENY_STATUS}:" "${status}:${ran}" "guard refuses ${label}"
+    fi
+}
+guard_case allow "-S inside the root" -- -S "${G_IN}" list-sessions
+guard_case deny "-S outside the root" -- -S "${G_OUT}" list-sessions
+# G_TMP: the default socket would be allowed, so only the parsed -S refuses.
+G_TMP="TMUX_TMPDIR=${G_ROOT}/tmuxtmp"
+guard_case deny "-S outside after -f/-2 global options" "${G_TMP}" -- -f /dev/null -2 -S "${G_OUT}" list-sessions
+guard_case deny "clustered -uS outside" "${G_TMP}" -- -uS "${G_OUT}" list-sessions
+guard_case deny "attached -S<path> outside" "${G_TMP}" -- "-S${G_OUT}" list-sessions
+guard_case deny "last -S outside (inside given first)" "${G_TMP}" -- -S "${G_IN}" -S "${G_OUT}" list-sessions
+guard_case allow "last -S inside (outside given first)" -- -S "${G_OUT}" -S "${G_IN}" list-sessions
+guard_case deny "-S path leaving the root through .." "${G_TMP}" -- -S "${G_ROOT}/../outside/sock" list-sessions
+guard_case allow "-L label under the test TMUX_TMPDIR" TMUX_TMPDIR="${G_ROOT}/tmuxtmp" -- -L lab list-sessions
+guard_case deny "-L label under an outside TMUX_TMPDIR" TMUX_TMPDIR="${TMP_ROOT}/outside" -- -L lab list-sessions
+guard_case allow "-S over -L" TMUX_TMPDIR="${TMP_ROOT}/outside" -- -L lab -S "${G_IN}" list-sessions
+guard_case deny "-L over \$TMUX" TMUX="${G_IN},1,0" TMUX_TMPDIR="${TMP_ROOT}/outside" -- -L lab list-sessions
+guard_case deny "\$TMUX outside without socket options" TMUX="${G_OUT},1,0" TMUX_TMPDIR="${G_ROOT}/tmuxtmp" -- list-sessions
+guard_case allow "\$TMUX inside without socket options" TMUX="${G_IN},1,0" -- list-sessions
+guard_case deny "the default socket without TMUX_TMPDIR" -- list-sessions
+guard_case allow "the default socket under the test TMUX_TMPDIR" TMUX_TMPDIR="${G_ROOT}/tmuxtmp" -- list-sessions
+guard_case deny "-S after the command name (a command argument, not the socket)" -- list-sessions -S "${G_IN}"
+# The real boot script resets PATH; its tmux still reaches the guard through
+# the exported function, and the guard decides on the boot environment.
+boot_through_guard() {
+    rm -f "${G_ROOT}/calls.log" "${G_ROOT}/denied.log"
+    env -i HOME="${G_ROOT}" PATH=/usr/bin:/bin F_ROOT="${G_ROOT}" F_REAL_TMUX="${G_ROOT}/real-tmux" "$@" \
+        "BASH_FUNC_tmux%%=() { \"\${F_ROOT}/guardbin/tmux\" \"\$@\"; }" \
+        bash "${REPO_ROOT}/${BOOT_PATH}" > /dev/null 2>&1
+}
+boot_through_guard TMUX_TMPDIR="${G_ROOT}/tmuxtmp"
+assert_eq "0:1:absent" "$?:$(wc -l < "${G_ROOT}/calls.log" 2>/dev/null):$([[ -e "${G_ROOT}/denied.log" ]] && echo present || echo absent)" \
+    "boot script (PATH reset) reaches tmux only through the guard: one allowed call"
+boot_through_guard
+if [[ -s "${G_ROOT}/denied.log" && ! -e "${G_ROOT}/calls.log" ]]; then
+    pass "boot script without the test TMUX_TMPDIR: every tmux call refused, none run"
+else
+    fail "boot script outside the root: calls=$(cat "${G_ROOT}/calls.log" 2>/dev/null) denied=$(cat "${G_ROOT}/denied.log" 2>/dev/null)"
+fi
+
+echo "== native tmux + real plugins (private socket) =="
 # wait_until <command...>: poll every 0.1s up to NATIVE_TIMEOUT_TENTHS.
 wait_until() {
     local tries=0
@@ -715,21 +834,89 @@ wait_until() {
     done
 }
 
+# nt <tmux args...>: the guarded real tmux on the private test socket.
+nt() { env -i "${NATIVE_ENV[@]}" "${NATIVE_GUARD}" -S "${NATIVE_SOCKET}" "$@"; }
+server_gone() { ! kill -0 "$1" 2>/dev/null; }
+
+# stop_native_server: stop the server on NATIVE_SOCKET only once it proves
+# to be the test's own: the socket is inside the test root, the server
+# reports that socket path and its PID, and that PID is a tmux process.
+# Then wait for that PID to exit. Status 2: no server answers there.
+stop_native_server() {
+    local reported pid
+    [[ -n "${NATIVE_SOCKET}" && "${NATIVE_SOCKET}" == "${TMP_ROOT}/"* ]] || return 1
+    reported=$(nt display-message -p '#{pid} #{socket_path}' 2>/dev/null) || return 2
+    pid="${reported%% *}"
+    [[ "${pid}" =~ ^[0-9]+$ && "${reported#* }" == "${NATIVE_SOCKET}" ]] || return 1
+    [[ "$(cat "/proc/${pid}/comm" 2>/dev/null || ps -o comm= -p "${pid}" 2>/dev/null)" == *tmux* ]] || return 1
+    nt kill-server || return 1
+    wait_until server_gone "${pid}"
+}
+
+# tree_fingerprint <dir>: hash of every path's type, mode, size, mtime and
+# link target plus every file's bytes.
+tree_fingerprint() {
+    (cd "$1" && find . -printf '%p %y %m %s %T@ %l\n' | LC_ALL=C sort \
+        && find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum) \
+        | sha256sum | cut -d ' ' -f 1
+}
+
+# stage_plugins <dest>: copy the authorised plugin inputs into the test
+# tree. Each source must be a clean git checkout outside the host's runtime
+# plugin dirs (tpm at the pin run_once_install-tpm-plugins.bash enforces).
+# Copies, not links: nothing tpm or the plugins do at runtime can write to
+# the source. Records each source's fingerprint for the after-run check.
+stage_plugins() {
+    local dest="$1" p src sha print link host
+    local host_dirs=("${HOME}/.tmux/plugins" "${XDG_CONFIG_HOME:-${HOME}/.config}/tmux/plugins")
+    for p in "${PLUGINS[@]}"; do
+        if ! src=$(realpath -e -- "${F_TMUX_PLUGIN_ROOT}/${p}" 2>/dev/null); then
+            gap "plugin ${p}: missing under F_TMUX_PLUGIN_ROOT; native run skipped"
+            return 1
+        fi
+        for host in "${host_dirs[@]}"; do
+            if [[ "${src}/" == "$(realpath -m -- "${host}")/"* ]]; then
+                gap "plugin ${p}: ${src} is a host runtime plugin dir, not a test input; native run skipped"
+                return 1
+            fi
+        done
+        print=$(tree_fingerprint "${src}")
+        if ! sha=$(git -C "${src}" rev-parse --verify HEAD 2>/dev/null) || [[ ! "${sha}" =~ ^[0-9a-f]{40}$ ]]; then
+            gap "plugin ${p}: not a git checkout; native run skipped"
+            return 1
+        fi
+        if [[ -n "$(git --no-optional-locks -C "${src}" status --porcelain --ignored --untracked-files=all 2>&1)" ]]; then
+            gap "plugin ${p}: checkout at ${sha} is not clean; native run skipped"
+            return 1
+        fi
+        if [[ "${p}" == tpm && "${sha}" != "${TPM_PIN}" ]]; then
+            gap "plugin tpm: ${sha} is not the pinned ${TPM_PIN}; native run skipped"
+            return 1
+        fi
+        info "plugin ${p} ${sha} (copied from ${src})"
+        PLUGIN_SOURCES+=("${src}|${print}")
+        cp -a -- "${src}" "${dest}/${p}" || { fail "native: copy plugin ${p}"; return 1; }
+        while IFS= read -r -d '' link; do
+            if [[ "$(realpath -m -- "${link}")" != "${dest}/${p}/"* ]]; then
+                gap "plugin ${p}: symlink ${link#"${dest}/"} points outside the copy; native run skipped"
+                return 1
+            fi
+        done < <(find "${dest}/${p}" -type l -print0)
+        if [[ "$(git -C "${dest}/${p}" rev-parse HEAD 2>/dev/null)" != "${sha}" ]]; then
+            fail "native: plugin ${p} copy is not at ${sha}"
+            return 1
+        fi
+    done
+}
+
 native_tests() {
-    local p sha root home state guardbin
+    local root home state guardbin
     F_REAL_TMUX=$(command -v tmux) || { gap "tmux not installed: native save/restore not run"; return; }
     if [[ -z "${F_TMUX_PLUGIN_ROOT:-}" ]]; then
         gap "F_TMUX_PLUGIN_ROOT unset: real tpm/resurrect/continuum save/restore not run"
         return
     fi
     info "$("${F_REAL_TMUX}" -V) at ${F_REAL_TMUX}"
-    for p in "${PLUGINS[@]}"; do
-        if ! sha=$(git -C "${F_TMUX_PLUGIN_ROOT}/${p}" rev-parse HEAD 2>/dev/null); then
-            gap "plugin ${p}: not a git checkout under F_TMUX_PLUGIN_ROOT; native run skipped"
-            return
-        fi
-        info "plugin ${p} ${sha}"
-    done
 
     root="${TMP_ROOT}/native"
     home="${root}/home"
@@ -739,7 +926,7 @@ native_tests() {
     mkdir -m 700 "${root}/tmuxtmp"
     mkdir -p "${home}/bin/helper" "${home}/.config/tmux" "${home}/.tmux/plugins" \
         "${home}/project_alpha" "${home}/project beta"
-    NATIVE_SOCKET="${root}/tmuxtmp/tmux-$(id -u)/default"
+    stage_plugins "${home}/.tmux/plugins" || return
     cp "${REPO_ROOT}/${BOOT_PATH}" "${home}/bin/tmux_boot.bash"
     cp "${PREFILL}" "${home}/bin/tmux_prefill_last_cmd.bash"
     cp "${RELEASE}" "${home}/bin/tmux_pane_hist_release.bash"
@@ -747,9 +934,6 @@ native_tests() {
     cp "${REPO_ROOT}/${RECORDER_PATH}" "${home}/bin/helper/tmux_last_cmd.bash"
     CASE_HOME="${home}" render_conf linux > "${home}/.config/tmux/tmux.conf" || {
         fail "native: config render"; return; }
-    for p in "${PLUGINS[@]}"; do
-        ln -s "${F_TMUX_PLUGIN_ROOT}/${p}" "${home}/.tmux/plugins/${p}"
-    done
     # tmux-continuum's documented halt file: the boot script's restore is
     # the path under test, not continuum's racing background auto-restore.
     touch "${home}/tmux_no_auto_restore"
@@ -764,11 +948,14 @@ RC
 RC
     write_guard "${guardbin}"
 
+    # GIT_ALLOW_PROTOCOL=file: a stray tpm install/update cannot fetch.
     NATIVE_ENV=(HOME="${home}" XDG_STATE_HOME="${state}" XDG_CONFIG_HOME="${home}/.config"
         TMUX_TMPDIR="${root}/tmuxtmp" PATH="${guardbin}:/usr/bin:/bin" SHELL=/bin/bash
         TERM=xterm-256color LANG=C.UTF-8 F_ROOT="${root}" F_REAL_TMUX="${F_REAL_TMUX}"
+        GIT_ALLOW_PROTOCOL=file GIT_CONFIG_NOSYSTEM=1
         "BASH_FUNC_tmux%%=() { \"\${F_ROOT}/guardbin/tmux\" \"\$@\"; }")
-    nt() { env -i "${NATIVE_ENV[@]}" "${guardbin}/tmux" -S "${NATIVE_SOCKET}" "$@"; }
+    NATIVE_GUARD="${guardbin}/tmux"
+    NATIVE_SOCKET="${root}/tmuxtmp/tmux-$(id -u)/default"
     inventory() {
         nt list-windows -a -F '#{session_name}:#{window_index} #{window_name} #{window_layout}'
         nt list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_width}x#{pane_height} #{pane_current_path}'
@@ -776,15 +963,7 @@ RC
     last_line() { nt capture-pane -p -t "$1" | sed '/^[[:space:]]*$/d' | tail -n 1; }
     prompt_ready() { [[ "$(last_line "$1")" == 'F$' ]]; }
     has_last() { [[ -s "${state}/tmux/panes/$1.last" ]]; }
-    server_gone() { ! kill -0 "$1" 2>/dev/null; }
-    # Stop only the verified test-owned server on NATIVE_SOCKET.
-    stop_test_server() {
-        local pid
-        pid=$(nt display-message -p '#{pid}') || return 1
-        [[ "$(nt display-message -p '#{socket_path}')" == "${NATIVE_SOCKET}" ]] || return 1
-        nt kill-server
-        wait_until server_gone "${pid}"
-    }
+    prefilled() { [[ "$(last_line "$1")" == "F\$ $2" ]]; }
 
     # Before: two sessions, a split window, distinct cwds; each pane runs a
     # command that writes its own sentinel, so .last and history are real.
@@ -810,8 +989,13 @@ RC
     else
         fail "native: no snapshot"; return
     fi
+    if grep -q 'tmux-resurrect/scripts/save.sh' "${root}/calls.log"; then
+        pass "native: save.sh's own tmux calls went through the guard"
+    else
+        fail "native: no guarded tmux call from save.sh"
+    fi
     rm -f "${root}"/sentinel.*
-    stop_test_server || { fail "native: could not stop the verified test server"; return; }
+    stop_native_server || { fail "native: could not verify and stop the test server"; return; }
     pass "native: verified test-owned server stopped"
 
     # No-server branch: the real boot script, PATH reset inside, restore.
@@ -819,7 +1003,6 @@ RC
     assert_eq 0 "$?" "native: boot (no server) exit 0"
     for pane in "${panes[@]}"; do
         cmd="printf EXECUTED > ${root}/sentinel.${pane}"
-        prefilled() { [[ "$(last_line "$1")" == "F\$ $2" ]]; }
         if wait_until prefilled "${pane}" "${cmd}"; then
             pass "native: ${pane} prefilled with its last command"
         else
@@ -836,6 +1019,11 @@ RC
     assert_eq "${before}" "$(inventory)" "native: sessions/windows/layout/geometry/cwd restored"
     assert_eq "" "$(nt list-sessions -F '#{session_name}' | grep '^_tmux_boot_')" \
         "native: bootstrap session dropped after a successful restore"
+    if grep -q 'tmux-resurrect/scripts/restore.sh' "${root}/calls.log"; then
+        pass "native: restore.sh's own tmux calls went through the guard"
+    else
+        fail "native: no guarded tmux call from restore.sh"
+    fi
     nt send-keys -t "${panes[0]}" Enter
     sentinel_written() { [[ -e "${root}/sentinel.${panes[0]}" ]]; }
     if wait_until sentinel_written; then
@@ -855,12 +1043,12 @@ RC
         "native: interactive kill-session still requires confirmation"
 
     # Restore-empty branch: no snapshot, bootstrap keeps the server alive.
-    stop_test_server || { fail "native: could not stop the verified test server"; return; }
+    stop_native_server || { fail "native: could not verify and stop the test server"; return; }
     mv "${state}/tmux/resurrect" "${state}/tmux/resurrect.off"
     env -i "${NATIVE_ENV[@]}" bash "${home}/bin/tmux_boot.bash" > "${root}/boot3.out" 2>&1
     assert_eq "0:_tmux_boot_" "$?:$(nt list-sessions -F '#{session_name}' | sed 's/[0-9]*$//')" \
         "native: boot with no snapshot keeps only the bootstrap session"
-    stop_test_server || fail "native: final stop of the test server"
+    stop_native_server || fail "native: final verified stop of the test server"
 
     if [[ -e "${root}/denied.log" ]]; then
         fail "native: guard refused calls: $(head -n 3 "${root}/denied.log")"
@@ -869,6 +1057,12 @@ RC
     fi
 }
 native_tests
+# Runs whatever native_tests returned through: every staged source must be
+# byte-for-byte and metadata-identical to before.
+for entry in "${PLUGIN_SOURCES[@]}"; do
+    assert_eq "${entry##*|}" "$(tree_fingerprint "${entry%|*}")" \
+        "native: plugin source ${entry%|*} unchanged (bytes, modes, mtimes)"
+done
 
 echo
 echo "failures=${failures} gaps=${gaps}"
