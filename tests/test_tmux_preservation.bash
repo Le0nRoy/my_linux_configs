@@ -634,8 +634,19 @@ logger_case() {
 # runs each command as typed input, so the logger fires from the shell's
 # own prompt hook (PROMPT_COMMAND / precmd) once per command, not from a
 # scripted call after synthetic history seeding.
+# Startup order matches dot_zshrc: it sets precmd_functions before it
+# sources the module (zsh -f starts with the array unset, and the module's
+# (ie) guard registers nothing then). LOGGER_PTY_INIT=skip leaves the
+# array unset (negative control). Right after the source a probe prints
+# HOOK_STATE_1 when _tmux_log_last_cmd is a registered prompt hook,
+# HOOK_STATE_0 when not; HOOK_STATE holds the value seen (empty: no probe
+# output).
+declare -A LOGGER_HOOK_INIT=([bash]="" [zsh]="precmd_functions=()")
+declare -A LOGGER_HOOK_PROBE=(
+    [bash]='[[ ${PROMPT_COMMAND-} == *_tmux_log_last_cmd* ]]; echo HOOK_STATE_$(( ! $? ))'
+    [zsh]='echo HOOK_STATE_$(( ${#${(M)precmd_functions:#_tmux_log_last_cmd}} > 0 ))')
 logger_pty_case() {
-    local shell="$1" src="$2" pane_id="$3" prompt cmd steps
+    local shell="$1" src="$2" pane_id="$3" prompt cmd steps init
     shift 3
     logger_setup
     steps="${CASE}/steps.logger"
@@ -643,9 +654,11 @@ logger_pty_case() {
         bash) prompt='\$ $' ;;
         zsh) prompt='% $' ;;
     esac
+    init="${LOGGER_HOOK_INIT[${shell}]}"
+    [[ "${LOGGER_PTY_INIT:-}" == skip ]] && init=""
     {
         printf 'wait %s\n' "${prompt}"
-        for cmd in ". '${src}'" "$@" exit; do
+        for cmd in ${init:+"${init}"} ". '${src}'" "${LOGGER_HOOK_PROBE[${shell}]}" "$@" exit; do
             printf 'send %s\\r\n' "${cmd}"
             [[ "${cmd}" == exit ]] || printf 'wait %s\n' "${prompt}"
         done
@@ -658,6 +671,7 @@ logger_pty_case() {
         F_ACTIVE_POSITION="${LOGGER_ACTIVE}" timeout 60 python3 "${PTY_DRIVER}" "${steps}" \
         "${CASE}/transcript.logger" -- "${sh_cmd[@]}" 2> "${CASE}/pty.err"
     RUN_STATUS=$?
+    HOOK_STATE=$(sed -n 's/^HOOK_STATE_\([01]\)$/\1/p' "${CASE}/transcript.logger" 2>/dev/null)
 }
 last_of() { cat "${LS}/$1.last" 2>/dev/null; }
 # Positions whose .last no longer holds the sentinel, space-separated.
@@ -703,10 +717,20 @@ for sh in "${LOGGER_SHELLS[@]}"; do
         gap "${sh} logger: pane-move case needs python3 for the PTY driver"
     else
         logger_pty_case "${sh}" "${src}" %3 "echo BEFORE_MOVE" "sh '${TMP_ROOT}/move_pane.sh'" "echo AFTER_MOVE"
+        assert_eq "0|1" "${RUN_STATUS}|${HOOK_STATE}" \
+            "${sh} logger fixture: the interactive shell registered _tmux_log_last_cmd as a prompt hook"
         assert_eq "0|echo BEFORE_MOVE|echo AFTER_MOVE|f_dev:1.1.last f_ops:2.1.last" \
             "${RUN_STATUS}|$(last_of f_dev:1.1)|$(last_of f_ops:2.1)|$(changed_lasts)" \
             "${sh} logger: after a pane move (interactive prompts) the next command goes to the new position"
         assert_mode 600 "${LS}/f_ops:2.1.last" "${sh} logger: new .last mode 0600"
+        if [[ "${sh}" == zsh ]]; then
+            # Negative control: without the dotfile's array init the same
+            # fixture registers no hook; the probe and the untouched
+            # sentinels both show it, although the shell still exits 0.
+            LOGGER_PTY_INIT=skip logger_pty_case zsh "${src}" %3 "echo BEFORE_MOVE"
+            assert_eq "0|0|" "${RUN_STATUS}|${HOOK_STATE}|$(changed_lasts)" \
+                "zsh logger fixture control: unset precmd_functions -> no hook, no .last written"
+        fi
     fi
 
     for bad in UNSET "" %99 f_ops 3 "%3x"; do
@@ -725,7 +749,8 @@ if pre_fix_file "${RECORDER_PATH}" "${PRE_FIX_RECORDER}"; then
         "pre-fix reproduces: inactive pane's command lands in the active pane's .last"
     if [[ -n "${PTY_SHELLS[*]}" ]]; then
         logger_pty_case bash "${PRE_FIX_RECORDER}" %3 "echo BEFORE_MOVE" "sh '${TMP_ROOT}/move_pane.sh'" "echo AFTER_MOVE"
-        assert_eq "0|echo AFTER_MOVE|f_dev:0.0.last" "${RUN_STATUS}|$(last_of f_dev:0.0)|$(changed_lasts)" \
+        assert_eq "0|1|echo AFTER_MOVE|f_dev:0.0.last" \
+            "${RUN_STATUS}|${HOOK_STATE}|$(last_of f_dev:0.0)|$(changed_lasts)" \
             "pre-fix reproduces (interactive prompts): the moved pane's commands land in the active pane's .last"
     fi
 fi
@@ -1019,37 +1044,78 @@ else
 fi
 
 echo "== native inventory comparison (layout normalisation) =="
-# normalize_inventory: inventory() output with each window_layout's
-# checksum and leaf pane IDs replaced. tmux allocates fresh %N IDs on
-# restore (the bootstrap session takes %0), which also changes the
-# checksum; cell sizes, offsets, nesting and split orientation ({} side by
-# side, [] stacked) are kept, as are every other field and line order.
+# normalize_inventory: inventory() output with only the ephemeral parts of
+# each window_layout replaced. tmux allocates fresh %N IDs on restore (the
+# bootstrap session takes %0). Two layout formats:
+# - legacy string "csum,WxH,X,Y{...}": the 4-hex checksum (it covers the
+#   IDs) and each leaf's trailing pane ID;
+# - JSON v2 ({"V":2,...}, tmux 3.8): only each "I":"%N" pane ID value; it
+#   has no checksum.
+# Everything else is kept: pane index "i", cell sizes, offsets, nesting,
+# split orientation, active flags, every other field and line order.
 normalize_inventory() {
-    sed -E '/^W /{
+    sed -E '/^W [^ ]+ [01] \{[[:space:]]*"V"[[:space:]]*:/{
+        s/("I"[[:space:]]*:[[:space:]]*)"%[0-9]+"/\1"ID"/g
+        b
+    }
+    /^W /{
         s/^(W [^ ]+ [01] )[0-9a-f]{4},/\1/
         s/([0-9]+x[0-9]+,[0-9]+,[0-9]+),[0-9]+/\1,ID/g
     }'
 }
-# inventory_case <label> <same|differs> <after>: compare with INV_BEFORE.
+# inventory_case <label> <same|differs> <before> <after>
 inventory_case() {
     local actual=differs
-    [[ "$(normalize_inventory <<<"${INV_BEFORE}")" == "$(normalize_inventory <<<"$3")" ]] && actual=same
+    [[ "$(normalize_inventory <<<"$3")" == "$(normalize_inventory <<<"$4")" ]] && actual=same
     assert_eq "$2" "${actual}" "inventory normalisation: $1"
 }
-INV_BEFORE=$'W f_dev:1 1 b2a1,80x24,0,0{40x24,0,0,1,39x24,41,0,2} term
-P f_dev:1.0 1 40x24 /h/project beta
+INV_PANES='P f_dev:1.0 1 40x24 /h/project beta
 P f_dev:1.1 0 39x24 /h/project beta'
-inventory_case "new pane IDs and checksum only" same \
-    $'W f_dev:1 1 3c4f,80x24,0,0{40x24,0,0,2,39x24,41,0,3} term\n'"${INV_BEFORE#*$'\n'}"
-inventory_case "changed pane size" differs \
-    $'W f_dev:1 1 b2a1,80x24,0,0{41x24,0,0,1,38x24,42,0,2} term\n'"${INV_BEFORE#*$'\n'}"
-inventory_case "changed split orientation" differs \
-    $'W f_dev:1 1 b2a1,80x24,0,0[80x12,0,0,1,80x11,0,13,2] term\n'"${INV_BEFORE#*$'\n'}"
-inventory_case "changed window active flag" differs "${INV_BEFORE/W f_dev:1 1/W f_dev:1 0}"
-inventory_case "changed pane active flag" differs "${INV_BEFORE/P f_dev:1.0 1/P f_dev:1.0 0}"
-inventory_case "changed pane cwd" differs "${INV_BEFORE/1.1 0 39x24 \/h\/project beta/1.1 0 39x24 /h}"
-inventory_case "changed window name" differs "${INV_BEFORE/ term/ shell}"
-inventory_case "lost pane" differs "${INV_BEFORE%$'\n'*}"
+INV_DUP_PANE="${INV_PANES}"$'\n''P f_dev:1.1 0 39x24 /h/project beta'
+# inventory_controls <format> <window line before> <after: new IDs only>
+#   <after: pane size> <after: split orientation> <after: duplicated leaf>
+#   <after: lost leaf>
+inventory_controls() {
+    local fmt="$1" before="$2"$'\n'"${INV_PANES}"
+    inventory_case "${fmt}: new pane IDs only" same "${before}" "$3"$'\n'"${INV_PANES}"
+    inventory_case "${fmt}: changed pane size" differs "${before}" "$4"$'\n'"${INV_PANES}"
+    inventory_case "${fmt}: changed split orientation" differs "${before}" "$5"$'\n'"${INV_PANES}"
+    inventory_case "${fmt}: duplicated layout leaf" differs "${before}" "$6"$'\n'"${INV_PANES}"
+    inventory_case "${fmt}: lost layout leaf" differs "${before}" "$7"$'\n'"${INV_PANES}"
+    inventory_case "${fmt}: changed window active flag" differs "${before}" "${before/W f_dev:1 1/W f_dev:1 0}"
+    inventory_case "${fmt}: changed pane active flag" differs "${before}" "${before/P f_dev:1.0 1/P f_dev:1.0 0}"
+    inventory_case "${fmt}: changed pane cwd" differs "${before}" "${before/1.1 0 39x24 \/h\/project beta/1.1 0 39x24 /h}"
+    inventory_case "${fmt}: changed window name" differs "${before}" "${before/ term$'\n'/ shell$'\n'}"
+    inventory_case "${fmt}: duplicated pane" differs "${before}" "$2"$'\n'"${INV_DUP_PANE}"
+    inventory_case "${fmt}: lost pane" differs "${before}" "${before%$'\n'*}"
+}
+inventory_controls legacy \
+    'W f_dev:1 1 b2a1,80x24,0,0{40x24,0,0,1,39x24,41,0,2} term' \
+    'W f_dev:1 1 3c4f,80x24,0,0{40x24,0,0,2,39x24,41,0,3} term' \
+    'W f_dev:1 1 b2a1,80x24,0,0{41x24,0,0,1,38x24,42,0,2} term' \
+    'W f_dev:1 1 b2a1,80x24,0,0[80x12,0,0,1,80x11,0,13,2] term' \
+    'W f_dev:1 1 b2a1,80x24,0,0{40x24,0,0,1,39x24,41,0,2,39x24,41,0,2} term' \
+    'W f_dev:1 1 b2a1,80x24,0,0{40x24,0,0,1} term'
+# JSON v2 window_layout: "V":2, "L" and the leaf keys "I" (%N pane ID)
+# and "i" (pane index) are as tmux 3.8 prints them; the other keys ("T"
+# split, "C" children, "A" active) are illustrative. The normaliser only
+# touches "I" values, so any other field compares verbatim.
+inv_json() {
+    printf 'W f_dev:1 1 {"V":2,"L":"80x24,0,0","T":"%s","C":[%s]} term' "$1" "$2"
+}
+inv_leaf() { printf '{"L":"%s","i":%s,"I":"%%%s","A":%s}' "$1" "$2" "$3" "$4"; }
+INV_JSON_LEAVES="$(inv_leaf 40x24,0,0 0 1 1),$(inv_leaf 39x24,41,0 1 2 0)"
+inventory_controls json-v2 \
+    "$(inv_json lr "${INV_JSON_LEAVES}")" \
+    "$(inv_json lr "$(inv_leaf 40x24,0,0 0 2 1),$(inv_leaf 39x24,41,0 1 3 0)")" \
+    "$(inv_json lr "$(inv_leaf 41x24,0,0 0 1 1),$(inv_leaf 38x24,42,0 1 2 0)")" \
+    "$(inv_json tb "$(inv_leaf 80x12,0,0 0 1 1),$(inv_leaf 80x11,0,13 1 2 0)")" \
+    "$(inv_json lr "${INV_JSON_LEAVES},$(inv_leaf 39x24,41,0 1 2 0)")" \
+    "$(inv_json lr "$(inv_leaf 40x24,0,0 0 1 1)")"
+inventory_case "json-v2: changed layout pane index" differs "$(inv_json lr "${INV_JSON_LEAVES}")" \
+    "$(inv_json lr "$(inv_leaf 40x24,0,0 1 1 1),$(inv_leaf 39x24,41,0 0 2 0)")"
+inventory_case "json-v2: changed layout active pane" differs "$(inv_json lr "${INV_JSON_LEAVES}")" \
+    "$(inv_json lr "$(inv_leaf 40x24,0,0 0 1 0),$(inv_leaf 39x24,41,0 1 2 1)")"
 
 echo "== native tmux + real plugins (private socket) =="
 # wait_until <command...>: poll every 0.1s up to NATIVE_TIMEOUT_TENTHS.
