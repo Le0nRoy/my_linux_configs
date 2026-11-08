@@ -96,8 +96,3 @@ bin/helper/utils.bash
 # chezmoi's .chezmoiignore does not match `run_` scripts by target name.
 Library/**
 {{- end }}
-
-{{- if ne .chezmoi.hostname "dragonlady" }}
-# Echo cancellation pinned to this laptop's sound card node names.
-.config/pipewire/pipewire.conf.d/61-echo-cancel-jack.conf
-{{- end }}
