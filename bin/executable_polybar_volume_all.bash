@@ -135,11 +135,32 @@ volume_bar() {
 
 # --- Default-device queries ------------------------------------------------
 
-# Filter out sources ending in .monitor (they are per-sink loopbacks, not real
-# input devices — polluting the mic widget with them is noise).
+# Pure: is this a device worth showing? Single filter for every listing path
+# (bar, left-click cycling, rofi menu).
+#   $1 device name, $2 media.class (optional), $3 node.name (optional)
+# Hidden:
+#   - sources ending in .monitor (per-sink loopbacks, not real input devices —
+#     polluting the mic widget with them is noise);
+#   - EasyEffects virtual nodes (easyeffects_sink/_source, ee_* helpers, and
+#     anything whose media.class ends in /Virtual). They aren't hardware:
+#     EasyEffects routes app streams into them and forwards to the real device.
 is_real_device() {
-    [[ "${MODE}" != "source" ]] && return 0
-    [[ "${1}" != *.monitor ]]
+    local name="${1}" class="${2:-}" node="${3:-}"
+    [[ "${MODE}" == "source" && "${name}" == *.monitor ]] && return 1
+    [[ "${class}" == */Virtual ]] && return 1
+    local n
+    for n in "${name}" "${node}"; do
+        [[ "${n}" == easyeffects* || "${n}" == ee_* ]] && return 1
+    done
+    return 0
+}
+
+# Pure: is this running stream an app's own (not EasyEffects' internal plumbing)?
+#   $1 application.name, $2 node.name
+is_user_stream() {
+    local app="${1,,}" node="${2,,}"
+    [[ "${app}" == *easyeffects* || "${node}" == *easyeffects* || "${node}" == ee_* ]] && return 1
+    return 0
 }
 
 get_default_device() {
@@ -152,10 +173,9 @@ get_next_device() {
     local current="${1}"
     local -a devs=()
     local name
-    while IFS=$'\t' read -r _index name _driver _sample _state; do
-        is_real_device "${name}" || continue
-        devs+=("${name}")
-    done < <(pactl ${LIST_SHORT_CMD})
+    while IFS='|' read -r name _rest; do
+        [[ -n "${name}" ]] && devs+=("${name}")
+    done < <(get_devices "")
 
     [[ ${#devs[@]} -eq 0 ]] && return 0
 
@@ -170,6 +190,17 @@ get_next_device() {
 
 get_devices() {
     # Emits: name|desc|volume%|muted(0/1)|is_default(0/1)
+    # Only devices that pass is_real_device are listed.
+    local chosen="${1}" name desc volume muted is_chosen class node
+    while IFS='|' read -r name desc volume muted is_chosen class node; do
+        is_real_device "${name}" "${class}" "${node}" || continue
+        echo "${name}|${desc}|${volume}|${muted}|${is_chosen}"
+    done < <(list_all_devices "${chosen}")
+}
+
+# Unfiltered device listing (use get_devices instead).
+# Emits: name|desc|volume%|muted(0/1)|is_default(0/1)|media.class|node.name
+list_all_devices() {
     local chosen="${1}"
     pactl ${LIST_LONG_CMD} | awk \
         -v chosen="${chosen}" \
@@ -177,14 +208,20 @@ get_devices() {
         function flush() {
             if (name != "" && desc != "") {
                 is_chosen = (name == chosen) ? 1 : 0
-                print name "|" desc "|" volume "|" muted "|" is_chosen
+                print name "|" desc "|" volume "|" muted "|" is_chosen "|" class "|" node
             }
+        }
+        function prop(   v) {
+            v = $0; sub(/^[^=]*= "/, "", v); sub(/"[[:space:]]*$/, "", v)
+            return v
         }
         $0 ~ header_re {
             flush()
-            name = ""; desc = ""; volume = 0; muted = 0; in_dev = 1
+            name = ""; desc = ""; volume = 0; muted = 0; class = ""; node = ""; in_dev = 1
             next
         }
+        in_dev && /^\t\tmedia\.class = / { class = prop(); next }
+        in_dev && /^\t\tnode\.name = /   { node = prop(); next }
         in_dev && /^\tName:/         { name = $2; next }
         in_dev && /^\tDescription:/  {
             desc = $0
@@ -232,7 +269,6 @@ build_output() {
     local output="" separator=" | "
     while IFS='|' read -r dev_name desc volume muted is_chosen; do
         [[ -z "${dev_name}" ]] && continue
-        is_real_device "${dev_name}" || continue
 
         local label entry
         label="$(format_dev_name "${desc}")"
@@ -259,11 +295,30 @@ build_output() {
 
 # --- Render ---------------------------------------------------------------
 
+# Highlighted bar entry for a default device that is hidden from the list.
+fx_entry() {
+    local dev="${1}" vol
+    vol="$(get_volume "${dev}")"
+    if [[ -z "${vol}" ]]; then
+        return 0
+    elif [[ "$(get_mute "${dev}")" == "1" ]]; then
+        echo "%{F${COLOR_CHOSEN_FG}}%{B${COLOR_CHOSEN_BG}} FX: muted %{B-}%{F-}"
+    else
+        echo "%{F${COLOR_CHOSEN_FG}}%{B${COLOR_CHOSEN_BG}} FX: ${vol}% %{B-}%{F-}"
+    fi
+}
+
 render() {
     local chosen dev_data output
     chosen="$(get_default_device)"
     dev_data="$(get_devices "${chosen}")"
     output="$(echo "${dev_data}" | build_output)"
+    # Default is a hidden virtual node (e.g. easyeffects_sink): nothing in the
+    # list is highlighted, so prepend a highlighted "FX" entry for it — scroll
+    # still acts on it, left click moves to a real device.
+    if [[ -n "${chosen}" && $'\n'"${dev_data}"$'\n' != *$'|1\n'* ]]; then
+        output="$(fx_entry "${chosen}")${output:+ | ${output}}"
+    fi
     if [[ -n "${output}" ]]; then
         echo "${output}"
     else
@@ -275,27 +330,41 @@ render() {
 
 # List running streams (sink-inputs or source-outputs) as
 # "index<TAB>label<TAB>device-index". Label is "AppName — MediaName" pulled
-# from properties; falls back to index.
+# from properties; falls back to index. EasyEffects' internal streams are
+# dropped (is_user_stream).
 list_streams() {
+    local idx label dev app node
+    while IFS=$'\t' read -r idx label dev app node; do
+        is_user_stream "${app}" "${node}" || continue
+        printf '%s\t%s\t%s\n' "${idx}" "${label}" "${dev}"
+    done < <(list_all_streams)
+}
+
+# Unfiltered stream listing: index<TAB>label<TAB>device-index<TAB>app<TAB>node.
+list_all_streams() {
     pactl "list" "${STREAM_KIND_PLURAL}" | awk -v k="${STREAM_KIND}" '
         function flush() {
             if (idx != "") {
                 label = app
                 if (media != "") label = (app == "") ? media : (app " — " media)
                 if (label == "") label = "(stream #" idx ")"
-                print idx "\t" label "\t" dev
+                print idx "\t" label "\t" dev "\t" app "\t" node
             }
         }
         /^Source Output #[0-9]+/ || /^Sink Input #[0-9]+/ {
             flush()
             idx = $NF; sub(/^#/, "", idx)
-            app = ""; media = ""; dev = ""
+            app = ""; media = ""; dev = ""; node = ""
             next
         }
         /^\t(Sink|Source): [0-9]+/ { dev = $2; next }
         /application\.name = / {
             v = $0; sub(/^[^=]*= "/, "", v); sub(/"[[:space:]]*$/, "", v)
             app = v; next
+        }
+        /node\.name = / {
+            v = $0; sub(/^[^=]*= "/, "", v); sub(/"[[:space:]]*$/, "", v)
+            node = v; next
         }
         /media\.name = / {
             v = $0; sub(/^[^=]*= "/, "", v); sub(/"[[:space:]]*$/, "", v)
@@ -397,7 +466,6 @@ context_menu() {
         local active_row="" dev_name desc vol muted _c label mark
         while IFS='|' read -r dev_name desc vol muted _c; do
             [[ -z "${dev_name}" ]] && continue
-            is_real_device "${dev_name}" || continue
             label="$(format_dev_name "${desc}")"
             mark="         "
             if [[ "${dev_name}" == "${chosen}" ]]; then
@@ -586,6 +654,31 @@ self_check() {
     MODE=source is_real_device "foo.monitor" && { echo "FAIL monitor filter"; fail=1; } || true
     MODE=source is_real_device "real_mic"    || { echo "FAIL real mic"; fail=1; }
     MODE=sink   is_real_device "foo.monitor" || { echo "FAIL sink no-filter"; fail=1; }
+    # is_real_device: EasyEffects virtual nodes hidden, real devices kept
+    local ee
+    local -a f
+    for ee in "easyeffects_sink Audio/Sink easyeffects_sink" \
+              "easyeffects_sink.monitor Audio/Sink easyeffects_sink" \
+              "easyeffects_source Audio/Source/Virtual easyeffects_source" \
+              "ee_soe_output_level - ee_soe_output_level" \
+              "some_virtual Audio/Source/Virtual some_virtual"; do
+        read -r -a f <<< "${ee}"
+        MODE=sink   is_real_device "${f[@]}" && { echo "FAIL hide ${f[0]} (sink)"; fail=1; }
+        MODE=source is_real_device "${f[@]}" && { echo "FAIL hide ${f[0]} (source)"; fail=1; }
+    done
+    MODE=source is_real_device "alsa_input.usb-Razer_Inc._Razer_Seiren_V3_Mini-00.mono-fallback" \
+        "Audio/Source" "alsa_input.usb-Razer_Inc._Razer_Seiren_V3_Mini-00.mono-fallback" \
+        || { echo "FAIL keep Seiren"; fail=1; }
+    MODE=sink is_real_device "bluez_output.AA_BB_CC_DD_EE_FF.1" "Audio/Sink" "bluez_output.AA_BB_CC_DD_EE_FF.1" \
+        || { echo "FAIL keep bluez sink"; fail=1; }
+    MODE=source is_real_device "bluez_input.AA:BB:CC:DD:EE:FF" "Audio/Source" "bluez_input.AA:BB:CC:DD:EE:FF" \
+        || { echo "FAIL keep bluez source"; fail=1; }
+    # is_user_stream: EasyEffects internal streams hidden, app streams kept
+    is_user_stream "EasyEffects" "" && { echo "FAIL hide ee app stream"; fail=1; }
+    is_user_stream "" "ee_sie_spectrum" && { echo "FAIL hide ee_ node stream"; fail=1; }
+    is_user_stream "" "easyeffects_sink" && { echo "FAIL hide easyeffects node stream"; fail=1; }
+    is_user_stream "Firefox" "Firefox" || { echo "FAIL keep firefox stream"; fail=1; }
+    is_user_stream "" "" || { echo "FAIL keep unnamed stream"; fail=1; }
     # clamp_volume bounds
     [[ "$(clamp_volume 50 5 150)"   == "55" ]]  || { echo "FAIL clamp step"; fail=1; }
     [[ "$(clamp_volume 148 5 150)"  == "150" ]] || { echo "FAIL clamp max"; fail=1; }

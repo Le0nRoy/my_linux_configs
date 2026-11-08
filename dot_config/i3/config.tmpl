@@ -117,6 +117,8 @@ exec_always --no-startup-id redshift -P -l 42:45 -t 4000:3500
 
 ## Enable pulseaudio
 exec --no-startup-id start-pulseaudio-x11
+## EasyEffects in the background (no window); pgrep guard keeps it single across i3 restarts
+exec --no-startup-id pgrep -x easyeffects || easyeffects --service-mode --hide-window
 
 ## Screen management - auto-configure on startup
 exec_always --no-startup-id "bash $HOME/bin/xrandr_manager.bash auto"
