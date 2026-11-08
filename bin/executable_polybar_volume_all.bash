@@ -136,16 +136,164 @@ volume_bar() {
 # --- Default-device queries ------------------------------------------------
 
 # Filter out sources ending in .monitor (they are per-sink loopbacks, not real
-# input devices — polluting the mic widget with them is noise).
+# input devices — polluting the mic widget with them is noise), plus the
+# filter nodes found by load_source_meta (RNNoise, echo-cancel, test_*).
 is_real_device() {
     [[ "${MODE}" != "source" ]] && return 0
-    [[ "${1}" != *.monitor ]]
+    [[ "${1}" != *.monitor ]] || return 1
+    [[ -z "${HIDDEN_SOURCES[${1}]:-}" ]]
 }
 
 get_default_device() {
     # PulseAudio-managed default. Survives sink/source loss because pactl
     # automatically re-elects a new default when the current one goes away.
     pactl "${GET_DEFAULT_CMD}" 2>/dev/null
+}
+
+# --- Mic filters (RNNoise smart filter + echo-cancel), source mode only -----
+#
+# 60-rnnoise.conf: smart filter node "rnnoise_source", never the default;
+#   toggled live with `pw-metadata -n filters <global id> filter.smart.disabled`.
+# 61-echo-cancel-*.conf: ordinary source tagged `mic.aec.of = <raw mic>`;
+#   "on" means it is the default source instead of the raw mic.
+# Per-mic choices persist in MIC_STATE_FILE as
+#   "<raw-mic-node-name> rnnoise=on|off aec=on|off" (missing => both on).
+
+RNNOISE_NODE="rnnoise_source"
+MIC_STATE_FILE="${XDG_STATE_HOME:-${HOME}/.local/state}/mic-filters/state"
+
+declare -A HIDDEN_SOURCES=()   # node.name -> 1 for filter/test sources
+declare -A AEC_OF=()           # AEC source name -> raw mic it cancels
+declare -A MIC_AEC=()          # raw mic name    -> its AEC source
+RNNOISE_ID=""                  # PipeWire global id of rnnoise_source ("" = absent)
+
+# Pure: reads `pactl list sources` on stdin, emits one
+# "name|hide(0/1)|mic.aec.of|object.id" line per source ("|", not TAB:
+# IFS collapses runs of whitespace separators, which would shift empty fields).
+# Hidden: rnnoise_source, AEC sources, test_*, filter-chain / echo-cancel
+# link-group members and smart filters. Other link-groups stay visible
+# (e.g. the bluez mic is a "loopback-*" link-group but a real mic).
+parse_source_meta() {
+    awk -v rn="${RNNOISE_NODE}" '
+        function flush() {
+            if (name == "") return
+            hide = (name == rn || aec != "" || name ~ /^test_/ \
+                    || lg ~ /^(filter-chain|echo-cancel)-/ || smart == "true") ? 1 : 0
+            print name "|" hide "|" aec "|" oid
+        }
+        function val(   v) {
+            v = $0; sub(/^[^=]*= "/, "", v); sub(/"[[:space:]]*$/, "", v); return v
+        }
+        /^Source #[0-9]+/ { flush(); name = ""; aec = ""; lg = ""; smart = ""; oid = ""; next }
+        /^\tName:/                    { name = $2; next }
+        /^\t\tmic\.aec\.of = /        { aec = val(); next }
+        /^\t\tnode\.link-group = /    { lg = val(); next }
+        /^\t\tfilter\.smart = /       { smart = val(); next }
+        /^\t\tobject\.id = /          { oid = val(); next }
+        END { flush() }
+    '
+}
+
+# Refresh HIDDEN_SOURCES / AEC_OF / MIC_AEC / RNNOISE_ID from the live server.
+load_source_meta() {
+    HIDDEN_SOURCES=(); AEC_OF=(); MIC_AEC=(); RNNOISE_ID=""
+    [[ "${MODE}" == "source" ]] || return 0
+    local name hide aec oid
+    while IFS='|' read -r name hide aec oid; do
+        [[ -z "${name}" ]] && continue
+        [[ "${hide}" == "1" ]] && HIDDEN_SOURCES["${name}"]=1
+        if [[ -n "${aec}" ]]; then
+            AEC_OF["${name}"]="${aec}"
+            MIC_AEC["${aec}"]="${name}"
+        fi
+        [[ "${name}" == "${RNNOISE_NODE}" ]] && RNNOISE_ID="${oid}"
+    done < <(pactl ${LIST_LONG_CMD} 2>/dev/null | parse_source_meta)
+
+    # pactl's object.id is the PipeWire global id; fall back to pw-dump if
+    # the property is ever missing.
+    if [[ -n "${HIDDEN_SOURCES[${RNNOISE_NODE}]:-}" && ! "${RNNOISE_ID}" =~ ^[0-9]+$ ]]; then
+        RNNOISE_ID=""
+        command -v jq >/dev/null 2>&1 && RNNOISE_ID="$(pw-dump Node 2>/dev/null \
+            | jq -r --arg n "${RNNOISE_NODE}" \
+                '.[] | select(.info.props["node.name"]==$n) | .id' | head -n1)"
+    fi
+}
+
+# The device the widget treats as chosen. In source mode an AEC default
+# counts as the raw mic it cancels, so the user only ever sees real mics.
+get_current_device() {
+    local def
+    def="$(get_default_device)"
+    echo "${AEC_OF[${def}]:-${def}}"
+}
+
+# Pure: value of key (rnnoise|aec) for a mic from state text on stdin;
+# "on" when the mic or key is missing.
+state_lookup() {
+    awk -v mic="${1}" -v key="${2}" '
+        $1 == mic { for (i = 2; i <= NF; i++) if (index($i, key "=") == 1) { v = substr($i, length(key) + 2) } }
+        END { print (v == "off") ? "off" : "on" }
+    '
+}
+
+mic_state_get() {
+    state_lookup "${1}" "${2}" < <(cat "${MIC_STATE_FILE}" 2>/dev/null)
+}
+
+# Write one key for one mic, keeping all other lines; atomic tmp + mv.
+mic_state_set() {
+    local mic="${1}" key="${2}" value="${3}" dir tmp rnnoise aec
+    dir="$(dirname "${MIC_STATE_FILE}")"
+    mkdir -p "${dir}" || return 1
+    rnnoise="$(mic_state_get "${mic}" rnnoise)"
+    aec="$(mic_state_get "${mic}" aec)"
+    case "${key}" in
+        rnnoise) rnnoise="${value}" ;;
+        aec)     aec="${value}" ;;
+    esac
+    tmp="$(mktemp "${dir}/.state.XXXXXX")" || return 1
+    {
+        awk -v mic="${mic}" '$1 != mic' "${MIC_STATE_FILE}" 2>/dev/null
+        echo "${mic} rnnoise=${rnnoise} aec=${aec}"
+    } > "${tmp}" && mv -f "${tmp}" "${MIC_STATE_FILE}" || { rm -f "${tmp}"; return 1; }
+}
+
+# Apply a mic's saved RNNoise choice to the smart filter (no-op when the
+# filter isn't loaded).
+apply_rnnoise() {
+    local mic="${1}" disabled=false
+    [[ -n "${RNNOISE_ID}" ]] || return 0
+    [[ "$(mic_state_get "${mic}" rnnoise)" == "off" ]] && disabled=true
+    pw-metadata -n filters "${RNNOISE_ID}" filter.smart.disabled "${disabled}" >/dev/null 2>&1 || true
+}
+
+# Make a device the default. For mics: the AEC source when aec=on and one
+# exists for it, else the raw mic; then apply its RNNoise choice. Streams
+# are not moved: WirePlumber relinks default-following streams by itself.
+set_default_device() {
+    local dev="${1}" aec_src
+    if [[ "${MODE}" != "source" ]]; then
+        pactl "${SET_DEFAULT_CMD}" "${dev}"
+        return
+    fi
+    aec_src="${MIC_AEC[${dev}]:-}"
+    if [[ -n "${aec_src}" && "$(mic_state_get "${dev}" aec)" == "on" ]]; then
+        pactl "${SET_DEFAULT_CMD}" "${aec_src}"
+    else
+        pactl "${SET_DEFAULT_CMD}" "${dev}"
+    fi
+    apply_rnnoise "${dev}"
+}
+
+# Flip rnnoise|aec for a mic, save it and apply it now.
+toggle_mic_filter() {
+    local mic="${1}" key="${2}" new=on
+    [[ "$(mic_state_get "${mic}" "${key}")" == "on" ]] && new=off
+    mic_state_set "${mic}" "${key}" "${new}" || return 1
+    case "${key}" in
+        rnnoise) apply_rnnoise "${mic}" ;;
+        aec)     set_default_device "${mic}" ;;
+    esac
 }
 
 get_next_device() {
@@ -261,7 +409,8 @@ build_output() {
 
 render() {
     local chosen dev_data output
-    chosen="$(get_default_device)"
+    load_source_meta
+    chosen="$(get_current_device)"
     dev_data="$(get_devices "${chosen}")"
     output="$(echo "${dev_data}" | build_output)"
     if [[ -n "${output}" ]]; then
@@ -275,11 +424,13 @@ render() {
 
 # List running streams (sink-inputs or source-outputs) as
 # "index<TAB>label<TAB>device-index". Label is "AppName — MediaName" pulled
-# from properties; falls back to index.
+# from properties; falls back to index. Filter-internal streams (capture.* /
+# echo_ref.* or any node.link-group member) are skipped so they can never
+# be moved away from the device they filter.
 list_streams() {
     pactl "list" "${STREAM_KIND_PLURAL}" | awk -v k="${STREAM_KIND}" '
         function flush() {
-            if (idx != "") {
+            if (idx != "" && !internal) {
                 label = app
                 if (media != "") label = (app == "") ? media : (app " — " media)
                 if (label == "") label = "(stream #" idx ")"
@@ -289,9 +440,11 @@ list_streams() {
         /^Source Output #[0-9]+/ || /^Sink Input #[0-9]+/ {
             flush()
             idx = $NF; sub(/^#/, "", idx)
-            app = ""; media = ""; dev = ""
+            app = ""; media = ""; dev = ""; internal = 0
             next
         }
+        /^\t\tnode\.name = "(capture|echo_ref)\./ { internal = 1; next }
+        /^\t\tnode\.link-group = /                 { internal = 1; next }
         /^\t(Sink|Source): [0-9]+/ { dev = $2; next }
         /application\.name = / {
             v = $0; sub(/^[^=]*= "/, "", v); sub(/"[[:space:]]*$/, "", v)
@@ -390,7 +543,8 @@ context_menu() {
     local sel=0
     while true; do
         local chosen
-        chosen="$(get_default_device)"
+        load_source_meta
+        chosen="$(get_current_device)"
 
         # Enumerate devices for the menu.
         local -a menu=() dev_names=() muted_rows=()
@@ -414,6 +568,19 @@ context_menu() {
             notify-send -u low -a "polybar-audio" "No ${KIND_PLURAL} available" "" 2>/dev/null || true
             return 0
         fi
+
+        # Filter toggles for the current mic, below the device rows.
+        local -a filter_keys=()
+        if [[ "${MODE}" == "source" && -n "${active_row}" ]]; then
+            if [[ -n "${RNNOISE_ID}" ]]; then
+                menu+=("Noise suppression: $(mic_state_get "${chosen}" rnnoise | tr '[:lower:]' '[:upper:]')")
+                filter_keys+=(rnnoise)
+            fi
+            if [[ -n "${MIC_AEC[${chosen}]:-}" ]]; then
+                menu+=("Echo cancel: $(mic_state_get "${chosen}" aec | tr '[:lower:]' '[:upper:]')")
+                filter_keys+=(aec)
+            fi
+        fi
         (( sel >= ${#menu[@]} )) && sel=0
 
         local -a marks=()
@@ -427,10 +594,20 @@ context_menu() {
             -p "${MENU_TITLE} — pick ${KIND}:")"
         rc=$?
 
-        # Resolve the picked row index back to its device name.
-        if [[ ! "${pick}" =~ ^[0-9]+$ ]] || (( pick >= ${#dev_names[@]} )); then
-            return 0
+        [[ "${pick}" =~ ^[0-9]+$ ]] || return 0
+
+        # Filter toggle rows: Enter flips, volume keys are ignored.
+        if (( pick >= ${#dev_names[@]} )); then
+            local fi_idx=$(( pick - ${#dev_names[@]} ))
+            (( fi_idx < ${#filter_keys[@]} )) || return 0
+            sel="${pick}"
+            [[ "${rc}" == 0 ]] && toggle_mic_filter "${chosen}" "${filter_keys[$fi_idx]}"
+            [[ "${rc}" == 0 || "${rc}" == "${ROFI_RC_VOL_UP}" || "${rc}" == "${ROFI_RC_VOL_DOWN}" \
+                || "${rc}" == "${ROFI_RC_MUTE}" ]] || return 0
+            continue
         fi
+
+        # Resolve the picked row index back to its device name.
         local target="${dev_names[$pick]}"
         sel="${pick}"
 
@@ -454,7 +631,8 @@ device_menu() {
         [[ -z "${vol}" ]] && return 0   # device vanished (unplugged)
         if [[ "${muted}" == "1" ]]; then mute_action="Unmute"; else mute_action="Mute"; fi
         default_row="Set as default"
-        [[ "$(get_default_device)" == "${target}" ]] && default_row="Set as default  (current default)"
+        load_source_meta
+        [[ "$(get_current_device)" == "${target}" ]] && default_row="Set as default  (current default)"
 
         local -a rows=(
             "Volume  $(volume_status "${vol}" "${muted}")"
@@ -481,7 +659,7 @@ device_menu() {
             0)  continue ;;   # volume row: adjust with ←/→, Enter is a no-op
             1)  toggle_mute "${target}" ;;
             2)
-                pactl "${SET_DEFAULT_CMD}" "${target}"
+                set_default_device "${target}"
                 notify-send -u low -a "polybar-audio" \
                     "Default ${KIND}" "${target_label}" 2>/dev/null || true
                 ;;
@@ -552,7 +730,8 @@ move_streams_menu() {
 
 handle_click() {
     local chosen
-    chosen="$(get_default_device)"
+    load_source_meta
+    chosen="$(get_current_device)"
     [[ -z "${chosen}" ]] && return 0
 
     case "${1}" in
@@ -560,7 +739,7 @@ handle_click() {
             # Left click - cycle default to next device
             local next
             next="$(get_next_device "${chosen}")"
-            [[ -n "${next}" ]] && pactl "${SET_DEFAULT_CMD}" "${next}"
+            [[ -n "${next}" ]] && set_default_device "${next}"
             ;;
         right)
             context_menu
@@ -597,6 +776,19 @@ self_check() {
     # volume_status (bar + optional mute marker)
     [[ "$(volume_status 60 0)" == "$(volume_bar 60)" ]] || { echo "FAIL vol_status unmuted"; fail=1; }
     [[ "$(volume_status 60 1)" == "$(volume_bar 60)  [muted]" ]] || { echo "FAIL vol_status muted"; fail=1; }
+    # state_lookup: defaults to on, reads per-mic keys
+    [[ "$(printf 'micA rnnoise=off aec=on\n' | state_lookup micA rnnoise)" == "off" ]] || { echo "FAIL state off"; fail=1; }
+    [[ "$(printf 'micA rnnoise=off aec=on\n' | state_lookup micA aec)" == "on" ]]      || { echo "FAIL state on"; fail=1; }
+    [[ "$(printf 'micA rnnoise=off aec=off\n' | state_lookup micB aec)" == "on" ]]    || { echo "FAIL state default"; fail=1; }
+    # parse_source_meta: filter/test/AEC sources hidden, loopback mic kept
+    local meta
+    meta="$(printf '%s\n' 'Source #1' $'\tName: rnnoise_source' $'\t\tobject.id = "7"' \
+        'Source #2' $'\tName: laptop_mic_aec' $'\t\tmic.aec.of = "raw"' \
+        'Source #3' $'\tName: test_x' 'Source #4' $'\tName: raw' \
+        'Source #5' $'\tName: bt' $'\t\tnode.link-group = "loopback-1-2"' \
+        'Source #6' $'\tName: fc' $'\t\tnode.link-group = "filter-chain-1-2"' | parse_source_meta)"
+    [[ "${meta}" == $'rnnoise_source|1||7\nlaptop_mic_aec|1|raw|\ntest_x|1||\nraw|0||\nbt|0||\nfc|1||' ]] \
+        || { echo "FAIL source meta"; fail=1; }
     if [[ "${fail}" == 0 ]]; then echo "self-check OK"; else return 1; fi
 }
 
