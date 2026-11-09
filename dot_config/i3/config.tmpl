@@ -117,6 +117,8 @@ exec_always --no-startup-id redshift -P -l 42:45 -t 4000:3500
 
 ## Enable pulseaudio
 exec --no-startup-id start-pulseaudio-x11
+## EasyEffects in the background (no window); pgrep guard keeps it single across i3 restarts
+exec --no-startup-id pgrep -x easyeffects || easyeffects --service-mode --hide-window
 
 ## Screen management - auto-configure on startup
 exec_always --no-startup-id "bash $HOME/bin/xrandr_manager.bash auto"
@@ -357,6 +359,7 @@ for_window [class="(?i)slack" title="\(List\)"] floating enable resize set 1200 
 
 for_window [class="keepassxc|KeePassXC"] floating enable resize set 1550 850
 for_window [class="(?i)pavucontrol"] floating enable resize set 900 900
+for_window [class="(?i)easyeffects"] floating enable resize set 900 900
 for_window [class="(?i)blueman-manager"] floating enable resize set 900 600
 for_window [class="(?i)iwgtk"] floating enable resize set 600 900
 for_window [class="(?i)matplotlib"] floating enable resize set 1600 900
