@@ -36,6 +36,12 @@ File naming conventions matter:
 
 ---
 
+## Testing
+
+Tests live in `tests/` (plain bash, helpers in `tests/lib/common.bash`). Rules and run commands: `qa-automation` skill (`.claude/skills/qa-automation/SKILL.md`).
+
+---
+
 ## Submodule Extensibility
 
 This repo supports additional tool layers via git submodules applied as secondary chezmoi sources.

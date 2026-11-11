@@ -1,8 +1,9 @@
 # AI agent runtime directories - these are created and managed by the agents themselves
 # and should not be tracked by chezmoi
 
-# Claude Code directories
-.claude
+# Claude Code directories (repo-local skills under .claude/skills/ are tracked)
+/.claude/*
+!/.claude/skills/
 .claude.json
 
 # Codex CLI directories

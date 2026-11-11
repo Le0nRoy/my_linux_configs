@@ -26,6 +26,6 @@ This is a **chezmoi-managed Linux system configuration** repository:
 | All rules and policies | `AGENTS.md` |
 | Chezmoi naming/workflow | `chezmoi-workflow` skill |
 | Code standards | `coding-standards` skill |
-| Test writing | `qa-automation` skill |
+| Test writing | `qa-automation` skill (`.claude/skills/qa-automation/SKILL.md`) |
 | Orchestration workflow | Shared `orchestrator-mode` skill |
 | Tortuga task operations | Shared `tortuga` skill; only on request |
