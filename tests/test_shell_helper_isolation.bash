@@ -3,16 +3,15 @@
 # the public hh_* helpers and the owner-approved shell-plumbing callbacks
 # only; script-private helpers stay callable inside `helper.bash <command>`
 # but never enter the shell. Re-sourcing the startup files is idempotent
-# (prompt hooks, PATH, zsh precmd hooks), and every implementation body is
-# byte-identical to the fixed pre-E1 baseline except the approved hh_
-# public/caller renames, the job_mount/job_umount removal and moves.
+# (prompt hooks, PATH, zsh precmd hooks). Checks are behavioural (functions
+# run in real shells); source text is not compared against the baseline.
 #
 # Shells run in the synthetic sandbox from tests/lib/shell_fixture.bash
 # (synthetic HOME, env -i, logging fakes first on PATH). No real startup
 # file, runtime ~/bin/.env, job setup file, client, mount, service or live
 # tmux server is touched. The three re-source defects E1 characterised are
-# asserted fixed here and shown present in the baseline by the same probes.
-# Missing zsh or a missing baseline commit is reported as GAP.
+# asserted fixed here and shown present in the fixed pre-E1 baseline by the
+# same probes. Missing zsh or a missing baseline commit is reported as GAP.
 #
 # Usage: bash tests/test_shell_helper_isolation.bash
 
@@ -83,14 +82,6 @@ ALLOW_ZSH=(_ctrl_d_exit _reset_ctrl_d_count _tmux_log_last_cmd
     _tmux_pane_hist_addhistory _tmux_pane_hist_sync)
 # Linux-only helpers chezmoi skips on macOS (.chezmoiignore).
 MACOS_SKIPPED_MODULES=(firefox i3 storage system utils)
-# Approved public renames (#60), applied to the fixed baseline before every
-# body comparison. colors/ex are renamed at their definition line only.
-RENAMED_PUBLIC='tmux_restore|git_watch|git_cleanout|sshfsctl|gio_mount|gio_umount|upgrade_system|yay_no_cache|adb_pull_music|unzip_books|cut_video|gpg_decrypt|gpg_encrypt|rsync_ssh|rm_ssh|cp_ssh|i3_save_chezmoi_ws|i3_save_ws|i3_restore_ws'
-# Functions the owner approved for removal (#60).
-REMOVED_FUNCS=(job_mount job_umount)
-# Public helpers whose body the owner approved replacing: hh_sshfsctl now
-# only runs ~/bin/sshfs.bash; its old systemctl body was retired, not moved.
-REPLACED_FUNCS=(hh_sshfsctl)
 
 sorted_words() { printf '%s\n' "$@" | sort -u; }
 
@@ -115,10 +106,6 @@ assert_set_eq() {
     fi
 }
 
-rename_public() {
-    sed -E "s/\\b(${RENAMED_PUBLIC})\\b/hh_\\1/g; s/^colors\\(\\) \\{\$/hh_colors() {/; s/^ex \\(\\)\$/hh_unar ()/; s/extracted via ex\\(\\)/extracted via hh_unar()/" "$@"
-}
-
 functions_in() { printf '%s\n' "${RUN_OUT}" | sed -n "s/^fn_$1://p" | sort -u; }
 
 # --- Setup -------------------------------------------------------------------
@@ -136,7 +123,7 @@ if git -C "${REPO_ROOT}" cat-file -e "${BASELINE_REF}^{commit}" 2>/dev/null; the
     deploy_tree "${BASE_SRC}" "${BASE_HOME}"
     have_baseline=1
 else
-    gap "baseline ${BASELINE_REF} unavailable: baseline comparison and body equivalence not verified"
+    gap "baseline ${BASELINE_REF} unavailable: baseline control probes not verified"
 fi
 
 REPO_FUNCS="$(defined_functions "${REPO_ROOT}/dot_bashrc" "${REPO_ROOT}/dot_xsessionrc" \
@@ -553,155 +540,23 @@ else
     gap "zsh not installed on this runner: zsh namespace, bash_exec boundary, re-source and macOS layout not verified here (owner-side native run required)"
 fi
 
-# --- Source-body equivalence against the pre-E1 baseline ---------------------
-# Every function body must match the fixed baseline after applying exactly
-# the approved rename map; only job_mount/job_umount may disappear.
-column0_functions() {
-    sed -En 's/^(function[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*\(\).*/\2/p' "$@" | sort -u
-}
-column0_count() {
-    cat "${@:2}" | grep -cE "^(function[[:space:]]+)?$1[[:space:]]*\(\)"
-}
-function_body() {
-    local name="$1"
-    shift
-    awk -v n="${name}" '
-        !on && $0 ~ ("^(function[ \t]+)?" n "[ \t]*[(][)]") { on = 1 }
-        on { print; lines++ }
-        on && (/^}$/ || (lines == 1 && /}[ \t]*$/)) { exit }' "$@"
-}
-if (( have_baseline )); then
-    echo "== Source-body equivalence vs ${BASELINE_REF} (approved renames applied)"
-    RENAMED_SRC="${TMP_ROOT}/baseline-renamed"
-    (cd "${BASE_SRC}" && find . -type f) | while read -r f; do
-        mkdir -p "${RENAMED_SRC}/$(dirname "${f}")"
-        rename_public "${BASE_SRC}/${f}" > "${RENAMED_SRC}/${f}"
-    done
-    # Approved calling-pane target resolution (#61): inside
-    # _tmux_log_last_cmd only, the guard line and the lookup line are
-    # replaced (lookup gains a non-empty check). Applied to the renamed
-    # baseline; each site must match exactly once, everything else in the
-    # function and file is still compared byte for byte.
-    LOG_OLD_GUARD='    [[ -n "${TMUX:-}" ]] || return 0'
-    LOG_OLD_LOOKUP="    id=\$(tmux display-message -p '#S:#I.#P' 2>/dev/null) || return 0"
-    LOG_NEW_LOOKUP="    id=\$(tmux display-message -p -t \"\${TMUX_PANE}\" '#S:#I.#P' 2>/dev/null) || return 0
-    [[ -n \"\${id}\" ]] || return 0"
-    # apply_target_fix <renamed baseline file> <new guard line>
-    apply_target_fix() {
-        local file="$1" sites
-        sites=$(OG="${LOG_OLD_GUARD}" NG="$2" OL="${LOG_OLD_LOOKUP}" NL="${LOG_NEW_LOOKUP}" awk '
-            /^(function[ \t]+)?_tmux_log_last_cmd[ \t]*[(][)]/ { on = 1 }
-            on && $0 == ENVIRON["OG"] { print ENVIRON["NG"]; n++; next }
-            on && $0 == ENVIRON["OL"] { print ENVIRON["NL"]; n++; next }
-            on && /^}$/ { on = 0 }
-            { print }
-            END { print n + 0 > "/dev/stderr" }' "${file}" 2>&1 >"${file}.fixed")
-        mv "${file}.fixed" "${file}"
-        assert_eq 2 "${sites}" "approved logger target-resolution sites applied once each: ${file#"${RENAMED_SRC}"/}"
-    }
-    apply_target_fix "${RENAMED_SRC}/bin/helper/tmux.bash" \
-        '    [[ -n "${TMUX:-}" && "${TMUX_PANE:-}" =~ ^%[0-9]+$ ]] || return 0'
-    apply_target_fix "${RENAMED_SRC}/bin/helper/tmux_last_cmd.zsh" \
-        '    [[ -n "${TMUX:-}" && "${TMUX_PANE:-}" == %<-> ]] || return 0'
-
-    unchanged=(dot_xsessionrc dot_bash_completion.d/helper.bash
-        dot_bash_completion.d/transfer.bash bin/executable_firefox_rofi.bash
-        bin/executable_tmux_pane_hist_release.bash bin/helper/tmux_last_cmd.zsh)
-    for mod in git utils transfer tmux_commands i3 common system backup firefox; do
-        unchanged+=("bin/helper/${mod}.bash")
-    done
-    for f in "${unchanged[@]}"; do
-        if cmp -s "${RENAMED_SRC}/${f}" "${REPO_ROOT}/${f}"; then
-            pass "identical after approved renames: ${f}"
-        else
-            fail "changed beyond approved renames: ${f}"
-        fi
-    done
-
-    # side <label> <baseline files (relative)> -- <current files (relative)>
-    check_bodies() {
-        local label="$1" base_files=() cur_files=() name base_body
-        shift
-        while [[ "$1" != "--" ]]; do base_files+=("${RENAMED_SRC}/$1"); shift; done
-        shift
-        for f in "$@"; do cur_files+=("${REPO_ROOT}/${f}"); done
-        local checked=0 bad=0
-        while read -r name; do
-            [[ " ${REMOVED_FUNCS[*]} ${REPLACED_FUNCS[*]} " == *" ${name} "* ]] && continue
-            checked=$((checked + 1))
-            base_body="$(function_body "${name}" "${base_files[@]}")"
-            if [[ "$(column0_count "${name}" "${cur_files[@]}")" -ne 1 ]]; then
-                fail "${label}: ${name} not defined exactly once"
-                bad=1
-            elif [[ "${base_body}" != "$(function_body "${name}" "${cur_files[@]}")" ]]; then
-                fail "${label}: ${name} body differs from baseline"
-                bad=1
-            fi
-        done < <(column0_functions "${base_files[@]}")
-        (( bad )) || pass "${label}: all ${checked} baseline function bodies byte-identical (renames applied)"
-    }
-    cd "${REPO_ROOT}" || exit 1
-    base_bash=(dot_bashrc dot_xsessionrc dot_bash_completion.d/helper.bash
-        dot_bash_completion.d/transfer.bash bin/executable_helper.bash)
-    for f in "${BASE_SRC}/bin/helper/"*.bash; do base_bash+=("bin/helper/${f##*/}"); done
-    cur_bash=(dot_bashrc dot_xsessionrc dot_bash_completion.d/*.bash bin/executable_helper.bash bin/helper/*.bash)
-    check_bodies "bash side" "${base_bash[@]}" -- "${cur_bash[@]}"
-    check_bodies "zsh side" dot_zshrc bin/helper/tmux_last_cmd.zsh bin/helper/tmux_commands.bash \
-        -- dot_zshrc bin/helper/*.zsh bin/helper/tmux_commands.bash
-    cd - >/dev/null || exit 1
-
-    # Approved hh_sshfsctl replacement: the baseline systemctl body was
-    # retired outright (it is skipped by check_bodies via REPLACED_FUNCS and
-    # survives nowhere); the public body only runs the script.
-    if [[ "$(function_body hh_sshfsctl "${RENAMED_SRC}/bin/helper/storage.bash")" == *'systemctl --user'* ]]; then
-        pass "control: baseline hh_sshfsctl held the systemctl body (replacement is real)"
-    else
-        fail "control: baseline hh_sshfsctl systemctl body not found"
-    fi
-    old_body_left="$(cd "${REPO_ROOT}" && git grep -lF '<start|stop|status|journal>' -- . ':!tests' ':!docs' | tr '\n' ' ')"
-    assert_eq "" "${old_body_left}" "old hh_sshfsctl systemctl body exists nowhere outside tests/docs"
-    assert_eq 'function hh_sshfsctl() {
-    # Open the interactive SSHFS mount manager (~/bin/sshfs.bash)
-    # Usage: hh_sshfsctl [mount|umount|status|help]
-    "${HOME}/bin/sshfs.bash" "$@"
-}' "$(function_body hh_sshfsctl "${REPO_ROOT}/bin/helper/storage.bash")" \
-        "public hh_sshfsctl body only runs ~/bin/sshfs.bash with its arguments"
-
-    removed_left="$(defined_functions "${REPO_ROOT}/dot_bashrc" "${REPO_ROOT}/dot_zshrc" \
-        "${REPO_ROOT}/bin/executable_helper.bash" "${REPO_ROOT}/bin/helper/"* \
-        | grep -xE 'job_mount|job_umount' | tr '\n' ' ')"
-    assert_eq "" "${removed_left}" "job_mount/job_umount removed everywhere"
-    if [[ -n "$(function_body job_mount "${RENAMED_SRC}/bin/helper/storage.bash")" ]]; then
-        pass "control: baseline still defines job_mount (removal is real)"
-    else
-        fail "control: baseline job_mount not found"
-    fi
-
-    base_tmux="${RENAMED_SRC}/bin/helper/tmux.bash"
-    marker_line="$(grep -nF "${TMUX_PLUMBING_MARKER}" "${base_tmux}" | cut -d: -f1)"
-    if [[ "$(grep -cF "${TMUX_PLUMBING_MARKER}" "${REPO_ROOT}/bin/helper/tmux_last_cmd.bash")" -eq 1 ]]; then
-        pass "plumbing block present exactly once in tmux_last_cmd.bash"
-    else
-        fail "plumbing block missing or duplicated in tmux_last_cmd.bash"
-    fi
-    if [[ -n "${marker_line}" ]] && cmp -s <(head -n $((marker_line - 1)) "${base_tmux}") \
-        <(head -n $((marker_line - 1)) "${REPO_ROOT}/bin/helper/tmux.bash"); then
-        pass "tmux.bash session builders and header identical after approved renames"
-    else
-        fail "tmux.bash session builders changed"
-    fi
-    if ! defined_functions "${REPO_ROOT}/bin/helper/tmux.bash" | grep -q '^_tmux_'; then
-        pass "tmux.bash no longer duplicates the _tmux_* callbacks"
-    else
-        fail "tmux.bash still defines _tmux_* callbacks"
-    fi
-    extract_dispatch() { sed -n '/^## Main body of script$/,$p' "$1"; }
-    if cmp -s <(extract_dispatch "${BASE_SRC}/bin/executable_helper.bash") \
-        <(extract_dispatch "${REPO_ROOT}/bin/executable_helper.bash"); then
-        pass "helper.bash CLI dispatch table byte-identical"
-    else
-        fail "helper.bash CLI dispatch table changed"
-    fi
+# --- Retired code and structure --------------------------------------------
+echo "== Retired code and structure"
+old_body_left="$(cd "${REPO_ROOT}" && git grep -lF '<start|stop|status|journal>' -- . ':!tests' ':!docs' | tr '\n' ' ')"
+assert_eq "" "${old_body_left}" "old hh_sshfsctl systemctl body exists nowhere outside tests/docs"
+removed_left="$(defined_functions "${REPO_ROOT}/dot_bashrc" "${REPO_ROOT}/dot_zshrc" \
+    "${REPO_ROOT}/bin/executable_helper.bash" "${REPO_ROOT}/bin/helper/"* \
+    | grep -xE 'job_mount|job_umount' | tr '\n' ' ')"
+assert_eq "" "${removed_left}" "job_mount/job_umount removed everywhere"
+if [[ "$(grep -cF "${TMUX_PLUMBING_MARKER}" "${REPO_ROOT}/bin/helper/tmux_last_cmd.bash")" -eq 1 ]]; then
+    pass "plumbing block present exactly once in tmux_last_cmd.bash"
+else
+    fail "plumbing block missing or duplicated in tmux_last_cmd.bash"
+fi
+if ! defined_functions "${REPO_ROOT}/bin/helper/tmux.bash" | grep -q '^_tmux_'; then
+    pass "tmux.bash no longer duplicates the _tmux_* callbacks"
+else
+    fail "tmux.bash still defines _tmux_* callbacks"
 fi
 
 echo

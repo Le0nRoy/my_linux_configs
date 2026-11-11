@@ -253,7 +253,7 @@ helper.bash tmux_session
 source ~/bin/helper.bash
 hh_git_cleanout
 
-# Interactive isolation, re-source and baseline-body regression
+# Interactive isolation, re-source and baseline control-probe regression
 bash tests/test_shell_helper_isolation.bash
 # Public hh_ API, bash/zsh parity and PTY key tests
 bash tests/test_hh_public_api.bash
