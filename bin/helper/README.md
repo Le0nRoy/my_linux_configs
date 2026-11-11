@@ -68,7 +68,9 @@ load only this file, not the session builders.
 ### storage.bash - Storage Operations
 **Dependencies**: None
 **Functions**:
-- `hh_sshfsctl()` - Control SSHFS mounts via systemd (sets `-euo pipefail` in the caller)
+- `hh_sshfsctl [args]` - Run the interactive SSHFS mount manager `~/bin/sshfs.bash`
+  with the given arguments (no arguments in a terminal opens its menu;
+  `mount`, `umount`, `status`, `help`). It does not change caller options.
 - `hh_gio_mount()` - Mount phone/device via GIO and `cd` into it
 - `hh_gio_umount()` - Unmount device via GIO
 
@@ -164,7 +166,8 @@ hh_i3_save_ws 1
 `.zshrc` provides the same public helpers, aliases and environment
 (`common.bash`, `~/bin/.env`, `$JOB_SETUP_FILE`, `PATH`):
 - in-process: `tmux_commands.bash`, `git.bash`, `storage.bash` (helpers that
-  must change the caller's cwd or options run in the calling shell);
+  must change the caller's cwd run in the calling shell; `hh_sshfsctl` only
+  runs `~/bin/sshfs.bash`);
 - via `bash_exec.zsh`: `shell`, `utils`, `transfer` and `i3` helpers rely on
   Bash semantics (mapfile, word splitting, failed globs, `printf %q`), so
   each runs its unchanged module in a child `bash` with the shared aliases.

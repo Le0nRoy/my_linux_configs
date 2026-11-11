@@ -83,6 +83,9 @@ deploy_tree() {
     cp "${src}/dot_bash_completion.d/"* "${home}/.bash_completion.d/"
     cp "${src}/bin/executable_helper.bash" "${home}/bin/helper.bash"
     chmod +x "${home}/bin/helper.bash"
+    # Interactive SSHFS manager that hh_sshfsctl runs.
+    cp "${src}/bin/executable_sshfs.bash" "${home}/bin/sshfs.bash"
+    chmod +x "${home}/bin/sshfs.bash"
     for f in "${src}/bin/helper/"*.bash "${src}/bin/helper/"*.zsh "${src}/bin/helper/"*.shrc; do
         [[ -e "${f}" ]] || continue
         mod="${f##*/}"

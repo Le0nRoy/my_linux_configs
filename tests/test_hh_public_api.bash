@@ -156,10 +156,13 @@ echo "pwd_mounted=${PWD}"
 hh_gio_umount > o_gio_umount 2>&1; echo "gio_umount=$?"
 cd "${HOME}/work" || exit 9
 cp "${E1_ARGV_LOG}" argv_api.log
-hh_sshfsctl -r u@h start /r "/l p" > o_sshfs_start 2>&1; echo "sshfs_start=$?"
-hh_sshfsctl bogus /r /l > o_sshfs_bad 2>&1 || echo "sshfs_bad=$?"
-echo "opts_sshfs=$-"
+opts_before_sshfs="$-"
+hh_sshfsctl help > o_sshfs_help 2>&1; echo "sshfs_help=$?"
+hh_sshfsctl > o_sshfs_notty 2>&1; echo "sshfs_notty=$?"
+hh_sshfsctl e1bogus > o_sshfs_unknown 2>&1; echo "sshfs_unknown=$?"
+if [ "$-" = "${opts_before_sshfs}" ]; then echo "opts_sshfs_same=yes"; else echo "opts_sshfs_same=no"; fi
 echo "pipefail=$(set -o | grep -c "pipefail.*on")"
+echo "private_sshfsctl=$(kind _hh_sshfsctl)"
 echo "api_done=yes"
 '
 
@@ -274,16 +277,14 @@ declare -A BASH_EXPECT=(
     [cut]=0 [gpg_enc]=0 [gpg_dec]=0 [adb]=0 [upgrade]=0 [yay]=0 [git_watch]=0
     [cleanout]=0 [tmux_nested]=1 [tmux_restore]=0 [i3_help]=0 [i3_one]=0
     [i3_bad]=1 [i3_restore_missing]=1 [i3_restore]=0 [i3_all]=0 [gio_mount]=0
-    [gio_umount]=0 [sshfs_start]=0 [sshfs_bad]=1 [pipefail]=1
+    [gio_umount]=0 [sshfs_help]=0 [sshfs_notty]=1 [sshfs_unknown]=1 [opts_sshfs_same]=yes
+    [pipefail]=0 [private_sshfsctl]=""
     [cmd]=E1_CALLER_CMD [env]=keep [opts_same]=yes
     [pwd_after_calls]="<HOME>/work" [pwd_mounted]="<HOME>/mnt/phone"
     [books_after]="Title.fb2 ")
 for key in "${!BASH_EXPECT[@]}"; do
     assert_eq "${BASH_EXPECT[${key}]}" "$(kv "${BASH_RES}" "${key}")" "bash: ${key}"
 done
-opts="$(kv "${BASH_RES}" opts_sshfs)"
-[[ "${opts}" == *e* && "${opts}" == *u* ]] && pass "bash: hh_sshfsctl sets errexit/nounset in caller" \
-    || fail "bash: hh_sshfsctl caller options: ${opts}"
 argv_api="$(cat "${BASH_RES}/argv_api.log")"
 # The pipeline stage table must name lines the helpers really log, or
 # pipeline_order would silently stop normalising them.
@@ -316,8 +317,12 @@ assert_contains "${argv_api}" "git [fetch] [--prune] [--all]" "bash: hh_git_clea
 assert_contains "${argv_api}" "tmux [attach]" "bash: hh_tmux_restore attaches"
 assert_contains "${argv_api}" "i3-msg [workspace 2; append_layout <HOME>/.config/i3/workspaces/workspace_1-$(uname -n).json]" \
     "bash: hh_i3_restore_ws"
-assert_contains "$(cat "${BASH_RES}/argv.log")" "systemctl [--user] [start] [sshfs@u@h:/r:/l p]" \
-    "bash: hh_sshfsctl keeps spaced local path"
+assert_contains "$(cat "${BASH_RES}/o_sshfs_help")" "Interactive SSHFS mount manager" \
+    "bash: hh_sshfsctl help runs the interactive sshfs.bash"
+assert_contains "$(cat "${BASH_RES}/o_sshfs_notty")" "Usage: sshfs.bash [COMMAND]" \
+    "bash: hh_sshfsctl without a terminal falls back to sshfs.bash help"
+assert_contains "$(cat "${BASH_RES}/o_sshfs_unknown")" "Unknown command: e1bogus" \
+    "bash: hh_sshfsctl forwards arguments to sshfs.bash"
 assert_contains "$(cat "${BASH_RES}/o_rsync_help")" "Usage: hh_rsync_ssh [OPTIONS]" "bash: help text uses the hh_ name"
 assert_contains "$(cat "${BASH_RES}/o_rsync_badopt")" "Error: unknown option -x" "bash: hh_rsync_ssh bad option on stderr"
 assert_contains "$(cat "${BASH_RES}/o_rsync_fail")" "rsync: e1 failure" "bash: transfer failure stderr propagates"
@@ -379,16 +384,8 @@ if command -v zsh >/dev/null 2>&1; then
             fail "zsh differs from bash: ${f##*/}: $(diff "${f}" "${ZSH_RES}/${f##*/}" | head -n 4 | tr '\n' ' ')"
         fi
     done
-    assert_eq "$(grep 'systemctl' "${BASH_RES}/argv.log")" "$(grep 'systemctl' "${ZSH_RES}/argv.log")" \
-        "zsh = bash: hh_sshfsctl systemctl argv"
-    for key in "${!BASH_EXPECT[@]}" opts_sshfs; do
-        val="$(kv "${ZSH_RES}" "${key}")"
-        if [[ "${key}" == opts_sshfs ]]; then
-            [[ "${val}" == *e* && "${val}" == *u* ]] && pass "zsh: hh_sshfsctl sets errexit/nounset in caller" \
-                || fail "zsh: hh_sshfsctl caller options: ${val}"
-        else
-            assert_eq "$(kv "${BASH_RES}" "${key}")" "${val}" "zsh = bash: ${key}"
-        fi
+    for key in "${!BASH_EXPECT[@]}"; do
+        assert_eq "$(kv "${BASH_RES}" "${key}")" "$(kv "${ZSH_RES}" "${key}")" "zsh = bash: ${key}"
     done
     assert_eq "$(grep -E '^(kind|old)_' "${BASH_RES}/out" | sed -E 's/=(file|builtin|keyword)$/=external/' | sort)" \
         "$(grep -E '^(kind|old)_' "${ZSH_RES}/out" | sed -E 's/=(file|builtin|keyword)$/=external/' | sort)" \

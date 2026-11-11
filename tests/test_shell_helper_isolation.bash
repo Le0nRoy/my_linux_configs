@@ -88,6 +88,9 @@ MACOS_SKIPPED_MODULES=(firefox i3 storage system utils)
 RENAMED_PUBLIC='tmux_restore|git_watch|git_cleanout|sshfsctl|gio_mount|gio_umount|upgrade_system|yay_no_cache|adb_pull_music|unzip_books|cut_video|gpg_decrypt|gpg_encrypt|rsync_ssh|rm_ssh|cp_ssh|i3_save_chezmoi_ws|i3_save_ws|i3_restore_ws'
 # Functions the owner approved for removal (#60).
 REMOVED_FUNCS=(job_mount job_umount)
+# Public helpers whose body the owner approved replacing: hh_sshfsctl now
+# only runs ~/bin/sshfs.bash; its old systemctl body was retired, not moved.
+REPLACED_FUNCS=(hh_sshfsctl)
 
 sorted_words() { printf '%s\n' "$@" | sort -u; }
 
@@ -257,15 +260,38 @@ if (( have_baseline )); then
 fi
 
 
-# --- Caller shell options from hh_sshfsctl (stateful public API) ------------
-echo "== hh_sshfsctl keeps its in-process caller option contract"
-run_bash "${NEW_HOME}" 'hh_sshfsctl -h >/dev/null; echo "st=$?"; echo "opts=$-"; echo "pf=$(set -o | grep -c "pipefail.*on")"'
-assert_eq 0 "$(out_value st "${NEW_HOME}")" "hh_sshfsctl -h succeeds"
-opts="$(out_value opts "${NEW_HOME}")"
-if [[ "${opts}" == *e* && "${opts}" == *u* && "$(out_value pf "${NEW_HOME}")" == 1 ]]; then
-    pass "hh_sshfsctl still sets errexit/nounset/pipefail in caller (unchanged body)"
+# --- hh_sshfsctl runs sshfs.bash -------------------------------------------
+# The public helper only runs ~/bin/sshfs.bash with its arguments; it must
+# not change the caller's shell options or define any private helper.
+SSHFS_SCRIPT='
+opts_before="$-"
+hh_sshfsctl help > "${HOME}/sshfs_help" 2>&1; echo "help=$?"
+echo "opts_same=$([[ "$-" == "${opts_before}" ]] && echo yes || echo no)"
+echo "private=$(type -t _hh_sshfsctl)"
+mv "${HOME}/bin/sshfs.bash" "${HOME}/bin/sshfs.real"
+printf "#!/bin/bash\necho \"stub \$#\"; printf \"[%%s]\" \"\$@\"; echo\n" > "${HOME}/bin/sshfs.bash"
+chmod +x "${HOME}/bin/sshfs.bash"
+hh_sshfsctl mount "a b" "" > "${HOME}/sshfs_stub"; echo "stub=$?"
+mv "${HOME}/bin/sshfs.real" "${HOME}/bin/sshfs.bash"
+'
+echo "== hh_sshfsctl delegates to sshfs.bash (bash)"
+run_bash "${NEW_HOME}" "${SSHFS_SCRIPT}"
+assert_eq 0 "$(out_value help "${NEW_HOME}")" "hh_sshfsctl help succeeds"
+assert_file_contains "${NEW_HOME}/sshfs_help" "Interactive SSHFS mount manager" "hh_sshfsctl help runs sshfs.bash"
+assert_eq yes "$(out_value opts_same "${NEW_HOME}")" "hh_sshfsctl leaves caller shell options unchanged"
+assert_eq "" "$(out_value private "${NEW_HOME}")" "no _hh_sshfsctl is defined in interactive bash"
+assert_eq 0 "$(out_value stub "${NEW_HOME}")" "hh_sshfsctl runs ~/bin/sshfs.bash"
+assert_file_contains "${NEW_HOME}/sshfs_stub" "stub 3" "hh_sshfsctl forwards every argument"
+assert_file_contains "${NEW_HOME}/sshfs_stub" "[mount][a b][]" "hh_sshfsctl keeps spaced and empty arguments"
+if (cd "${REPO_ROOT}" && git grep -qE '^[[:space:]]*(function[[:space:]]+)?_hh_sshfsctl[[:space:]]*\(\)' -- .); then
+    fail "a _hh_sshfsctl definition exists in the repository"
 else
-    fail "hh_sshfsctl caller option contract changed: opts=${opts}"
+    pass "no _hh_sshfsctl definition exists in the repository"
+fi
+if grep -vE '^[[:space:]]*#' "${REPO_ROOT}/bin/executable_sshfs.bash" | grep -qE '(^|[^_])hh_sshfsctl'; then
+    fail "sshfs.bash calls the public hh_sshfsctl (recursion risk)"
+else
+    pass "sshfs.bash never calls the public hh_sshfsctl"
 fi
 
 # --- Bash startup and re-source: tmux pane plumbing, PATH --------------------
@@ -449,6 +475,10 @@ hh_rsync_ssh -h >/dev/null; print "rsync_help=$?"
 hh_unar "${HOME}/nofile" >/dev/null; print "ex=$?"
 hh_gio_mount; print "gio_mount=$?"; print -r -- "pwd=${PWD}"
 cd "${HOME}"
+opts_before="$-"
+hh_sshfsctl help >/dev/null; print "sshfs=$?"
+[[ "$-" == "${opts_before}" ]] && print "sshfs_opts_same=yes" || print "sshfs_opts_same=no"
+print -r -- "sshfs_private=$(whence -w _hh_sshfsctl)"
 print -l ${(k)functions} | sed "s/^/fn_after:/"
 source "${HOME}/.zshrc"
 print -r -- "precmd2=${precmd_functions[*]}"
@@ -499,6 +529,9 @@ if command -v zsh >/dev/null 2>&1; then
         assert_eq 0 "$(out_value rsync_help "${NEW_HOME}")" "zsh ${mode}: hh_rsync_ssh -h"
         assert_eq 0 "$(out_value ex "${NEW_HOME}")" "zsh ${mode}: hh_unar runs"
         assert_eq "<HOME>/mnt/phone" "$(out_value pwd "${NEW_HOME}")" "zsh ${mode}: hh_gio_mount changes caller cwd"
+        assert_eq 0 "$(out_value sshfs "${NEW_HOME}")" "zsh ${mode}: hh_sshfsctl help runs sshfs.bash"
+        assert_eq yes "$(out_value sshfs_opts_same "${NEW_HOME}")" "zsh ${mode}: hh_sshfsctl leaves caller options unchanged"
+        assert_eq "_hh_sshfsctl: none" "$(out_value sshfs_private "${NEW_HOME}")" "zsh ${mode}: no _hh_sshfsctl defined"
     done
     printf '%s\n' "${TMUX_ID_INITIAL}" > "${NEW_HOME}/tmux_id"
 
@@ -594,7 +627,7 @@ if (( have_baseline )); then
         for f in "$@"; do cur_files+=("${REPO_ROOT}/${f}"); done
         local checked=0 bad=0
         while read -r name; do
-            [[ " ${REMOVED_FUNCS[*]} " == *" ${name} "* ]] && continue
+            [[ " ${REMOVED_FUNCS[*]} ${REPLACED_FUNCS[*]} " == *" ${name} "* ]] && continue
             checked=$((checked + 1))
             base_body="$(function_body "${name}" "${base_files[@]}")"
             if [[ "$(column0_count "${name}" "${cur_files[@]}")" -ne 1 ]]; then
@@ -616,6 +649,23 @@ if (( have_baseline )); then
     check_bodies "zsh side" dot_zshrc bin/helper/tmux_last_cmd.zsh bin/helper/tmux_commands.bash \
         -- dot_zshrc bin/helper/*.zsh bin/helper/tmux_commands.bash
     cd - >/dev/null || exit 1
+
+    # Approved hh_sshfsctl replacement: the baseline systemctl body was
+    # retired outright (it is skipped by check_bodies via REPLACED_FUNCS and
+    # survives nowhere); the public body only runs the script.
+    if [[ "$(function_body hh_sshfsctl "${RENAMED_SRC}/bin/helper/storage.bash")" == *'systemctl --user'* ]]; then
+        pass "control: baseline hh_sshfsctl held the systemctl body (replacement is real)"
+    else
+        fail "control: baseline hh_sshfsctl systemctl body not found"
+    fi
+    old_body_left="$(cd "${REPO_ROOT}" && git grep -lF '<start|stop|status|journal>' -- . ':!tests' ':!docs' | tr '\n' ' ')"
+    assert_eq "" "${old_body_left}" "old hh_sshfsctl systemctl body exists nowhere outside tests/docs"
+    assert_eq 'function hh_sshfsctl() {
+    # Open the interactive SSHFS mount manager (~/bin/sshfs.bash)
+    # Usage: hh_sshfsctl [mount|umount|status|help]
+    "${HOME}/bin/sshfs.bash" "$@"
+}' "$(function_body hh_sshfsctl "${REPO_ROOT}/bin/helper/storage.bash")" \
+        "public hh_sshfsctl body only runs ~/bin/sshfs.bash with its arguments"
 
     removed_left="$(defined_functions "${REPO_ROOT}/dot_bashrc" "${REPO_ROOT}/dot_zshrc" \
         "${REPO_ROOT}/bin/executable_helper.bash" "${REPO_ROOT}/bin/helper/"* \

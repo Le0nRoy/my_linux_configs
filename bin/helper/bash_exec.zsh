@@ -10,9 +10,10 @@
 # an interactive bash. `&&` stops a failed source from calling an
 # undefined function. $0 inside the child is the module path.
 #
-# Helpers that change caller state (hh_gio_mount/hh_gio_umount cwd,
-# hh_sshfsctl shell options) or are portable (hh_git_cleanout,
-# hh_tmux_restore, hh_git_watch) are sourced in-process by dot_zshrc.
+# Helpers that change caller state (hh_gio_mount/hh_gio_umount cwd) or
+# are portable (hh_sshfsctl, which only runs ~/bin/sshfs.bash,
+# hh_git_cleanout, hh_tmux_restore, hh_git_watch) are sourced in-process
+# by dot_zshrc.
 # Wrappers are defined only for modules present on this host (macOS skips
 # the Linux-only i3/utils modules).
 

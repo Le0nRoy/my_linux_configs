@@ -32,6 +32,7 @@ stays unmerged pending owner acceptance.
 | Inspected revision | `agent/feature-55` at `dc61d97790543a4a323ce2a6fee0332f158e0eb5` (squash merge of PR #68) |
 | PR #68 source head | `d170491` — **not available** in this checkout. Its evidence is inherited, never re-attributed to `dc61d977` |
 | This report's tested head | The docs-only commit(s) on top of `dc61d977`. `git diff --stat dc61d977 HEAD` touches only `docs/`, so every production and test file is byte-identical to `dc61d977` |
+| Later refresh | After the archive-helper rename to `hh_unar` and the `hh_sshfsctl` change (now a public wrapper that launches `~/bin/sshfs.bash` with its arguments; its old systemctl body was retired), the rows citing `bin/helper/bash_exec.zsh`, `bin/helper/storage.bash`, `bin/helper/shell.bash` and `bin/executable_sshfs.bash` were re-checked against the working tree. Definition counts are unchanged. All other rows, and the evidence in §5, still describe `dc61d977` |
 | Inspection date | **2026-11-05** (this audit). Any other dates are labelled *historical last change* (`git log -1`) and are not inspection dates |
 | AI-Wrapper submodule | gitlink `db66133af5c94fff51a6984db2cb7ba85adcb03c` unchanged and not traversed. A separate clean clone at that SHA was used only as `AI_WRAPPER_PINNED_SRC` input for the existing distribution test (§5.1) |
 | Not read | Live host files, `/Data/Job`, `~/bin/.env`, secrets, installed tmux plugins, host package managers |
@@ -239,7 +240,7 @@ tools are what host session G needs to check.
 | B19 | `bin/executable_yt_playlist_mp3.bash` | A53 | `yt-dlp` |
 | B20 | `bin/executable_polybar-supervisor.bash` | `bin/helper/system.bash:44`, `bin/executable_xrandr_manager.bash:168` | `polybar` |
 | B21 | `bin/executable_firefox_rofi.bash` | **No tracked invoker** (user command on `PATH`) | B1 |
-| B22 | `bin/executable_sshfs.bash` | **No tracked invoker** (interactive TUI on `PATH`) | `ssh`, `sshfs`, `systemctl`, B17 |
+| B22 | `bin/executable_sshfs.bash` | `bin/helper/storage.bash:8` (public `hh_sshfsctl`, interactive only); also a TUI on `PATH` | `ssh`, `sshfs`, `systemctl`, B17 |
 | B23 | `bin/executable_xrandr_dmenu_test.bash` | **No tracked invoker** (debug script) | `xrandr`, `rofi`, `dmenu`, B3 |
 
 The public `hh_*` helpers (§4.1) also call external tools: `gio`, `adb`,
@@ -284,7 +285,7 @@ the owner's hosts is **not verified**.
 |---------|------:|-------|
 | Executable-bearing association rows | 68 | A1–A68 (some rows list several commands or lines) |
 | Owned-script chain rows | 23 | B1–B23 (all tracked `bin/executable_*`) |
-| Owned scripts with no tracked invoker | 3 | B21, B22, B23 (user commands on `PATH`; also listed under Group 2) |
+| Owned scripts with no tracked invoker | 2 | B21, B23 (user commands on `PATH`; also listed under Group 2). B22 is launched only by the interactive `hh_sshfsctl` |
 | Distinct external command names in A1–A68 | 57 | Listed below |
 | Confirmed missing executables | **unknown** | Pending session G |
 
@@ -318,7 +319,7 @@ registration and possible external consumers are recorded separately.
 | Class | Occurrences | Notes |
 |-------|------------:|-------|
 | Public `hh_*` implementations (`bin/helper/*.bash`) | 20 | The approved public API |
-| Zsh public shims (`bin/helper/bash_exec.zsh:21-87`) | 14 | Bash-only helpers run through `bash -c` |
+| Zsh public shims (`bin/helper/bash_exec.zsh:22-88`) | 14 | Bash-only helpers run through `bash -c` |
 | Bash public i3 subshell wrappers (`bin/executable_helper.bash:41-43`) | 3 | Interactive-only wrappers around `i3.bash` |
 | Approved Bash plumbing | 10 | `_bashrc_git_branch`, `_tmux_log_last_cmd`, `_tmux_pane_hist_{path,claim,sync}`, `_helper_script`, `_ssh_config_hosts`, nested `_flush`, `_rsync_ssh_complete`, `_rm_ssh_complete` |
 | Approved Zsh plumbing | 8 | `_ctrl_d_exit`, `_reset_ctrl_d_count`, `_tmux_log_last_cmd`, `_tmux_pane_hist_{path,claim,detect,addhistory,sync}` |
@@ -340,7 +341,7 @@ Bash plus 8 Zsh entries, which share 4 names: **14 unique names, 18
 shell-specific occurrences**. They are runtime exceptions to private
 absence, not a separate function category. The public API is 20 `hh_*`
 functions plus the `hh_cp_ssh` alias (`bin/helper/transfer.bash:190`,
-`bin/helper/bash_exec.zsh:72`). That is an interface count, not a
+`bin/helper/bash_exec.zsh:73`). That is an interface count, not a
 definition count. `has_control_bytes` (`bin/executable_tmux_prefill_last_cmd.bash:20`)
 is a script-local helper called at `:48`. It is not an interactive API and
 not an allowlist entry.
@@ -350,7 +351,7 @@ not an allowlist entry.
 | # | Definition | Static callers | Dynamic interface / status | Uncertainty | Recommendation |
 |---|------------|----------------|----------------------------|-------------|----------------|
 | F1 | `get_display` — `bin/helper/system.bash:9` | **None** (no dispatch action; the reachability pass leaves it unreachable) | Helper-module private, loaded only in `helper.bash` script mode | Low. Out-of-tree scripts could only reach it by sourcing `system.bash` | **Source-only no-caller candidate.** Retain in H; owner decides removal later |
-| F2 | `hh_git_cleanout` (`git.bash:5`), `hh_sshfsctl` (`storage.bash:5`), `hh_gio_mount` (`storage.bash:69`), `hh_gio_umount` (`storage.bash:81`), `hh_tmux_restore` (`tmux_commands.bash:10`) | None outside their own bodies | Public interactive API (Bash `helper.bash:28` module list; Zsh `dot_zshrc:120-128`) | Interactive use cannot be seen from source | Retain (public API) |
+| F2 | `hh_git_cleanout` (`git.bash:5`), `hh_sshfsctl` (`storage.bash:5`, a wrapper that launches `~/bin/sshfs.bash` with its arguments), `hh_gio_mount` (`storage.bash:11`), `hh_gio_umount` (`storage.bash:23`), `hh_tmux_restore` (`tmux_commands.bash:10`) | None outside their own bodies | Public interactive API (Bash `helper.bash:28` module list; Zsh `dot_zshrc:120-128`) | Interactive use cannot be seen from source | Retain (public API) |
 | F3 | 14 Zsh shims (`bash_exec.zsh`) and 3 Bash i3 wrappers (`helper.bash:41-43`) | Invoked by name from the interactive shell only | Public wrappers | Same as F2 | Retain |
 | F4 | `hh_colors`, `hh_unar`, `hh_upgrade_system`, `hh_yay_no_cache`, `hh_adb_pull_music`, `hh_unzip_books`, `hh_cut_video`, `hh_gpg_decrypt`, `hh_gpg_encrypt`, `hh_i3_*` implementations | Only the `bash -c '… && NAME "$@"'` strings in `bash_exec.zsh` or the `helper.bash:41-43` wrappers | Public API; Bash loads them directly | — | Retain |
 
@@ -373,9 +374,10 @@ plausible. **Retain; owner revalidates usage.** The other 14 actions are
 invoked from A1, A8, A49, A59 or B3–B5.
 
 **Owned scripts without a tracked invoker:** `bin/executable_firefox_rofi.bash`,
-`bin/executable_sshfs.bash`, `bin/executable_xrandr_dmenu_test.bash`
-(B21–B23). These are user commands on `PATH`. **Retain; owner
-revalidates.**
+`bin/executable_xrandr_dmenu_test.bash` (B21, B23). These are user
+commands on `PATH`. `bin/executable_sshfs.bash` (B22) is launched by the
+public `hh_sshfsctl` (`bin/helper/storage.bash:8`), so its only tracked
+invoker is interactive. **Retain; owner revalidates.**
 
 ### 4.3 Variables
 
@@ -608,9 +610,9 @@ added by hand.
 | 9 | `bin/executable_asusctl_rofi.bash:122` | `_menu_battery` | script-local | bin/executable_asusctl_rofi.bash:211 |
 | 10 | `bin/executable_asusctl_rofi.bash:159` | `_menu_aura` | script-local | bin/executable_asusctl_rofi.bash:212 |
 | 11 | `bin/executable_asusctl_rofi.bash:194` | `_menu_main` | script-local | bin/executable_asusctl_rofi.bash:217 |
-| 12 | `bin/executable_helper.bash:41` | `hh_i3_save_chezmoi_ws` | Bash public i3 subshell wrapper | bin/helper/bash_exec.zsh:77; bin/helper/i3.bash:45 |
-| 13 | `bin/executable_helper.bash:42` | `hh_i3_save_ws` | Bash public i3 subshell wrapper | bin/helper/bash_exec.zsh:81; bin/helper/i3.bash:108 |
-| 14 | `bin/executable_helper.bash:43` | `hh_i3_restore_ws` | Bash public i3 subshell wrapper | bin/helper/bash_exec.zsh:85; bin/helper/i3.bash:157 |
+| 12 | `bin/executable_helper.bash:41` | `hh_i3_save_chezmoi_ws` | Bash public i3 subshell wrapper | bin/helper/bash_exec.zsh:78; bin/helper/i3.bash:45 |
+| 13 | `bin/executable_helper.bash:42` | `hh_i3_save_ws` | Bash public i3 subshell wrapper | bin/helper/bash_exec.zsh:82; bin/helper/i3.bash:108 |
+| 14 | `bin/executable_helper.bash:43` | `hh_i3_restore_ws` | Bash public i3 subshell wrapper | bin/helper/bash_exec.zsh:86; bin/helper/i3.bash:157 |
 | 15 | `bin/executable_helper.bash:69` | `show_error_and_usage` | dispatcher-private | bin/executable_helper.bash:244 |
 | 16 | `bin/executable_i3_workspaces.bash:14` | `drop_single_window_titles` | script-local | bin/executable_i3_workspaces.bash:59 |
 | 17 | `bin/executable_i3_workspaces.bash:32` | `save_all` | script-local | bin/executable_i3_workspaces.bash:83 |
@@ -722,20 +724,20 @@ added by hand.
 | 123 | `bin/executable_xrandr_manager.bash:973` | `main` | script-local | bin/executable_xrandr_manager.bash:1031 |
 | 124 | `bin/helper/backup.bash:5` | `rclone_systemd` | helper-module private | bin/executable_helper.bash:227 |
 | 125 | `bin/helper/backup.bash:22` | `rclone_to_backup` | helper-module private | bin/executable_helper.bash:229,231 |
-| 126 | `bin/helper/bash_exec.zsh:21` | `hh_colors` | Zsh public shim | — |
-| 127 | `bin/helper/bash_exec.zsh:25` | `hh_unar` | Zsh public shim | — |
-| 128 | `bin/helper/bash_exec.zsh:32` | `hh_upgrade_system` | Zsh public shim | — |
-| 129 | `bin/helper/bash_exec.zsh:36` | `hh_yay_no_cache` | Zsh public shim | — |
-| 130 | `bin/helper/bash_exec.zsh:40` | `hh_adb_pull_music` | Zsh public shim | — |
-| 131 | `bin/helper/bash_exec.zsh:44` | `hh_unzip_books` | Zsh public shim | — |
-| 132 | `bin/helper/bash_exec.zsh:48` | `hh_cut_video` | Zsh public shim | — |
-| 133 | `bin/helper/bash_exec.zsh:52` | `hh_gpg_decrypt` | Zsh public shim | — |
-| 134 | `bin/helper/bash_exec.zsh:56` | `hh_gpg_encrypt` | Zsh public shim | — |
-| 135 | `bin/helper/bash_exec.zsh:63` | `hh_rsync_ssh` | Zsh public shim | bin/helper/bash_exec.zsh:72; bin/helper/transfer.bash:29,30,46,47,48,49,190; dot_bash_completion.d/transfer.bash:82; dot_zshrc:135,136 |
-| 136 | `bin/helper/bash_exec.zsh:67` | `hh_rm_ssh` | Zsh public shim | bin/helper/transfer.bash:114,123,124,125; dot_bash_completion.d/transfer.bash:123; dot_zshrc:137 |
-| 137 | `bin/helper/bash_exec.zsh:76` | `hh_i3_save_chezmoi_ws` | Zsh public shim | bin/helper/i3.bash:45 |
-| 138 | `bin/helper/bash_exec.zsh:80` | `hh_i3_save_ws` | Zsh public shim | bin/helper/i3.bash:108 |
-| 139 | `bin/helper/bash_exec.zsh:84` | `hh_i3_restore_ws` | Zsh public shim | bin/helper/i3.bash:157 |
+| 126 | `bin/helper/bash_exec.zsh:22` | `hh_colors` | Zsh public shim | — |
+| 127 | `bin/helper/bash_exec.zsh:26` | `hh_unar` | Zsh public shim | — |
+| 128 | `bin/helper/bash_exec.zsh:33` | `hh_upgrade_system` | Zsh public shim | — |
+| 129 | `bin/helper/bash_exec.zsh:37` | `hh_yay_no_cache` | Zsh public shim | — |
+| 130 | `bin/helper/bash_exec.zsh:41` | `hh_adb_pull_music` | Zsh public shim | — |
+| 131 | `bin/helper/bash_exec.zsh:45` | `hh_unzip_books` | Zsh public shim | — |
+| 132 | `bin/helper/bash_exec.zsh:49` | `hh_cut_video` | Zsh public shim | — |
+| 133 | `bin/helper/bash_exec.zsh:53` | `hh_gpg_decrypt` | Zsh public shim | — |
+| 134 | `bin/helper/bash_exec.zsh:57` | `hh_gpg_encrypt` | Zsh public shim | — |
+| 135 | `bin/helper/bash_exec.zsh:64` | `hh_rsync_ssh` | Zsh public shim | bin/helper/bash_exec.zsh:73; bin/helper/transfer.bash:29,30,46,47,48,49,190; dot_bash_completion.d/transfer.bash:82; dot_zshrc:135,136 |
+| 136 | `bin/helper/bash_exec.zsh:68` | `hh_rm_ssh` | Zsh public shim | bin/helper/transfer.bash:114,123,124,125; dot_bash_completion.d/transfer.bash:123; dot_zshrc:137 |
+| 137 | `bin/helper/bash_exec.zsh:77` | `hh_i3_save_chezmoi_ws` | Zsh public shim | bin/helper/i3.bash:45 |
+| 138 | `bin/helper/bash_exec.zsh:81` | `hh_i3_save_ws` | Zsh public shim | bin/helper/i3.bash:108 |
+| 139 | `bin/helper/bash_exec.zsh:85` | `hh_i3_restore_ws` | Zsh public shim | bin/helper/i3.bash:157 |
 | 140 | `bin/helper/firefox.bash:8` | `_ff_find_profiles_ini` | helper-module private | bin/helper/firefox.bash:117 |
 | 141 | `bin/helper/firefox.bash:20` | `_ff_parse_profiles_ini` | helper-module private | bin/helper/firefox.bash:140 |
 | 142 | `bin/helper/firefox.bash:24` | `__emit` | helper-module private | bin/helper/firefox.bash:29,31,40,41 |
@@ -748,13 +750,13 @@ added by hand.
 | 149 | `bin/helper/i3.bash:9` | `_i3_get_host` | helper-module private | bin/helper/i3.bash:60,127,175 |
 | 150 | `bin/helper/i3.bash:20` | `_i3_check_ws_num` | helper-module private | bin/helper/i3.bash:122,171,172 |
 | 151 | `bin/helper/i3.bash:28` | `_i3_clean_layout` | helper-module private | bin/helper/i3.bash:90,139 |
-| 152 | `bin/helper/i3.bash:43` | `hh_i3_save_chezmoi_ws` | public hh_ implementation | bin/helper/bash_exec.zsh:77 |
-| 153 | `bin/helper/i3.bash:106` | `hh_i3_save_ws` | public hh_ implementation | bin/helper/bash_exec.zsh:81 |
-| 154 | `bin/helper/i3.bash:155` | `hh_i3_restore_ws` | public hh_ implementation | bin/helper/bash_exec.zsh:85 |
-| 155 | `bin/helper/shell.bash:8` | `hh_colors` | public hh_ implementation | bin/helper/bash_exec.zsh:22 |
-| 156 | `bin/helper/storage.bash:5` | `hh_sshfsctl` | public hh_ implementation | — |
-| 157 | `bin/helper/storage.bash:69` | `hh_gio_mount` | public hh_ implementation | — |
-| 158 | `bin/helper/storage.bash:81` | `hh_gio_umount` | public hh_ implementation | — |
+| 152 | `bin/helper/i3.bash:43` | `hh_i3_save_chezmoi_ws` | public hh_ implementation | bin/helper/bash_exec.zsh:78 |
+| 153 | `bin/helper/i3.bash:106` | `hh_i3_save_ws` | public hh_ implementation | bin/helper/bash_exec.zsh:82 |
+| 154 | `bin/helper/i3.bash:155` | `hh_i3_restore_ws` | public hh_ implementation | bin/helper/bash_exec.zsh:86 |
+| 155 | `bin/helper/shell.bash:8` | `hh_colors` | public hh_ implementation | bin/helper/bash_exec.zsh:23 |
+| 156 | `bin/helper/storage.bash:5` | `hh_sshfsctl` | public hh_ implementation (wrapper: runs `~/bin/sshfs.bash "$@"`, `storage.bash:8`) | — |
+| 157 | `bin/helper/storage.bash:11` | `hh_gio_mount` | public hh_ implementation | — |
+| 158 | `bin/helper/storage.bash:23` | `hh_gio_umount` | public hh_ implementation | — |
 | 159 | `bin/helper/system.bash:9` | `get_display` | helper-module private | **— (F1: no caller, unreachable)** |
 | 160 | `bin/helper/system.bash:14` | `set_us_ru_layout` | helper-module private | bin/executable_helper.bash:150,175 |
 | 161 | `bin/helper/system.bash:24` | `set_us_ge_layout` | helper-module private | bin/executable_helper.bash:153 |
@@ -778,15 +780,15 @@ added by hand.
 | 179 | `bin/helper/tmux_last_cmd.zsh:45` | `_tmux_pane_hist_detect` | approved Zsh plumbing | bin/helper/tmux_last_cmd.zsh:60,65 |
 | 180 | `bin/helper/tmux_last_cmd.zsh:59` | `_tmux_pane_hist_addhistory` | approved Zsh plumbing | bin/helper/tmux_last_cmd.zsh:88,89 |
 | 181 | `bin/helper/tmux_last_cmd.zsh:64` | `_tmux_pane_hist_sync` | approved Zsh plumbing | bin/helper/tmux_last_cmd.bash:90,91; bin/helper/tmux_last_cmd.zsh:86,87 |
-| 182 | `bin/helper/transfer.bash:9` | `hh_rsync_ssh` | public hh_ implementation | bin/helper/bash_exec.zsh:64,72; bin/helper/transfer.bash:190; dot_bash_completion.d/transfer.bash:82; dot_zshrc:135,136 |
-| 183 | `bin/helper/transfer.bash:97` | `hh_rm_ssh` | public hh_ implementation | bin/helper/bash_exec.zsh:68; dot_bash_completion.d/transfer.bash:123; dot_zshrc:137 |
-| 184 | `bin/helper/utils.bash:5` | `hh_upgrade_system` | public hh_ implementation | bin/helper/bash_exec.zsh:33 |
-| 185 | `bin/helper/utils.bash:41` | `hh_yay_no_cache` | public hh_ implementation | bin/helper/bash_exec.zsh:37 |
-| 186 | `bin/helper/utils.bash:48` | `hh_adb_pull_music` | public hh_ implementation | bin/helper/bash_exec.zsh:41 |
-| 187 | `bin/helper/utils.bash:53` | `hh_unzip_books` | public hh_ implementation | bin/helper/bash_exec.zsh:45 |
-| 188 | `bin/helper/utils.bash:67` | `hh_cut_video` | public hh_ implementation | bin/helper/bash_exec.zsh:49 |
-| 189 | `bin/helper/utils.bash:77` | `hh_gpg_decrypt` | public hh_ implementation | bin/helper/bash_exec.zsh:53 |
-| 190 | `bin/helper/utils.bash:83` | `hh_gpg_encrypt` | public hh_ implementation | bin/helper/bash_exec.zsh:57 |
+| 182 | `bin/helper/transfer.bash:9` | `hh_rsync_ssh` | public hh_ implementation | bin/helper/bash_exec.zsh:65,73; bin/helper/transfer.bash:190; dot_bash_completion.d/transfer.bash:82; dot_zshrc:135,136 |
+| 183 | `bin/helper/transfer.bash:97` | `hh_rm_ssh` | public hh_ implementation | bin/helper/bash_exec.zsh:69; dot_bash_completion.d/transfer.bash:123; dot_zshrc:137 |
+| 184 | `bin/helper/utils.bash:5` | `hh_upgrade_system` | public hh_ implementation | bin/helper/bash_exec.zsh:34 |
+| 185 | `bin/helper/utils.bash:41` | `hh_yay_no_cache` | public hh_ implementation | bin/helper/bash_exec.zsh:38 |
+| 186 | `bin/helper/utils.bash:48` | `hh_adb_pull_music` | public hh_ implementation | bin/helper/bash_exec.zsh:42 |
+| 187 | `bin/helper/utils.bash:53` | `hh_unzip_books` | public hh_ implementation | bin/helper/bash_exec.zsh:46 |
+| 188 | `bin/helper/utils.bash:67` | `hh_cut_video` | public hh_ implementation | bin/helper/bash_exec.zsh:50 |
+| 189 | `bin/helper/utils.bash:77` | `hh_gpg_decrypt` | public hh_ implementation | bin/helper/bash_exec.zsh:54 |
+| 190 | `bin/helper/utils.bash:83` | `hh_gpg_encrypt` | public hh_ implementation | bin/helper/bash_exec.zsh:58 |
 | 191 | `dot_bash_completion.d/helper.bash:3` | `_helper_script` | approved Bash plumbing | dot_bash_completion.d/helper.bash:11 |
 | 192 | `dot_bash_completion.d/transfer.bash:10` | `_ssh_config_hosts` | approved Bash plumbing | dot_bash_completion.d/transfer.bash:72,116 |
 | 193 | `dot_bash_completion.d/transfer.bash:16` | `_flush` | approved Bash plumbing | dot_bash_completion.d/transfer.bash:35,39 |
@@ -797,7 +799,7 @@ added by hand.
 | 198 | `dot_zshrc:28` | `_ctrl_d_exit` | approved Zsh plumbing | dot_zshrc:40,41 |
 | 199 | `dot_zshrc:42` | `_reset_ctrl_d_count` | approved Zsh plumbing | dot_zshrc:45,46 |
 | 200 | `modify_dot_gitconfig:43` | `passthrough` | script-local | modify_dot_gitconfig:49,59 |
-| 201 | `bin/helper/shell.bash:37` | `hh_unar` | public hh_ implementation | bin/helper/bash_exec.zsh:26 |
+| 201 | `bin/helper/shell.bash:37` | `hh_unar` | public hh_ implementation | bin/helper/bash_exec.zsh:27 |
 | 202 | `bin/executable_polybar_volume_all.bash:177` | `flush` (AWK) | embedded AWK, `get_devices` program | `bin/executable_polybar_volume_all.bash:184,199` (same AWK program, incl. `END`) |
 | 203 | `bin/executable_polybar_volume_all.bash:281` | `flush` (AWK) | embedded AWK, `list_streams` program | `bin/executable_polybar_volume_all.bash:290,304` (same AWK program, incl. `END`) |
 | 204 | `bin/executable_tmux_osc52_pbcopy.py:16` | `main` (Python) | script-local | `bin/executable_tmux_osc52_pbcopy.py:42` (`__main__`) |
