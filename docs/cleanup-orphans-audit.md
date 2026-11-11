@@ -46,7 +46,7 @@ target revision, plus these bounded scans:
   over the 105 tracked paths that are not tests, Markdown or the gitlink.
   The scan found 202 hits. Two of those are AWK `function flush()`
   definitions inside `awk '…'` programs, not shell. One shell definition
-  uses `name ()` with `{` on the next line (`hh_ex`), which the scan misses,
+  uses `name ()` with `{` on the next line (`hh_unar`), which the scan misses,
   so it was added by hand. Python `def` and Vimscript `function!`
   definitions were also added by hand. Result: 206 definitions in
   Appendix A.
@@ -352,7 +352,7 @@ not an allowlist entry.
 | F1 | `get_display` — `bin/helper/system.bash:9` | **None** (no dispatch action; the reachability pass leaves it unreachable) | Helper-module private, loaded only in `helper.bash` script mode | Low. Out-of-tree scripts could only reach it by sourcing `system.bash` | **Source-only no-caller candidate.** Retain in H; owner decides removal later |
 | F2 | `hh_git_cleanout` (`git.bash:5`), `hh_sshfsctl` (`storage.bash:5`), `hh_gio_mount` (`storage.bash:69`), `hh_gio_umount` (`storage.bash:81`), `hh_tmux_restore` (`tmux_commands.bash:10`) | None outside their own bodies | Public interactive API (Bash `helper.bash:28` module list; Zsh `dot_zshrc:120-128`) | Interactive use cannot be seen from source | Retain (public API) |
 | F3 | 14 Zsh shims (`bash_exec.zsh`) and 3 Bash i3 wrappers (`helper.bash:41-43`) | Invoked by name from the interactive shell only | Public wrappers | Same as F2 | Retain |
-| F4 | `hh_colors`, `hh_ex`, `hh_upgrade_system`, `hh_yay_no_cache`, `hh_adb_pull_music`, `hh_unzip_books`, `hh_cut_video`, `hh_gpg_decrypt`, `hh_gpg_encrypt`, `hh_i3_*` implementations | Only the `bash -c '… && NAME "$@"'` strings in `bash_exec.zsh` or the `helper.bash:41-43` wrappers | Public API; Bash loads them directly | — | Retain |
+| F4 | `hh_colors`, `hh_unar`, `hh_upgrade_system`, `hh_yay_no_cache`, `hh_adb_pull_music`, `hh_unzip_books`, `hh_cut_video`, `hh_gpg_decrypt`, `hh_gpg_encrypt`, `hh_i3_*` implementations | Only the `bash -c '… && NAME "$@"'` strings in `bash_exec.zsh` or the `helper.bash:41-43` wrappers | Public API; Bash loads them directly | — | Retain |
 
 Every other definition in Appendix A has at least one verified call site
 or registration outside its own body: `complete -F`, `PROMPT_COMMAND`,
@@ -723,7 +723,7 @@ added by hand.
 | 124 | `bin/helper/backup.bash:5` | `rclone_systemd` | helper-module private | bin/executable_helper.bash:227 |
 | 125 | `bin/helper/backup.bash:22` | `rclone_to_backup` | helper-module private | bin/executable_helper.bash:229,231 |
 | 126 | `bin/helper/bash_exec.zsh:21` | `hh_colors` | Zsh public shim | — |
-| 127 | `bin/helper/bash_exec.zsh:25` | `hh_ex` | Zsh public shim | — |
+| 127 | `bin/helper/bash_exec.zsh:25` | `hh_unar` | Zsh public shim | — |
 | 128 | `bin/helper/bash_exec.zsh:32` | `hh_upgrade_system` | Zsh public shim | — |
 | 129 | `bin/helper/bash_exec.zsh:36` | `hh_yay_no_cache` | Zsh public shim | — |
 | 130 | `bin/helper/bash_exec.zsh:40` | `hh_adb_pull_music` | Zsh public shim | — |
@@ -797,7 +797,7 @@ added by hand.
 | 198 | `dot_zshrc:28` | `_ctrl_d_exit` | approved Zsh plumbing | dot_zshrc:40,41 |
 | 199 | `dot_zshrc:42` | `_reset_ctrl_d_count` | approved Zsh plumbing | dot_zshrc:45,46 |
 | 200 | `modify_dot_gitconfig:43` | `passthrough` | script-local | modify_dot_gitconfig:49,59 |
-| 201 | `bin/helper/shell.bash:37` | `hh_ex` | public hh_ implementation | bin/helper/bash_exec.zsh:26 |
+| 201 | `bin/helper/shell.bash:37` | `hh_unar` | public hh_ implementation | bin/helper/bash_exec.zsh:26 |
 | 202 | `bin/executable_polybar_volume_all.bash:177` | `flush` (AWK) | embedded AWK, `get_devices` program | `bin/executable_polybar_volume_all.bash:184,199` (same AWK program, incl. `END`) |
 | 203 | `bin/executable_polybar_volume_all.bash:281` | `flush` (AWK) | embedded AWK, `list_streams` program | `bin/executable_polybar_volume_all.bash:290,304` (same AWK program, incl. `END`) |
 | 204 | `bin/executable_tmux_osc52_pbcopy.py:16` | `main` (Python) | script-local | `bin/executable_tmux_osc52_pbcopy.py:42` (`__main__`) |

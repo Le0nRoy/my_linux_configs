@@ -57,7 +57,7 @@ assert_contains() {
     fi
 }
 
-PUBLIC_FUNCS=(hh_colors hh_ex hh_tmux_restore hh_git_watch hh_git_cleanout
+PUBLIC_FUNCS=(hh_colors hh_unar hh_tmux_restore hh_git_watch hh_git_cleanout
     hh_sshfsctl hh_gio_mount hh_gio_umount hh_upgrade_system hh_yay_no_cache
     hh_adb_pull_music hh_unzip_books hh_cut_video hh_gpg_decrypt hh_gpg_encrypt
     hh_rsync_ssh hh_rm_ssh hh_i3_save_chezmoi_ws hh_i3_save_ws hh_i3_restore_ws)
@@ -122,11 +122,11 @@ hh_rm_ssh > o_rm_noargs 2>&1; echo "rm_noargs=$?"
 hh_rm_ssh -n -p 2200 bob@alpha "/tmp/a b" "*.tmp" > o_rm_dry 2>&1; echo "rm_dry=$?"
 printf "n\n" | hh_rm_ssh bob@alpha /tmp/x > o_rm_cancel 2>&1; echo "rm_cancel=$?"
 hh_rm_ssh -f beta "/tmp/y z" > o_rm_force 2>&1; echo "rm_force=$?"
-hh_ex x.zip > o_ex_zip 2>&1; echo "ex_zip=$?"
-hh_ex "a b.zip" > o_ex_spaced 2>/dev/null; echo "ex_spaced=$?"
-hh_ex arc.tar.gz > o_ex_tgz 2>&1; echo "ex_tgz=$?"
-hh_ex missing.zip > o_ex_missing 2>&1; echo "ex_missing=$?"
-hh_ex notes.txt > o_ex_unknown 2>&1; echo "ex_unknown=$?"
+hh_unar x.zip > o_ex_zip 2>&1; echo "ex_zip=$?"
+hh_unar "a b.zip" > o_ex_spaced 2>/dev/null; echo "ex_spaced=$?"
+hh_unar arc.tar.gz > o_ex_tgz 2>&1; echo "ex_tgz=$?"
+hh_unar missing.zip > o_ex_missing 2>&1; echo "ex_missing=$?"
+hh_unar notes.txt > o_ex_unknown 2>&1; echo "ex_unknown=$?"
 hh_colors > o_colors 2>&1; echo "colors=$?"
 (cd empty && hh_unzip_books > ../o_books_empty 2>&1; echo "books_empty=$?")
 (cd books && hh_unzip_books > ../o_books 2>&1; echo "books=$?")
@@ -300,8 +300,8 @@ assert_contains "${argv_api}" "rsync [-aH] [--info=progress2] [-z] [-e] [ssh -c 
 assert_contains "${argv_api}" 'ssh [-p] [2200] [bob@alpha] [find /tmp/a\ b \*.tmp  -ls' \
     "bash: hh_rm_ssh dry run shell-quotes remote paths (printf %q)"
 assert_contains "${argv_api}" 'ssh [-p] [22] [beta] [rm -rf -- /tmp/y\ z ]' "bash: hh_rm_ssh -f deletes in one ssh call"
-assert_contains "${argv_api}" "unzip [-q] [x.zip]" "bash: hh_ex expands the shared unzip alias"
-assert_contains "${argv_api}" "tar [xzf] [arc.tar.gz]" "bash: hh_ex extracts tar.gz"
+assert_contains "${argv_api}" "unzip [-q] [x.zip]" "bash: hh_unar expands the shared unzip alias"
+assert_contains "${argv_api}" "tar [xzf] [arc.tar.gz]" "bash: hh_unar extracts tar.gz"
 assert_contains "${argv_api}" "unzip [-q] [a.fb2.zip]" "bash: hh_unzip_books expands the shared unzip alias"
 assert_contains "${argv_api}" "unzip [-q] [*.fb2.zip]" "bash: hh_unzip_books keeps Bash literal-glob semantics"
 assert_contains "${argv_api}" "ffmpeg [-ss] [00:01] [-i] [in put.mp4] [-t] [5] [-vcodec] [copy] [-acodec] [copy] [out put.mp4]" \
@@ -322,9 +322,9 @@ assert_contains "$(cat "${BASH_RES}/o_rsync_help")" "Usage: hh_rsync_ssh [OPTION
 assert_contains "$(cat "${BASH_RES}/o_rsync_badopt")" "Error: unknown option -x" "bash: hh_rsync_ssh bad option on stderr"
 assert_contains "$(cat "${BASH_RES}/o_rsync_fail")" "rsync: e1 failure" "bash: transfer failure stderr propagates"
 assert_contains "$(cat "${BASH_RES}/o_rm_cancel")" "Cancelled." "bash: hh_rm_ssh confirmation reads caller stdin"
-assert_contains "$(cat "${BASH_RES}/o_ex_spaced")" "'a b.zip' is not a valid file" "bash: hh_ex unquoted-\$1 semantics preserved"
-assert_contains "$(cat "${BASH_RES}/o_ex_missing")" "'missing.zip' is not a valid file" "bash: hh_ex missing file"
-assert_contains "$(cat "${BASH_RES}/o_ex_unknown")" "'notes.txt' cannot be extracted via ex()" "bash: hh_ex unknown type"
+assert_contains "$(cat "${BASH_RES}/o_ex_spaced")" "'a b.zip' is not a valid file" "bash: hh_unar unquoted-\$1 semantics preserved"
+assert_contains "$(cat "${BASH_RES}/o_ex_missing")" "'missing.zip' is not a valid file" "bash: hh_unar missing file"
+assert_contains "$(cat "${BASH_RES}/o_ex_unknown")" "'notes.txt' cannot be extracted via hh_unar()" "bash: hh_unar unknown type"
 assert_contains "$(cat "${BASH_RES}/o_colors")" "Color escapes are" "bash: hh_colors prints the table"
 assert_contains "$(cat "${BASH_RES}/o_tmux_nested")" "hh_tmux_restore: already inside tmux" "bash: hh_tmux_restore nested guard"
 assert_contains "$(cat "${BASH_RES}/o_i3_bad")" "workspace number must be 1-9" "bash: hh_i3_save_ws failure stderr"

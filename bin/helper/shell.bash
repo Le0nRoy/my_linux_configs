@@ -32,9 +32,9 @@ hh_colors() {
 	done
 }
 
-# hh_ex - archive extractor
-# usage: hh_ex <file>
-hh_ex ()
+# hh_unar - archive extractor
+# usage: hh_unar <file>
+hh_unar ()
 {
   if [ -f $1 ] ; then
     case $1 in
@@ -49,7 +49,7 @@ hh_ex ()
       *.zip)       unzip $1     ;;
       *.Z)         uncompress $1;;
       *.7z)        7z x $1      ;;
-      *)           echo "'$1' cannot be extracted via ex()" ;;
+      *)           echo "'$1' cannot be extracted via hh_unar()" ;;
     esac
   else
     echo "'$1' is not a valid file"

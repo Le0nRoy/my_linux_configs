@@ -57,7 +57,7 @@ assert_file_contains() {
 
 # --- Symbol classification ---------------------------------------------------
 # Public interactive helpers: the owner-approved hh_ namespace (#60).
-PUBLIC_BASH=(hh_colors hh_ex hh_tmux_restore hh_git_watch hh_git_cleanout
+PUBLIC_BASH=(hh_colors hh_unar hh_tmux_restore hh_git_watch hh_git_cleanout
     hh_sshfsctl hh_gio_mount hh_gio_umount hh_upgrade_system hh_yay_no_cache
     hh_adb_pull_music hh_unzip_books hh_cut_video hh_gpg_decrypt hh_gpg_encrypt
     hh_rsync_ssh hh_rm_ssh hh_i3_save_chezmoi_ws hh_i3_save_ws hh_i3_restore_ws)
@@ -113,7 +113,7 @@ assert_set_eq() {
 }
 
 rename_public() {
-    sed -E "s/\\b(${RENAMED_PUBLIC})\\b/hh_\\1/g; s/^colors\\(\\) \\{\$/hh_colors() {/; s/^ex \\(\\)\$/hh_ex ()/" "$@"
+    sed -E "s/\\b(${RENAMED_PUBLIC})\\b/hh_\\1/g; s/^colors\\(\\) \\{\$/hh_colors() {/; s/^ex \\(\\)\$/hh_unar ()/; s/extracted via ex\\(\\)/extracted via hh_unar()/" "$@"
 }
 
 functions_in() { printf '%s\n' "${RUN_OUT}" | sed -n "s/^fn_$1://p" | sort -u; }
@@ -409,19 +409,19 @@ cp "${REPO_ROOT}/bin/helper/i3.bash" "${NEW_HOME}/bin/helper/i3.bash"
 echo "== Missing Linux-only modules (macOS layout)"
 MAC_HOME="${TMP_ROOT}/macos"
 deploy_tree "${REPO_ROOT}" "${MAC_HOME}" "${MACOS_SKIPPED_MODULES[@]}"
-run_bash "${MAC_HOME}" 'compgen -A function | sed "s/^/fn_idle:/"; helper.bash tmux_session >/dev/null; echo "cli_tmux=$?"; hh_ex "${HOME}/nofile"; echo "ex=$?"'
+run_bash "${MAC_HOME}" 'compgen -A function | sed "s/^/fn_idle:/"; helper.bash tmux_session >/dev/null; echo "cli_tmux=$?"; hh_unar "${HOME}/nofile"; echo "ex=$?"'
 assert_eq 0 "${RUN_STATUS}" "macOS-layout interactive startup exits 0"
 MAC_ONLY_LINUX_FUNCS="$(defined_functions "${REPO_ROOT}/bin/helper/i3.bash" \
     "${REPO_ROOT}/bin/helper/storage.bash" "${REPO_ROOT}/bin/helper/utils.bash")"
 mac_expected="$(comm -23 <(printf '%s\n' "${EXPECTED_IDLE}") <(printf '%s\n' "${MAC_ONLY_LINUX_FUNCS}"))"
 assert_set_eq "${mac_expected}" "$(comm -12 <(functions_in idle) <(printf '%s\n' "${REPO_FUNCS}"))" \
     "macOS layout: only present modules' public helpers (no dangling i3 wrappers)"
-if printf '%s\n' "${mac_expected}" | grep -qx hh_colors && printf '%s\n' "${mac_expected}" | grep -qx hh_ex; then
-    pass "macOS layout keeps formerly unconditional hh_colors/hh_ex"
+if printf '%s\n' "${mac_expected}" | grep -qx hh_colors && printf '%s\n' "${mac_expected}" | grep -qx hh_unar; then
+    pass "macOS layout keeps formerly unconditional hh_colors/hh_unar"
 else
-    fail "macOS layout lost hh_colors/hh_ex"
+    fail "macOS layout lost hh_colors/hh_unar"
 fi
-assert_eq 0 "$(out_value ex "${MAC_HOME}")" "macOS layout: hh_ex runs"
+assert_eq 0 "$(out_value ex "${MAC_HOME}")" "macOS layout: hh_unar runs"
 assert_eq 0 "$(out_value cli_tmux "${MAC_HOME}")" "macOS layout: script-mode tmux_session still dispatches"
 
 # --- Zsh ----------------------------------------------------------------------
@@ -446,7 +446,7 @@ precmd_functions+=(e1_vendor_hook)
 hh_i3_save_ws 1 >/dev/null; print "i3_one=$?"
 hh_i3_save_ws 0 >/dev/null 2>&1; print "i3_bad=$?"
 hh_rsync_ssh -h >/dev/null; print "rsync_help=$?"
-hh_ex "${HOME}/nofile" >/dev/null; print "ex=$?"
+hh_unar "${HOME}/nofile" >/dev/null; print "ex=$?"
 hh_gio_mount; print "gio_mount=$?"; print -r -- "pwd=${PWD}"
 cd "${HOME}"
 print -l ${(k)functions} | sed "s/^/fn_after:/"
@@ -497,7 +497,7 @@ if command -v zsh >/dev/null 2>&1; then
         assert_eq 0 "$(out_value i3_one "${NEW_HOME}")" "zsh ${mode}: hh_i3_save_ws runs under bash"
         assert_eq 1 "$(out_value i3_bad "${NEW_HOME}")" "zsh ${mode}: hh_i3_save_ws failure status propagates"
         assert_eq 0 "$(out_value rsync_help "${NEW_HOME}")" "zsh ${mode}: hh_rsync_ssh -h"
-        assert_eq 0 "$(out_value ex "${NEW_HOME}")" "zsh ${mode}: hh_ex runs"
+        assert_eq 0 "$(out_value ex "${NEW_HOME}")" "zsh ${mode}: hh_unar runs"
         assert_eq "<HOME>/mnt/phone" "$(out_value pwd "${NEW_HOME}")" "zsh ${mode}: hh_gio_mount changes caller cwd"
     done
     printf '%s\n' "${TMUX_ID_INITIAL}" > "${NEW_HOME}/tmux_id"

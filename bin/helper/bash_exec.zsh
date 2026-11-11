@@ -22,8 +22,8 @@ if (( $+commands[bash] )); then
             bash -c 'shopt -s expand_aliases; [[ -r ~/bin/helper/aliases.shrc ]] && source ~/bin/helper/aliases.shrc; source "$0" && hh_colors "$@"' \
                 "${HOME}/bin/helper/shell.bash" "$@"
         }
-        hh_ex() {
-            bash -c 'shopt -s expand_aliases; [[ -r ~/bin/helper/aliases.shrc ]] && source ~/bin/helper/aliases.shrc; source "$0" && hh_ex "$@"' \
+        hh_unar() {
+            bash -c 'shopt -s expand_aliases; [[ -r ~/bin/helper/aliases.shrc ]] && source ~/bin/helper/aliases.shrc; source "$0" && hh_unar "$@"' \
                 "${HOME}/bin/helper/shell.bash" "$@"
         }
     fi

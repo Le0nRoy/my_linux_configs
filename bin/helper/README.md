@@ -15,7 +15,7 @@ helper/
 ├── tmux.bash        # Tmux session management
 ├── tmux_last_cmd.bash # Tmux pane prompt/history callbacks (bash)
 ├── aliases.shrc     # Interactive aliases shared by bash and zsh
-├── shell.bash       # Portable interactive conveniences (hh_colors, hh_ex)
+├── shell.bash       # Portable interactive conveniences (hh_colors, hh_unar)
 ├── bash_exec.zsh    # zsh entry points that run Bash-only helpers in bash
 ├── git.bash         # Git utilities
 ├── system.bash      # System/display/notifications
@@ -93,7 +93,7 @@ load only this file, not the session builders.
 **Dependencies**: None (portable; deployed on Linux and macOS)
 **Functions**:
 - `hh_colors()` - Print the terminal's ANSI color table
-- `hh_ex <file>` - Extract an archive by extension
+- `hh_unar <file>` - Extract an archive by extension
 
 ### aliases.shrc - Shared Aliases
 Aliases for both shells (`ls`, `grep`, `cp -i`, ..., `claude_wrapper` →
