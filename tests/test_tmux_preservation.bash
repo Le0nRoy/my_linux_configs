@@ -203,15 +203,23 @@ case "${cmd}" in
         [[ "${cmd}" == list-sessions ]] && cat "${state}/sessions"
         ;;
     new-session)
+        # The starting client's cwd and restore-owner flag, as the server
+        # would inherit them.
+        printf 'cwd=%s TMUX_BOOT_RESTORE=%s\n' "${PWD}" "${TMUX_BOOT_RESTORE:-}" >> "${state}/server_env"
         while (($#)); do
             [[ "$1" == -s ]] && { echo "$2" >> "${state}/sessions"; shift; }
             shift
         done
         ;;
-    kill-ses)
+    kill-ses|rename-session)
         [[ "${1:-}" == -t ]] || exit 1
-        grep -qxF -- "$2" "${state}/sessions" || { echo "can't find session: $2" >&2; exit 1; }
-        grep -vxF -- "$2" "${state}/sessions" > "${state}/sessions.new"
+        name="${2#=}"
+        grep -qxF -- "${name}" "${state}/sessions" || { echo "can't find session: ${name}" >&2; exit 1; }
+        if [[ "${cmd}" == kill-ses ]]; then
+            grep -vxF -- "${name}" "${state}/sessions" > "${state}/sessions.new"
+        else
+            sed "s/^${name}\$/${3:?}/" "${state}/sessions" > "${state}/sessions.new"
+        fi
         mv "${state}/sessions.new" "${state}/sessions"
         ;;
     run-shell)
@@ -485,7 +493,9 @@ run_hook() {
     hook=$(sed -n "${HOOK_RE}" "$1")
     new_case
     cp "${PREFILL}" "${CASE_HOME}/bin/tmux_prefill_last_cmd.bash"
-    chmod +x "${CASE_HOME}/bin/tmux_prefill_last_cmd.bash"
+    cp "${REPO_ROOT}/bin/executable_tmux_bootstrap_cleanup.bash" "${CASE_HOME}/bin/tmux_bootstrap_cleanup.bash"
+    chmod +x "${CASE_HOME}/bin/"*.bash
+    printf '%s\n' f_sess _tmux_boot_1 > "${CASE_STATE}/sessions"
     write_last 'echo hooked\n'
     case_env
     # \${1} is expanded by the inner bash, like restore.sh.
@@ -495,6 +505,8 @@ run_hook() {
 run_hook "${REPO_ROOT}/${CONF_PATH}"
 assert_eq "0:echo hooked" "${RUN_STATUS}:$(cat "$(delivered_file)" 2>/dev/null)" \
     "configured hook runs the prefill script"
+assert_eq "f_sess:" "$(tr '\n' ' ' < "${CASE_STATE}/sessions" | sed 's/ $//'):$(cat "${CASE}/stderr")" \
+    "configured hook runs the bootstrap cleanup first, no errors"
 PRE_FIX_CONF="${TMP_ROOT}/tmux.conf.pre_fix"
 if pre_fix_file "${CONF_PATH}" "${PRE_FIX_CONF}"; then
     run_hook "${PRE_FIX_CONF}"
@@ -520,10 +532,11 @@ run_boot() {
             > "${CASE_HOME}/.tmux/plugins/tmux-resurrect/scripts/restore.sh"
         chmod +x "${CASE_HOME}/.tmux/plugins/tmux-resurrect/scripts/restore.sh"
     fi
-    env -i HOME="${CASE_HOME}" TMUX_TMPDIR="${CASE}/tmuxtmp" PATH=/usr/bin:/bin \
+    # cwd `/`: launchd starts LaunchAgents there.
+    (cd / && env -i HOME="${CASE_HOME}" TMUX_TMPDIR="${CASE}/tmuxtmp" PATH=/usr/bin:/bin \
         F_STATE="${CASE_STATE}" F_FAKE_TMUX="${FAKEBIN}/tmux" \
         "BASH_FUNC_tmux%%=() { \"\${F_FAKE_TMUX}\" \"\$@\"; }" \
-        bash "${script}" > "${CASE}/stdout" 2> "${CASE}/stderr"
+        bash "${script}" > "${CASE}/stdout" 2> "${CASE}/stderr")
     RUN_STATUS=$?
 }
 boot_sessions() { tr '\n' ' ' < "${CASE_STATE}/sessions" 2>/dev/null | sed 's/_tmux_boot_[0-9]*/_tmux_boot_PID/g'; }
@@ -540,19 +553,26 @@ assert_eq "0:work :list-sessions" \
 
 new_case
 run_boot "${BOOT}"
-assert_eq "0:_tmux_boot_PID " "${RUN_STATUS}:$(boot_sessions)" \
-    "no server, no restore script: bootstrap session kept"
+assert_eq "0:main " "${RUN_STATUS}:$(boot_sessions)" \
+    "no server, no restore script: bootstrap kept alive, renamed to main"
+assert_eq "cwd=${CASE_HOME} TMUX_BOOT_RESTORE=1" "$(head -n 1 "${CASE_STATE}/server_env" 2>/dev/null)" \
+    "boot started from / (launchd): server starts in \$HOME, continuum auto-restore opted out"
 
 new_case
 run_boot "${BOOT}" ":"
-assert_eq "0:_tmux_boot_PID " "${RUN_STATUS}:$(boot_sessions)" \
-    "no server, restore brings nothing back: bootstrap session kept"
+assert_eq "0:main " "${RUN_STATUS}:$(boot_sessions)" \
+    "no server, restore brings nothing back: bootstrap kept alive, renamed to main"
+
+new_case
+run_boot "${BOOT}" "\"\${F_FAKE_TMUX}\" new-session -d -s _main_boot_77"
+assert_eq "0:main _main_boot_77 " "${RUN_STATUS}:$(boot_sessions)" \
+    "restore brings back only a placeholder: own bootstrap renamed, not killed"
 
 new_case
 run_boot "${BOOT}" "${RESTORE_REAL}"
 assert_eq "0:restored " "${RUN_STATUS}:$(boot_sessions)" \
     "no server, restore succeeds: bootstrap session dropped"
-if grep -q '^kill-ses -t _tmux_boot_' "${CASE_STATE}/argv.log"; then
+if grep -q '^kill-ses -t =_tmux_boot_' "${CASE_STATE}/argv.log"; then
     pass "bootstrap cleanup bypasses the interactive kill-session alias"
 else
     fail "bootstrap cleanup call: $(grep '^kill' "${CASE_STATE}/argv.log")"
@@ -563,6 +583,140 @@ if pre_fix_file "${BOOT_PATH}" "${PRE_FIX_BOOT}"; then
     run_boot "${PRE_FIX_BOOT}" "${RESTORE_REAL}"
     assert_eq "0:_tmux_boot_PID restored " "${RUN_STATUS}:$(boot_sessions)" \
         "pre-fix reproduces: alias turns cleanup into confirm-before, bootstrap leaks"
+    assert_eq "cwd=/ TMUX_BOOT_RESTORE=" "$(head -n 1 "${CASE_STATE}/server_env" 2>/dev/null)" \
+        "pre-fix reproduces: boot from launchd starts the server in / (restore fallback cwd)"
+fi
+
+echo "== tmux_main_session bootstrap (fake tmux, i3 path) =="
+# run_main_session <tmux.bash>: the helper's tmux_main_session with a
+# snapshot on disk and no server; the restore fixture brings back one
+# real session. Real tmux.conf in the state dir supplies the alias.
+run_main_session() {
+    local helper_dir="${CASE}/helper"
+    mkdir -p "${helper_dir}" "${CASE_HOME}/.local/state/tmux/resurrect" \
+        "${CASE_HOME}/.tmux/plugins/tmux-resurrect/scripts"
+    cp "$1" "${helper_dir}/tmux.bash"
+    cp "${REPO_ROOT}/${RECORDER_PATH}" "${helper_dir}/tmux_last_cmd.bash"
+    cp "${REPO_ROOT}/${CONF_PATH}" "${CASE_STATE}/tmux.conf"
+    : > "${CASE_HOME}/.local/state/tmux/resurrect/last"
+    printf '#!/bin/bash\n%s\n' "${RESTORE_REAL}" > "${CASE_HOME}/.tmux/plugins/tmux-resurrect/scripts/restore.sh"
+    chmod +x "${CASE_HOME}/.tmux/plugins/tmux-resurrect/scripts/restore.sh"
+    case_env
+    env -i "${CASE_ENV[@]}" F_FAKE_TMUX="${FAKEBIN}/tmux" TMUX_SESSION=i3-tmux-0 \
+        bash -c 'source "$1"; tmux_main_session' _ "${helper_dir}/tmux.bash" \
+        > "${CASE}/stdout" 2> "${CASE}/stderr"
+    RUN_STATUS=$?
+}
+main_sessions() { tr '\n' ' ' < "${CASE_STATE}/sessions" 2>/dev/null | sed 's/_main_boot_[0-9]*/_main_boot_PID/g'; }
+new_case
+run_main_session "${REPO_ROOT}/bin/helper/tmux.bash"
+assert_eq "0:restored " "${RUN_STATUS}:$(main_sessions)" \
+    "tmux_main_session: _main_boot_<pid> dropped after restore"
+assert_eq "TMUX_BOOT_RESTORE=1" "$(sed 's/^cwd=[^ ]* //' "${CASE_STATE}/server_env" | head -n 1)" \
+    "tmux_main_session: server started with continuum auto-restore opted out"
+PRE_FIX_MAIN="${TMP_ROOT}/tmux.bash.pre_fix"
+if pre_fix_file bin/helper/tmux.bash "${PRE_FIX_MAIN}"; then
+    new_case
+    run_main_session "${PRE_FIX_MAIN}"
+    assert_eq "0:_main_boot_PID restored " "${RUN_STATUS}:$(main_sessions)" \
+        "pre-fix reproduces: aliased kill-session leaks _main_boot_<pid>"
+fi
+
+echo "== post-restore bootstrap cleanup (fake tmux) =="
+CLEANUP="${REPO_ROOT}/bin/executable_tmux_bootstrap_cleanup.bash"
+new_case
+printf '%s\n' work _tmux_boot_1 _main_boot_2 _main_boot_x my_main_boot_3 > "${CASE_STATE}/sessions"
+cp "${REPO_ROOT}/${CONF_PATH}" "${CASE_STATE}/tmux.conf"
+run_prefill "${CLEANUP}"
+assert_eq "0:work _main_boot_x my_main_boot_3 " "${RUN_STATUS}:$(tr '\n' ' ' < "${CASE_STATE}/sessions")" \
+    "cleanup: every _tmux_boot_N/_main_boot_N killed, look-alike names kept"
+assert_eq "kill-ses -t =_tmux_boot_1 |kill-ses -t =_main_boot_2 " \
+    "$(grep '^kill' "${CASE_STATE}/argv.log" | tr '\n' '|' | sed 's/|$//')" \
+    "cleanup: exact-name targets through kill-ses (alias bypassed)"
+new_case
+printf '%s\n' _tmux_boot_1 _main_boot_2 > "${CASE_STATE}/sessions"
+run_prefill "${CLEANUP}"
+assert_eq "0:_tmux_boot_1 _main_boot_2 " "${RUN_STATUS}:$(tr '\n' ' ' < "${CASE_STATE}/sessions")" \
+    "cleanup: nothing killed while only bootstrap sessions keep the server alive"
+
+echo "== post-save snapshot filter (resurrect execute_hook contract, fake tmux) =="
+FILTER="${REPO_ROOT}/bin/executable_tmux_resurrect_save_filter.bash"
+SAVE_HOOK_RE="s/^set -g @resurrect-hook-post-save-layout '\\(.*\\)'\$/\\1/p"
+T=$'\t'
+# run_filter <snapshot> [PATH prefix]: the configured hook value through
+# `eval "$hook $args"` with the snapshot path %q-quoted, as save.sh does.
+run_filter() {
+    local hook
+    hook=$(sed -n "${SAVE_HOOK_RE}" "${REPO_ROOT}/${CONF_PATH}")
+    cp "${FILTER}" "${CASE_HOME}/bin/tmux_resurrect_save_filter.bash"
+    chmod +x "${CASE_HOME}/bin/tmux_resurrect_save_filter.bash"
+    case_env
+    env -i "${CASE_ENV[@]}" PATH="${2:-}${FAKEBIN}:/usr/bin:/bin" F_PANE_POSITION="${F_PANE_POSITION:-}" \
+        bash -c 'printf -v args "%q " "$2"; eval "$1 $args"' _ "${hook}" "$1" \
+        > /dev/null 2> "${CASE}/stderr"
+    RUN_STATUS=$?
+}
+new_case
+SNAP_DIR="${CASE_HOME}/.local/state/tmux/resurrect"
+mkdir -p "${SNAP_DIR}" "${CASE}/cwd dir"
+# A live process standing in for the pane shell; its cwd is the answer.
+(cd "${CASE}/cwd dir" && exec sleep 60) &
+SHELL_PID=$!
+snap_line() { printf '%s\n' "$1" | sed "s/|/${T}/g"; }
+{
+    snap_line 'pane|work|0|1|:*|0|t|:/w/a|1|bash|:'
+    snap_line 'pane|work|1|0|:-|0||:|1|bash|:'
+    snap_line 'pane|_main_boot_9|0|1|:*|0|t|:/|1|bash|:'
+    snap_line 'window|work|0|:ed|1|:*|c0de,80x24,0,0,0|on'
+    snap_line 'window|_main_boot_9|0|:zsh|1|:*|c0de,80x24,0,0,1|:'
+    snap_line 'grouped_session|_tmux_boot_5|work|:|:0'
+    snap_line 'state|work|_main_boot_9'
+} > "${SNAP_DIR}/new.txt"
+F_PANE_POSITION="${SHELL_PID}" run_filter "${SNAP_DIR}/new.txt"
+{
+    snap_line 'pane|work|0|1|:*|0|t|:/w/a|1|bash|:'
+    snap_line "pane|work|1|0|:-|0||:${CASE}/cwd dir|1|bash|:"
+    snap_line 'window|work|0|:ed|1|:*|c0de,80x24,0,0,0|on'
+    snap_line 'state|work|_main_boot_9'
+} > "${CASE}/want.txt"
+if cmp -s "${CASE}/want.txt" "${SNAP_DIR}/new.txt" && [[ "${RUN_STATUS}" == 0 ]]; then
+    pass "save filter: bootstrap pane/window/group lines dropped, empty path filled from the pane shell, rest byte-identical"
+else
+    fail "save filter: status=${RUN_STATUS} diff: $(diff "${CASE}/want.txt" "${SNAP_DIR}/new.txt" | tr '\n' ' ')"
+fi
+# macOS branch: no /proc answer (readlink fails), lsof gives the cwd.
+mkdir -p "${CASE}/noproc"
+printf '#!/bin/sh\nexit 1\n' > "${CASE}/noproc/readlink"
+chmod +x "${CASE}/noproc/readlink"
+snap_line 'pane|work|1|0|:-|0||:|1|bash|:' > "${SNAP_DIR}/new.txt"
+if command -v lsof > /dev/null 2>&1; then
+    F_PANE_POSITION="${SHELL_PID}" run_filter "${SNAP_DIR}/new.txt" "${CASE}/noproc:"
+    assert_eq "0::${CASE}/cwd dir" "${RUN_STATUS}:$(cut -f 8 "${SNAP_DIR}/new.txt")" \
+        "save filter, lsof branch (the macOS path, run here with Linux lsof): empty path filled"
+else
+    gap "lsof not installed: save filter lsof branch (macOS path) not run"
+fi
+kill "${SHELL_PID}" 2> /dev/null
+wait "${SHELL_PID}" 2> /dev/null
+# Unknown pane shell: the empty path stays (restore falls back to $HOME).
+snap_line 'pane|work|1|0|:-|0||:|1|bash|:' > "${SNAP_DIR}/new.txt"
+F_PANE_POSITION="not-a-pid" run_filter "${SNAP_DIR}/new.txt"
+assert_eq "0::" "${RUN_STATUS}:$(cut -f 8 "${SNAP_DIR}/new.txt")" \
+    "save filter: unknown pane shell leaves the empty path"
+# Only bootstrap sessions: previous snapshot bytes kept, so resurrect's
+# files_differ is false and `last` is not replaced.
+snap_line 'pane|work|0|1|:*|0|t|:/w/a|1|bash|:' > "${SNAP_DIR}/prev.txt"
+ln -sf prev.txt "${SNAP_DIR}/last"
+{
+    snap_line 'pane|_tmux_boot_4|0|1|:*|0|t|:/|1|bash|:'
+    snap_line 'window|_tmux_boot_4|0|:bash|1|:*|c0de,80x24,0,0,0|:'
+    snap_line 'state|_tmux_boot_4|'
+} > "${SNAP_DIR}/new.txt"
+run_filter "${SNAP_DIR}/new.txt"
+if [[ "${RUN_STATUS}" == 0 ]] && cmp -s "${SNAP_DIR}/prev.txt" "${SNAP_DIR}/new.txt"; then
+    pass "save filter: bootstrap-only snapshot replaced by the previous one (last kept)"
+else
+    fail "save filter: bootstrap-only snapshot: $(tr '\n' ' ' < "${SNAP_DIR}/new.txt")"
 fi
 
 echo "== per-pane history recorder modes and release ownership =="
@@ -1236,13 +1390,17 @@ native_tests() {
     cp "${REPO_ROOT}/${BOOT_PATH}" "${home}/bin/tmux_boot.bash"
     cp "${PREFILL}" "${home}/bin/tmux_prefill_last_cmd.bash"
     cp "${RELEASE}" "${home}/bin/tmux_pane_hist_release.bash"
+    cp "${CLEANUP}" "${home}/bin/tmux_bootstrap_cleanup.bash"
+    cp "${FILTER}" "${home}/bin/tmux_resurrect_save_filter.bash"
     chmod +x "${home}/bin/"*.bash
     cp "${REPO_ROOT}/${RECORDER_PATH}" "${home}/bin/helper/tmux_last_cmd.bash"
+    cp "${REPO_ROOT}/bin/helper/tmux.bash" "${home}/bin/helper/tmux.bash"
     CASE_HOME="${home}" render_conf linux > "${home}/.config/tmux/tmux.conf" || {
         fail "native: config render"; return; }
-    # tmux-continuum's documented halt file: the boot script's restore is
-    # the path under test, not continuum's racing background auto-restore.
-    touch "${home}/tmux_no_auto_restore"
+    # No continuum halt file: continuum's background auto-restore stays
+    # armed, so the exact single prefill checked below also proves the
+    # boot paths keep it from racing their own restore (it typed every
+    # prefill twice before).
     # Pane shells: only the real recorder module, a fixed prompt.
     cat > "${home}/.bashrc" <<'RC'
 HISTFILE="${HOME}/.bash_history"
@@ -1289,8 +1447,13 @@ RC
     local before
     before=$(inventory)
     info "before: $(tr '\n' ';' <<<"${before}")"
+    # Placeholders leaked by an earlier boot: never saved, never restored.
+    nt new-session -d -s _main_boot_4242 -c "${home}"
+    nt new-session -d -s _tmux_boot_4343 -c "${home}"
     nt run-shell "${home}/.tmux/plugins/tmux-resurrect/scripts/save.sh"
     assert_eq "0" "$?" "native: resurrect save.sh via run-shell"
+    assert_eq "" "$(grep -E '^(pane|window)'"${T}"'_(main|tmux)_boot_' "${state}/tmux/resurrect/last")" \
+        "native: leaked placeholder sessions not persisted into the snapshot"
     if [[ -e "${state}/tmux/resurrect/last" ]]; then
         pass "native: snapshot written under synthetic XDG_STATE_HOME"
     else
@@ -1306,7 +1469,8 @@ RC
     pass "native: verified test-owned server stopped"
 
     # No-server branch: the real boot script, PATH reset inside, restore.
-    env -i "${NATIVE_ENV[@]}" bash "${home}/bin/tmux_boot.bash" > "${root}/boot.out" 2>&1
+    # Started from `/`, as launchd starts the LaunchAgent.
+    (cd / && env -i "${NATIVE_ENV[@]}" bash "${home}/bin/tmux_boot.bash") > "${root}/boot.out" 2>&1
     assert_eq 0 "$?" "native: boot (no server) exit 0"
     for pane in "${panes[@]}"; do
         cmd="printf EXECUTED > ${root}/sentinel.${pane}"
@@ -1325,8 +1489,12 @@ RC
     done
     assert_eq "$(normalize_inventory <<<"${before}")" "$(inventory | normalize_inventory)" \
         "native: sessions/windows/layout/geometry/active/cwd restored"
-    assert_eq "" "$(nt list-sessions -F '#{session_name}' | grep '^_tmux_boot_')" \
+    assert_eq "" "$(nt list-sessions -F '#{session_name}' | grep -E '^_(tmux|main)_boot_')" \
         "native: bootstrap session dropped after a successful restore"
+    assert_eq "off" "$(nt show -gv @continuum-restore)" \
+        "native: boot-started server keeps continuum auto-restore off"
+    assert_eq "" "$(nt show-environment -g 2>/dev/null | grep '^TMUX_BOOT_RESTORE=')" \
+        "native: restore-owner flag not left in the global environment"
     if grep -q 'tmux-resurrect/scripts/restore.sh' "${root}/calls.log"; then
         pass "native: restore.sh's own tmux calls went through the guard"
     else
@@ -1350,12 +1518,47 @@ RC
     assert_eq "${sessions_before}" "$(nt list-sessions -F '#{session_name}')" \
         "native: interactive kill-session still requires confirmation"
 
+    # Repeated boots: save -> stop -> boot again, via the systemd/launchd
+    # boot script and via the i3 path (tmux_main_session). The session set
+    # stays the same and no placeholder accumulates.
+    local cycle via
+    for cycle in boot main boot main; do
+        nt run-shell "${home}/.tmux/plugins/tmux-resurrect/scripts/save.sh"
+        stop_native_server || { fail "native: could not verify and stop the test server"; return; }
+        if [[ "${cycle}" == boot ]]; then
+            via="tmux_boot.bash"
+            (cd / && env -i "${NATIVE_ENV[@]}" bash "${home}/bin/tmux_boot.bash") >> "${root}/boot_cycles.out" 2>&1
+        else
+            via="tmux_main_session"
+            # No terminal: its final attach fails; the sessions are the point.
+            (cd "${home}" && env -i "${NATIVE_ENV[@]}" TMUX_SESSION=i3-tmux-0 \
+                bash -c '. "${HOME}/bin/helper/tmux.bash"; tmux_main_session' < /dev/null) \
+                >> "${root}/boot_cycles.out" 2>&1
+        fi
+        assert_eq "${sessions_before}" "$(nt list-sessions -F '#{session_name}')" \
+            "native: repeated boot (${via}): same sessions, no placeholder left"
+    done
+
+    # Empty saved pane path (what macOS saves when tmux cannot read the
+    # foreground process): restored in $HOME, not the boot cwd `/`.
+    nt run-shell "${home}/.tmux/plugins/tmux-resurrect/scripts/save.sh"
+    stop_native_server || { fail "native: could not verify and stop the test server"; return; }
+    local snap
+    snap=$(readlink -f "${state}/tmux/resurrect/last")
+    awk -F '\t' -v OFS='\t' '$1 == "pane" && $2 == "f_dev" && $3 == "1" && $6 == "1" { $8 = ":" } { print }' \
+        "${snap}" > "${snap}.new" && mv "${snap}.new" "${snap}"
+    (cd / && env -i "${NATIVE_ENV[@]}" bash "${home}/bin/tmux_boot.bash") > "${root}/boot4.out" 2>&1
+    assert_eq "${home}" "$(nt display-message -p -t f_dev:1.1 '#{pane_current_path}')" \
+        "native: pane saved with an empty path restored in \$HOME, not /"
+    assert_eq "${home}/project beta" "$(nt display-message -p -t f_dev:1.0 '#{pane_current_path}')" \
+        "native: neighbouring pane keeps its saved path"
+
     # Restore-empty branch: no snapshot, bootstrap keeps the server alive.
     stop_native_server || { fail "native: could not verify and stop the test server"; return; }
     mv "${state}/tmux/resurrect" "${state}/tmux/resurrect.off"
     env -i "${NATIVE_ENV[@]}" bash "${home}/bin/tmux_boot.bash" > "${root}/boot3.out" 2>&1
-    assert_eq "0:_tmux_boot_" "$?:$(nt list-sessions -F '#{session_name}' | sed 's/[0-9]*$//')" \
-        "native: boot with no snapshot keeps only the bootstrap session"
+    assert_eq "0:main" "$?:$(nt list-sessions -F '#{session_name}')" \
+        "native: boot with no snapshot keeps the server alive in one session renamed to main"
     stop_native_server || fail "native: final verified stop of the test server"
 
     if [[ -e "${root}/denied.log" ]]; then

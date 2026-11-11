@@ -273,7 +273,14 @@ Restore-side helpers:
   the line on LF/CR/Ctrl+O even when the text is typed literally. Assumes default emacs keymaps in a
   UTF-8 locale; keys rebound by the user are out of scope;
 - `bin/tmux_boot.bash` with a server already running: exits 0 and changes nothing. With no server:
-  creates `_tmux_boot_<pid>`, runs the restore, and drops that session only if real sessions came back.
+  `cd`s to `$HOME` (launchd starts agents in `/`), creates `_tmux_boot_<pid>` with
+  `TMUX_BOOT_RESTORE=1` (tmux.conf then keeps continuum's racing auto-restore off), runs the
+  restore, and drops that session if real sessions came back, else renames it to `main`;
+- bootstrap sessions (`_tmux_boot_<pid>`, `_main_boot_<pid>`) are killed by
+  `bin/tmux_bootstrap_cleanup.bash` (post-restore hook) and never saved:
+  `bin/tmux_resurrect_save_filter.bash` (post-save-layout hook) drops them, fills pane paths tmux
+  reported empty from the pane shell (`/proc`, else `lsof`), and keeps `last` when only bootstrap
+  sessions were left.
 
 ### Service ownership: what is and is not verified
 
