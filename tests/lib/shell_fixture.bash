@@ -103,6 +103,9 @@ default() {
             ;;
         i3-msg) [[ "${1:-} ${2:-}" == "-t get_workspaces" ]] && echo '[{"num":1}]' ;;
         jq) cat > /dev/null; echo 1 ;;
+        # Like the real one, `gpg --verify` with no file reads stdin to EOF;
+        # exiting early would SIGPIPE the producer (flaky status 141).
+        gpg) [[ "${1:-}" == --verify && $# == 1 ]] && cat > /dev/null ;;
         i3-save-tree) printf '// "class": "^Fixture$",\n{ "nodes": [] }\n' ;;
         pactl)
             case "${1:-}" in
