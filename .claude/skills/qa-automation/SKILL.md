@@ -16,9 +16,24 @@ submodule has its own suite and rules (`ai-wrapper/docs/testing.md`,
 ```bash
 bash tests/test_<name>.bash              # one file
 bash tests/run_all.bash                  # every registered file
+bash tests/run_all.bash tmux_preservation hh_public_api   # a subset by name
 TESTS_STRICT=1 bash tests/run_all.bash   # as CI: any SKIP fails
 bash -n tests/<file>.bash                # syntax; shellcheck -x -S warning if installed
 ```
+
+`run_all.bash` runs each file in its own bash process (stdin `/dev/null`),
+prints a per-file pass/fail/skip/time table, exits 1 if any file fails, and
+fails if a `tests/test_*.bash` on disk is missing from its `TEST_FILES` list.
+The environment (`TESTS_STRICT`, `TMPDIR`, `BASH32`, `TMUX_TEST_ONLY`, ...)
+passes through. The `bash32` section of `test_tmux_preservation.bash` needs a
+bash 3.2 (`BASH32=<path>`), otherwise it is a SKIP.
+
+CI: `.github/workflows/tests.yml` (pull requests) runs
+`TESTS_STRICT=1 bash tests/run_all.bash` on ubuntu-24.04 with zsh, python3,
+bash-completion, lsof, systemd-analyze, a pinned chezmoi, tmux built from a
+pinned release (Ubuntu's 3.4 escapes `$` in `show -v`, which breaks the
+resurrect hooks), and bash 3.2 built from GNU source. New tools a test needs
+go in that workflow too.
 
 Never run `chezmoi apply` as part of testing.
 

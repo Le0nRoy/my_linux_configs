@@ -38,7 +38,7 @@ File naming conventions matter:
 
 ## Testing
 
-Tests live in `tests/` (plain bash, helpers in `tests/lib/common.bash`). Rules and run commands: `qa-automation` skill (`.claude/skills/qa-automation/SKILL.md`).
+Tests live in `tests/` (plain bash, helpers in `tests/lib/common.bash`). Run them all with `bash tests/run_all.bash` (`TESTS_STRICT=1` as CI; every `tests/test_*.bash` must be registered there). CI runs the same in strict mode via `.github/workflows/tests.yml`. Rules and run commands: `qa-automation` skill (`.claude/skills/qa-automation/SKILL.md`).
 
 ---
 
