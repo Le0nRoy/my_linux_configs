@@ -1,73 +1,148 @@
 #!/usr/bin/env bash
-# Shared sandbox for the interactive-shell regression tests.
+# Interactive-shell sandbox for the shell helper tests. Source it after
+# tests/lib/common.bash and tests_init_tmp; do not run it.
 #
-# Every shell runs against a synthetic HOME built from tracked files (deployed
-# under their chezmoi target names) with `env -i` and a PATH whose first entry
-# is a directory of logging fakes for every external command the exercised
-# code paths reach. No real startup file, runtime ~/bin/.env, job setup file,
-# client, mount, service or live tmux server is touched.
+# Every shell runs against a synthetic HOME built from tracked files
+# (deployed under their chezmoi target names), with `env -i` and a PATH whose
+# first entry is a directory of fakes for every external command the
+# exercised code reaches. No real startup file, ~/bin/.env, job setup file,
+# client, mount, service or tmux server is touched.
 #
-# Callers set TMP_ROOT before sourcing; FAKEBIN lives below it.
+# API
+#   make_fakebin                     create FAKEBIN (fakes on PATH) and
+#                                    FAKE_GIT_DIR (a fake git, opt-in on PATH)
+#   new_home <prefix> [module...]    fresh sandbox HOME (make_test_dir +
+#                                    deploy_tree); prints it; FAILs and
+#                                    returns 1 if a tracked source is missing.
+#                                    Listed modules (bin/helper/<m>.bash) are
+#                                    left out, as chezmoi does on macOS.
+#   fake_set <home> <key> <attr> <value>
+#                                    configure a fake in that HOME. <key> is a
+#                                    command name (any call) or name@arg1
+#                                    (calls whose first argument is arg1; it
+#                                    wins over the plain name). <attr>:
+#                                      status  exit code
+#                                      stdout  replaces the built-in output
+#                                              (value + newline; "" = none)
+#                                      stderr  written to stderr
+#   run_bash <home> <script> [VAR=value...]
+#   run_zsh  <home> <script> [VAR=value...]
+#                                    real interactive startup (~/.bashrc or
+#                                    ~/.zshrc) then <script>, cwd = HOME,
+#                                    stdin /dev/null; sets RUN_STATUS,
+#                                    RUN_STDOUT, RUN_STDERR (run_capture)
+#   out_value <key> <home>           value of the first "key=value" line of
+#                                    RUN_STDOUT, HOME shown as <HOME>; returns
+#                                    1 if the key is absent
+#   home_normalise <home>            stdin -> stdout with HOME as <HOME>
+#   startup_noise_filtered           RUN_STDERR without the two job-control
+#                                    lines bash -i prints without a terminal
+#
+# Fakes log one line per call to $FAKE_LOG: `name [arg1] [arg2] ...`.
+# Concurrent pipeline stages may log in either order, so tests compare
+# sorted logs or check single lines, never cross-process order.
 
-FAKEBIN="${TMP_ROOT:?TMP_ROOT must be set}/fakebin"
+: "${TEST_TMP_ROOT:?source tests/lib/common.bash and call tests_init_tmp first}"
+
+FAKEBIN="${TEST_TMP_ROOT}/fakebin"
+FAKE_GIT_DIR="${TEST_TMP_ROOT}/fakegit"
 SHELL_TIMEOUT_SECONDS=30
 TMUX_ID_INITIAL="main:1.0"
-# Fake commands the exercised code paths reach.
+FIXTURE_SOURCE_ROOT="${REPO_ROOT:?REPO_ROOT must be set}"
+# Fakes on PATH. git is not among them: the bash prompt and zsh vcs_info
+# call git, so a test opts in with PATH="${FAKE_GIT_DIR}:${PATH}".
 FAKE_COMMANDS=(xhost tmux gio fscrypt i3-msg i3-save-tree jq pactl dunstify
     dunstctl notify-send setxkbmap xset xinput pkill kbdd feh systemctl
     journalctl systemd-escape light rofi wmctrl xdotool xclip firefox
     firejail rclone ssh rsync scp pyenv ssh-agent docker i3lock i3-nagbar
-    polybar launchctl yay pacman apt sudo adb ffmpeg gpg watch zenity
-    unzip tar 7z xev xprop)
+    polybar launchctl yay pacman paccache npm node claude codex apt sudo adb
+    ffmpeg gpg watch zenity unzip tar 7z xev xprop)
 
 make_fakebin() {
-    mkdir -p "${FAKEBIN}"
-    cat > "${FAKEBIN}/e1-fake" <<'FAKE'
+    mkdir -p "${FAKEBIN}" "${FAKE_GIT_DIR}"
+    cat > "${FAKEBIN}/fake-cmd" <<'FAKE'
 #!/bin/bash
-# Logging stand-in for an external command; never touches the host.
+# Stand-in for an external command; never touches the host.
 name="${0##*/}"
-# One write per line: pipeline stages log concurrently, and O_APPEND keeps a
-# single small write whole, so lines never interleave.
-argv_line="$(printf '%s' "${name}"; printf ' [%s]' "$@")"
-printf '%s\n' "${argv_line}" >> "${E1_ARGV_LOG:-/dev/null}"
-printf '%s %s\n' "${name}" "$*" >> "${E1_CALL_LOG:-/dev/null}"
-case "${name}" in
-    tmux)
-        case "${1:-}" in
-            display-message)
-                [[ -s "${E1_TMUX_ID_FILE:?}" ]] || exit 1
-                cat "${E1_TMUX_ID_FILE}"
-                ;;
-        esac
-        ;;
-    gio)
-        case "${1:-} ${2:-}" in
-            "mount -li") echo "activation_root=mtp://e1phone/" ;;
-        esac
-        [[ "${1:-}" == "info" ]] && echo "local path: ${E1_GIO_MOUNT:?}"
-        ;;
-    i3-msg)
-        [[ "${1:-} ${2:-}" == "-t get_workspaces" ]] && echo '[{"num":1}]'
-        ;;
-    jq) cat > /dev/null; echo 1 ;;
-    i3-save-tree) printf '// "class": "^E1$",\n{ "nodes": [] }\n' ;;
-    pactl)
-        case "${1:-}" in
-            get-sink-volume) echo "Volume: front-left: 32768 / 50% / -18.06 dB" ;;
-            get-sink-mute) echo "Mute: no" ;;
-        esac
-        ;;
-    systemd-escape) printf '%s\n' "$1" ;;
-    rofi) sed 's/^/rofi-menu: /' >> "${E1_CALL_LOG:-/dev/null}" ;;
-    rsync|ssh) [[ "${E1_FAIL_TRANSFER:-}" == 1 ]] && { echo "${name}: e1 failure" >&2; exit 23; } ;;
-esac
-exit 0
+line="${name}"
+for arg in "$@"; do line+=" [${arg}]"; done
+# One small O_APPEND write per line: concurrent stages never interleave.
+printf '%s\n' "${line}" >> "${FAKE_LOG:-/dev/null}"
+
+# config <attr>: path of the most specific configured file, if any.
+config() {
+    local dir="${FAKE_CONFIG_DIR:-/nonexistent}" f
+    for f in "${dir}/${name}@${first}.$1" "${dir}/${name}.$1"; do
+        [[ -n "${first}" || "${f}" != *"@."* ]] || continue
+        [[ -f "${f}" ]] && { printf '%s' "${f}"; return 0; }
+    done
+    return 1
+}
+first="${1-}"
+[[ "${first}" == */* ]] && first=""
+
+# Built-in output and status for commands whose callers parse output.
+default() {
+    case "${name}" in
+        tmux)
+            # display-message -p ... <format>: expands #{pane_id} to
+            # $TMUX_PANE and #S:#I.#P to the id file; fails if it is empty.
+            if [[ "${1:-}" == display-message ]]; then
+                [[ -s "${FAKE_TMUX_ID_FILE:-}" ]] || return 1
+                local format="${!#}" pane_pos
+                pane_pos="$(< "${FAKE_TMUX_ID_FILE}")"
+                format="${format//'#{pane_id}'/${TMUX_PANE:-}}"
+                printf '%s\n' "${format//'#S:#I.#P'/${pane_pos}}"
+            fi
+            ;;
+        gio)
+            case "${1:-} ${2:-}" in
+                "mount -li") echo "Volume(0): Phone"; echo "  activation_root=mtp://fakephone/" ;;
+            esac
+            [[ "${1:-}" == info ]] && echo "local path: ${FAKE_GIO_MOUNT:?}"
+            ;;
+        i3-msg) [[ "${1:-} ${2:-}" == "-t get_workspaces" ]] && echo '[{"num":1}]' ;;
+        jq) cat > /dev/null; echo 1 ;;
+        i3-save-tree) printf '// "class": "^Fixture$",\n{ "nodes": [] }\n' ;;
+        pactl)
+            case "${1:-}" in
+                get-sink-volume) echo "Volume: front-left: 32768 / 50% / -18.06 dB" ;;
+                get-sink-mute) echo "Mute: no" ;;
+            esac
+            ;;
+        systemd-escape) printf '%s\n' "$1" ;;
+        rofi) sed 's/^/rofi-menu: /' >> "${FAKE_LOG:-/dev/null}" ;;
+    esac
+    return 0
+}
+
+if out="$(config stdout)"; then
+    cat -- "${out}"
+    rc=0
+else
+    default "$@"
+    rc=$?
+fi
+if err="$(config stderr)"; then cat -- "${err}" >&2; fi
+if st="$(config status)"; then exit "$(< "${st}")"; fi
+exit "${rc}"
 FAKE
-    chmod +x "${FAKEBIN}/e1-fake"
+    chmod +x "${FAKEBIN}/fake-cmd"
     local cmd
     for cmd in "${FAKE_COMMANDS[@]}"; do
-        ln -s e1-fake "${FAKEBIN}/${cmd}"
+        ln -sf fake-cmd "${FAKEBIN}/${cmd}"
     done
+    ln -sf "${FAKEBIN}/fake-cmd" "${FAKE_GIT_DIR}/git"
+}
+
+# _fixture_install <src> <dst> [mode]: copy a tracked file; a missing source is a
+# fixture error, never a silently thinner sandbox.
+_fixture_install() {
+    if [[ ! -f "$1" ]]; then
+        printf 'shell_fixture: tracked source file missing: %s\n' "$1" >&2
+        return 1
+    fi
+    cp -- "$1" "$2" && { [[ -z "${3:-}" ]] || chmod "$3" "$2"; }
 }
 
 # deploy_tree <source_root> <home> [skipped helper module...]
@@ -75,85 +150,120 @@ deploy_tree() {
     local src="$1" home="$2" skip f mod
     shift 2
     mkdir -p "${home}/bin/helper" "${home}/.bash_completion.d" "${home}/.ssh" \
-        "${home}/job" "${home}/mnt/phone" "${home}/.local/state" \
-        "${home}/.mozilla/firefox/e1profile"
-    cp "${src}/dot_bashrc" "${home}/.bashrc"
-    cp "${src}/dot_zshrc" "${home}/.zshrc"
-    cp "${src}/dot_xsessionrc" "${home}/.xsessionrc"
-    cp "${src}/dot_bash_completion.d/"* "${home}/.bash_completion.d/"
-    cp "${src}/bin/executable_helper.bash" "${home}/bin/helper.bash"
-    chmod +x "${home}/bin/helper.bash"
+        "${home}/job" "${home}/mnt/phone" "${home}/.local/state" "${home}/fake.d" \
+        "${home}/.mozilla/firefox/fixtureprofile" || return 1
+    _fixture_install "${src}/dot_bashrc" "${home}/.bashrc" || return 1
+    _fixture_install "${src}/dot_zshrc" "${home}/.zshrc" || return 1
+    for f in helper.bash transfer.bash; do
+        _fixture_install "${src}/dot_bash_completion.d/${f}" "${home}/.bash_completion.d/${f}" || return 1
+    done
+    _fixture_install "${src}/bin/executable_helper.bash" "${home}/bin/helper.bash" +x || return 1
     # Interactive SSHFS manager that hh_sshfsctl runs.
-    cp "${src}/bin/executable_sshfs.bash" "${home}/bin/sshfs.bash"
-    chmod +x "${home}/bin/sshfs.bash"
-    for f in "${src}/bin/helper/"*.bash "${src}/bin/helper/"*.zsh "${src}/bin/helper/"*.shrc; do
-        [[ -e "${f}" ]] || continue
-        mod="${f##*/}"
+    _fixture_install "${src}/bin/executable_sshfs.bash" "${home}/bin/sshfs.bash" +x || return 1
+    for f in common shell git storage transfer utils i3 system backup firefox \
+        tmux tmux_commands tmux_last_cmd; do
         for skip in "$@"; do
-            [[ "${mod}" == "${skip}.bash" ]] && continue 2
+            [[ "${f}" == "${skip}" ]] && continue 2
         done
-        cp "${f}" "${home}/bin/helper/${mod}"
+        _fixture_install "${src}/bin/helper/${f}.bash" "${home}/bin/helper/${f}.bash" || return 1
     done
-    for skip in "$@"; do
-        [[ "${skip}" == "system" ]] && rm -f "${home}/.xsessionrc"
+    for f in aliases.shrc bash_exec.zsh tmux_last_cmd.zsh; do
+        _fixture_install "${src}/bin/helper/${f}" "${home}/bin/helper/${f}" || return 1
     done
+    # system.bash sources ~/.xsessionrc; chezmoi skips both on macOS.
+    if [[ " $* " != *" system "* ]]; then
+        _fixture_install "${src}/dot_xsessionrc" "${home}/.xsessionrc" || return 1
+    fi
+
     # Synthetic runtime inputs (the real ~/bin/.env and job setup are never read).
     printf 'export JOB_SETUP_FILE="${HOME}/job/add_exports.bash"\n' > "${home}/bin/.env"
-    printf 'export E1_JOB_SENTINEL=loaded\n' > "${home}/job/add_exports.bash"
-    printf '#!/bin/bash\necho "release $*" >> "${E1_CALL_LOG:-/dev/null}"\n' \
-        > "${home}/bin/tmux_pane_hist_release.bash"
-    chmod +x "${home}/bin/tmux_pane_hist_release.bash"
+    printf 'export FIXTURE_JOB_SENTINEL=loaded\n' > "${home}/job/add_exports.bash"
+    ln -s "${FAKEBIN}/fake-cmd" "${home}/bin/tmux_pane_hist_release.bash"
     printf 'Host alpha\n    User bob\nHost beta\nHost *.wild\n' > "${home}/.ssh/config"
-    printf '[Profile0]\nName=e1\nPath=e1profile\nDefault=1\n' \
+    printf '[Profile0]\nName=fixture\nPath=fixtureprofile\nDefault=1\n' \
         > "${home}/.mozilla/firefox/profiles.ini"
     # Third-party completion fixture: underscore vendor symbols must survive.
-    printf '_vendor_fixture_complete() { :; }\ncomplete -F _vendor_fixture_complete e1vendor\n' \
+    printf '_vendor_fixture_complete() { :; }\ncomplete -F _vendor_fixture_complete vendor_cmd\n' \
         > "${home}/.bash_completion.d/zz_vendor_fixture"
     printf '%s\n' "${TMUX_ID_INITIAL}" > "${home}/tmux_id"
+}
+
+new_home() {
+    local prefix="$1" home
+    shift
+    home="$(make_test_dir "${prefix}")" || { fail "${prefix}: make_test_dir"; return 1; }
+    if ! deploy_tree "${FIXTURE_SOURCE_ROOT}" "${home}" "$@" 2> "${home}.deploy.err"; then
+        fail "${prefix}: sandbox HOME not deployed: $(cat "${home}.deploy.err")"
+        return 1
+    fi
+    printf '%s\n' "${home}"
+}
+
+fake_set() {
+    local home="$1" key="$2" attr="$3" value="$4"
+    case "${attr}" in
+        status) printf '%s\n' "${value}" > "${home}/fake.d/${key}.status" ;;
+        stdout|stderr)
+            if [[ -z "${value}" ]]; then
+                : > "${home}/fake.d/${key}.${attr}"
+            else
+                printf '%s\n' "${value}" > "${home}/fake.d/${key}.${attr}"
+            fi
+            ;;
+        *) printf 'fake_set: unknown attribute %s\n' "${attr}" >&2; return 1 ;;
+    esac
 }
 
 # Environment shared by every sandboxed shell: env -i plus these.
 sandbox_env() {
     local home="$1"
-    SANDBOX_ENV=(HOME="${home}" USER=e1user HOSTNAME=e1host TERM=xterm
+    SANDBOX_ENV=(HOME="${home}" USER=fixtureuser HOSTNAME=fixturehost TERM=xterm
         PATH="${FAKEBIN}:/usr/bin:/bin" XDG_STATE_HOME="${home}/.local/state"
-        E1_CALL_LOG="${home}/calls.log" E1_ARGV_LOG="${home}/argv.log"
-        E1_TMUX_ID_FILE="${home}/tmux_id" E1_GIO_MOUNT="${home}/mnt/phone")
+        ZDOTDIR="${home}" FAKE_LOG="${home}/fake.log" FAKE_CONFIG_DIR="${home}/fake.d"
+        FAKE_TMUX_ID_FILE="${home}/tmux_id" FAKE_GIO_MOUNT="${home}/mnt/phone")
 }
 
-# run_bash <home> <script> [VAR=value...]: real interactive bash startup
-# (~/.bashrc) followed by <script>. Sets RUN_OUT / RUN_STATUS.
-run_bash() {
-    local home="$1" script="$2"
-    shift 2
+_sandbox_exec() {
+    local shell="$1" home="$2" script="$3"
+    shift 3
+    local -a cmd=(bash --noprofile -i -c "${script}")
+    [[ "${shell}" == zsh ]] && cmd=(zsh -i -c "${script}")
     sandbox_env "${home}"
-    RUN_OUT="$(cd "${home}" && env -i "${SANDBOX_ENV[@]}" "$@" \
-        timeout "${SHELL_TIMEOUT_SECONDS}" bash --noprofile -i -c "${script}" \
-        2>"${home}/stderr.log" </dev/null)"
-    RUN_STATUS=$?
+    cd "${home}" || return 125
+    env -i "${SANDBOX_ENV[@]}" "$@" timeout "${SHELL_TIMEOUT_SECONDS}" "${cmd[@]}" < /dev/null
 }
 
-# run_zsh <home> <script> [VAR=value...]: real interactive zsh startup
-# (~/.zshrc via ZDOTDIR) followed by <script>. Sets RUN_OUT / RUN_STATUS.
-run_zsh() {
-    local home="$1" script="$2"
-    shift 2
-    sandbox_env "${home}"
-    RUN_OUT="$(cd "${home}" && env -i "${SANDBOX_ENV[@]}" ZDOTDIR="${home}" "$@" \
-        timeout "${SHELL_TIMEOUT_SECONDS}" zsh -i -c "${script}" \
-        2>"${home}/stderr.log" </dev/null)"
-    RUN_STATUS=$?
-}
+run_bash() { run_capture _sandbox_exec bash "$@"; }
+run_zsh() { run_capture _sandbox_exec zsh "$@"; }
 
-# Value of "key=value" line in RUN_OUT, with the sandbox HOME normalised.
 out_value() {
-    local key="$1" home="$2"
-    printf '%s\n' "${RUN_OUT}" | sed -n "s|^${key}=||p" | head -n 1 \
-        | sed "s|${home}|<HOME>|g"
+    local key="$1" home="$2" line
+    while IFS= read -r line; do
+        if [[ "${line}" == "${key}="* ]]; then
+            line="${line#"${key}="}"
+            [[ -n "${home}" ]] && line="${line//"${home}"/<HOME>}"
+            printf '%s\n' "${line}"
+            return 0
+        fi
+    done <<< "${RUN_STDOUT}"
+    return 1
 }
 
-# "status=<RUN_STATUS> stderr=<first stderr line>" for failure messages.
-run_summary() {
-    local home="$1"
-    printf 'status=%s stderr=%s' "${RUN_STATUS}" "$(head -n 1 "${home}/stderr.log" 2>/dev/null)"
+home_normalise() {
+    local home="$1" line
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+        [[ -n "${home}" ]] && line="${line//"${home}"/<HOME>}"
+        printf '%s\n' "${line}"
+    done
+}
+
+startup_noise_filtered() {
+    local line
+    while IFS= read -r line; do
+        case "${line}" in
+            "bash: cannot set terminal process group ("*"): Inappropriate ioctl for device") ;;
+            "bash: no job control in this shell") ;;
+            *) printf '%s\n' "${line}" ;;
+        esac
+    done <<< "${RUN_STDERR}"
 }

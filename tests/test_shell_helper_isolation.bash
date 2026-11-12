@@ -1,104 +1,96 @@
 #!/usr/bin/env bash
-# Regression test for issues #59 (E1) and #60 (E2): interactive shells load
-# the public hh_* helpers and the owner-approved shell-plumbing callbacks
-# only; script-private helpers stay callable inside `helper.bash <command>`
-# but never enter the shell. Re-sourcing the startup files is idempotent
-# (prompt hooks, PATH, zsh precmd hooks). Checks are behavioural (functions
-# run in real shells); source text is not compared against the baseline.
+# Interactive shells load the public hh_* helpers and the approved shell
+# plumbing callbacks only; script-private helpers stay callable inside
+# `helper.bash <command>` but never enter the shell. Re-sourcing the startup
+# files is idempotent (prompt hooks, PATH, history file, zsh hooks).
 #
-# Shells run in the synthetic sandbox from tests/lib/shell_fixture.bash
-# (synthetic HOME, env -i, logging fakes first on PATH). No real startup
-# file, runtime ~/bin/.env, job setup file, client, mount, service or live
-# tmux server is touched. The three re-source defects E1 characterised are
-# asserted fixed here and shown present in the fixed pre-E1 baseline by the
-# same probes. Missing zsh or a missing baseline commit is reported as GAP.
+# Leak detection is behavioural: after real interactive startup every live
+# function is attributed to the file that defined it (bash `declare -F`
+# under extdebug, zsh $functions_source). The functions defined by files in
+# the sandbox HOME must be exactly the public helpers plus the allowlisted
+# plumbing (plus the vendor completion fixture); functions from system
+# files (bash-completion, zsh's fpath) are not ours and are ignored.
+#
+# Per-helper behaviour and zsh parity live in tests/test_hh_public_api.bash.
+# Sandbox: tests/lib/shell_fixture.bash (synthetic HOME, env -i, fakes).
+# Missing zsh is a SKIP (a failure under CI / TESTS_STRICT=1).
 #
 # Usage: bash tests/test_shell_helper_isolation.bash
 
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# Pre-E1 integration head (agent/feature-55 merge-base of this work package).
-BASELINE_REF="${E1_BASELINE_REF:-0d46a7f7df3be7c8a79d8cad5e30c9176b28d7d7}"
-TMP_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/e1-isolation.XXXXXX")"
-TMUX_PANE_FIXTURE="%7"
-TMUX_ID_MOVED="main:2.0"
-TMUX_PLUMBING_MARKER="# Record the last-typed shell command per tmux pane"
-
-trap 'rm -rf "${TMP_ROOT}"' EXIT
+# shellcheck source=tests/lib/common.bash
+source "${REPO_ROOT}/tests/lib/common.bash"
+tests_init_tmp hh-isolation
 # shellcheck source=tests/lib/shell_fixture.bash
 source "${REPO_ROOT}/tests/lib/shell_fixture.bash"
+make_fakebin
 
-failures=0
-gaps=0
+TMUX_PANE_FIXTURE="%7"
+TMUX_ID_MOVED="main:2.0"
+FAKE_TMUX="/tmp/fixture-tmux,1,0"
+# Caller PATH with an unrelated duplicate (/usr/bin twice) that must survive
+# while the managed entries are added once.
+SEEDED_PATH="${FAKEBIN}:/usr/bin:/bin:/usr/bin"
+EXPECTED_PATH="<HOME>/bin:<HOME>/ai-wrapper/bin:${SEEDED_PATH}"
 
-pass() { printf 'PASS: %s\n' "$1"; }
-fail() { printf 'FAIL: %s\n' "$1"; failures=$((failures + 1)); }
-gap() { printf 'GAP: %s\n' "$1"; gaps=$((gaps + 1)); }
-
-assert_eq() {
-    local expected="$1" actual="$2" label="$3"
-    if [[ "${expected}" == "${actual}" ]]; then
-        pass "${label}"
-    else
-        fail "${label}: expected [${expected}] got [${actual}]"
-    fi
-}
-
-assert_file_contains() {
-    local file="$1" needle="$2" label="$3"
-    if [[ -f "${file}" ]] && grep -qF -- "${needle}" "${file}"; then
-        pass "${label}"
-    else
-        fail "${label}: [${needle}] not found in ${file##*/}"
-    fi
-}
-
-# --- Symbol classification ---------------------------------------------------
-# Public interactive helpers: the owner-approved hh_ namespace (#60).
-PUBLIC_BASH=(hh_colors hh_unar hh_tmux_restore hh_git_watch hh_git_cleanout
+PUBLIC=(hh_colors hh_unar hh_tmux_restore hh_git_watch hh_git_cleanout
     hh_sshfsctl hh_gio_mount hh_gio_umount hh_upgrade_system hh_yay_no_cache
     hh_adb_pull_music hh_unzip_books hh_cut_video hh_gpg_decrypt hh_gpg_encrypt
     hh_rsync_ssh hh_rm_ssh hh_i3_save_chezmoi_ws hh_i3_save_ws hh_i3_restore_ws)
-# Owner-approved Bash shell plumbing: eager callbacks plus the nested
-# completion helper that exists only after completion has run.
-ALLOW_EAGER_BASH=(_bashrc_git_branch _tmux_log_last_cmd _tmux_pane_hist_path
+# Public helpers of the Linux-only modules chezmoi skips on macOS.
+MACOS_SKIPPED_MODULES=(firefox i3 storage system utils)
+LINUX_ONLY_PUBLIC=(hh_i3_save_chezmoi_ws hh_i3_save_ws hh_i3_restore_ws
+    hh_sshfsctl hh_gio_mount hh_gio_umount hh_upgrade_system hh_yay_no_cache
+    hh_adb_pull_music hh_unzip_books hh_cut_video hh_gpg_decrypt hh_gpg_encrypt)
+# Owner-approved Bash plumbing: prompt/history callbacks and completion.
+ALLOW_BASH=(_bashrc_git_branch _tmux_log_last_cmd _tmux_pane_hist_path
     _tmux_pane_hist_claim _tmux_pane_hist_sync _helper_script
     _rsync_ssh_complete _rm_ssh_complete _ssh_config_hosts)
-ALLOW_LAZY_BASH=(_flush)
-# Script-private: callable only inside helper.bash script execution.
-PRIVATE_BASH=(tmux_ide_session tmux_main_session rclone_systemd
-    rclone_to_backup get_display set_us_ru_layout set_us_ge_layout
-    set_background polybar_start send_notification_brightnes
-    send_notification_volume set_volume print_usage
-    apply_xsession_input_settings show_error_and_usage _ff_find_profiles_ini
-    _ff_parse_profiles_ini _ff_launch _ff_profile_is_open _ff_launch_sandboxed
-    _ff_profile_picker _ff_open_link __emit _i3_get_host _i3_check_ws_num
-    _i3_clean_layout)
-# zsh exposes the same public helpers (in-process or via bash_exec.zsh).
-PUBLIC_ZSH=("${PUBLIC_BASH[@]}")
+# Defined only once host completion has run (nested in _ssh_config_hosts).
+ALLOW_BASH_LAZY=(_flush)
+VENDOR_FIXTURE=(_vendor_fixture_complete)
 ALLOW_ZSH=(_ctrl_d_exit _reset_ctrl_d_count _tmux_log_last_cmd
     _tmux_pane_hist_path _tmux_pane_hist_claim _tmux_pane_hist_detect
     _tmux_pane_hist_addhistory _tmux_pane_hist_sync)
-# Linux-only helpers chezmoi skips on macOS (.chezmoiignore).
-MACOS_SKIPPED_MODULES=(firefox i3 storage system utils)
 
-sorted_words() { printf '%s\n' "$@" | sort -u; }
-
-# Function names defined (at any nesting depth) by the given files.
-defined_functions() {
-    sed -En 's/^[[:space:]]*(function[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*\(\).*/\2/p' "$@" | sort -u
+words() { printf '%s\n' "$@" | sed '/^$/d' | LC_ALL=C sort -u; }
+# without <set> <word...>: set minus the words.
+without() {
+    local set="$1"
+    shift
+    LC_ALL=C comm -23 <(printf '%s\n' "${set}") <(words "$@")
 }
 
-# Print "+name" / "-name" lines describing how set $2 differs from set $1.
-set_diff() {
-    comm -3 <(printf '%s\n' "$1" | sed '/^$/d') <(printf '%s\n' "$2" | sed '/^$/d') \
-        | sed -E 's/^\t/+/; t; s/^/-/' | tr '\n' ' '
+# Probes: print "fn_<phase>:<name>" for every function defined by a file in
+# the sandbox HOME.
+BASH_PROBE='
+home_functions() {
+    local n _line file
+    shopt -s extdebug
+    for n in $(compgen -A function); do
+        read -r _ _line file < <(declare -F "${n}")
+        [[ "${file}" == "${HOME}/"* ]] && printf "fn_%s:%s\n" "$1" "${n}"
+    done
+    shopt -u extdebug
 }
+'
+ZSH_PROBE='
+home_functions() {
+    local n
+    for n in ${(k)functions}; do
+        [[ ${functions_source[${n}]} == ${HOME}/* ]] && print -r -- "fn_$1:${n}"
+    done
+}
+'
+functions_in() { printf '%s\n' "${RUN_STDOUT}" | sed -n "s/^fn_$1://p" | LC_ALL=C sort -u; }
 
+# Print "+name" / "-name" for how actual differs from expected.
 assert_set_eq() {
     local expected="$1" actual="$2" label="$3" delta
-    delta="$(set_diff "${expected}" "${actual}")"
+    delta="$(LC_ALL=C comm -3 <(printf '%s\n' "${expected}" | sed '/^$/d') \
+        <(printf '%s\n' "${actual}" | sed '/^$/d') | sed -E 's/^\t/+/; t; s/^/-/' | tr '\n' ' ')"
     if [[ -z "${delta}" ]]; then
         pass "${label}"
     else
@@ -106,459 +98,249 @@ assert_set_eq() {
     fi
 }
 
-functions_in() { printf '%s\n' "${RUN_OUT}" | sed -n "s/^fn_$1://p" | sort -u; }
+# assert_clean_startup <label>: the probe ran to the end with status 0, the
+# rc file's own status (first thing the probe records) was 0, and nothing
+# but bash's no-terminal job-control notice reached stderr.
+assert_clean_startup() {
+    local label="$1" noise
+    assert_status 0 "${RUN_STATUS}" "${label}: probe exits 0"
+    assert_contains "${RUN_STDOUT}" "PROBE_DONE" "${label}: probe ran to completion"
+    assert_eq 0 "$(out_value startup_status "")" "${label}: rc file finished with status 0"
+    noise="$(startup_noise_filtered)"
+    assert_eq "" "${noise}" "${label}: nothing on stderr"
+}
+STARTUP_STATUS='echo "startup_status=$?"'
+hook_count() { grep -o -- "$1" <<< "$2" | wc -l | tr -d ' '; }
 
-# --- Setup -------------------------------------------------------------------
-make_fakebin
-NEW_HOME="${TMP_ROOT}/new"
-deploy_tree "${REPO_ROOT}" "${NEW_HOME}"
+# --- Bash: function set at startup and after use -------------------------------
+scenario_bash_function_set() {
+    local home expected
+    home="$(new_home bash-functions)" || return
+    run_bash "${home}" "${STARTUP_STATUS}${BASH_PROBE}"'
+home_functions idle
+{
+    hh_rsync_ssh -h
+    hh_unar "${HOME}/nofile"
+    hh_i3_save_ws 1
+    hh_i3_restore_ws 1
+    hh_gio_mount; cd "${HOME}"
+    hh_sshfsctl help
+    declare -a hosts=(); _ssh_config_hosts hosts
+    helper.bash volume mute
+    helper.bash e1_unknown
+} > /dev/null 2>&1
+home_functions after
+echo PROBE_DONE'
+    assert_clean_startup "bash startup"
+    expected="$(words "${PUBLIC[@]}" "${ALLOW_BASH[@]}" "${VENDOR_FIXTURE[@]}")"
+    assert_set_eq "${expected}" "$(functions_in idle)" \
+        "bash idle: functions from HOME files are exactly public + allowlist + vendor fixture"
+    assert_set_eq "$(words ${expected} "${ALLOW_BASH_LAZY[@]}")" "$(functions_in after)" \
+        "bash after public calls, completion and script mode: only the lazy _flush was added"
+}
 
-BASE_SRC="${TMP_ROOT}/baseline-src"
-BASE_HOME="${TMP_ROOT}/baseline"
-have_baseline=0
-if git -C "${REPO_ROOT}" cat-file -e "${BASELINE_REF}^{commit}" 2>/dev/null; then
-    mkdir -p "${BASE_SRC}"
-    git -C "${REPO_ROOT}" archive "${BASELINE_REF}" dot_bashrc dot_zshrc dot_xsessionrc \
-        dot_bash_completion.d bin | tar -x -C "${BASE_SRC}"
-    deploy_tree "${BASE_SRC}" "${BASE_HOME}"
-    have_baseline=1
-else
-    gap "baseline ${BASELINE_REF} unavailable: baseline control probes not verified"
-fi
+# --- Bash: script mode still reaches the private helpers -------------------------
+scenario_bash_script_mode() {
+    local home
+    home="$(new_home bash-script-mode)" || return
+    run_bash "${home}" '
+helper.bash volume mute > /dev/null; echo "volume=$?"
+helper.bash volume bogus > "${HOME}/usage.out"; echo "volume_bad=$?"
+helper.bash firefox > /dev/null; echo "firefox=$?"
+helper.bash e1_unknown > "${HOME}/unknown.out"; echo "unknown=$?"
+helper.bash rclone_bisync --flag "src dir" dst > /dev/null 2>&1; echo "rclone=$?"
+echo PROBE_DONE'
+    assert_contains "${RUN_STDOUT}" PROBE_DONE "script mode: probe ran to completion"
+    assert_eq 0 "$(out_value volume "${home}")" "script mode: volume mute exits 0"
+    assert_file_contains "${home}/fake.log" "pactl [set-sink-mute] [@DEFAULT_SINK@] [toggle]" \
+        "script mode: set_volume reached pactl"
+    assert_file_contains "${home}/fake.log" "dunstify [-a] [changeVolume]" \
+        "script mode: send_notification_volume ran"
+    assert_eq 1 "$(out_value volume_bad "${home}")" "script mode: bad volume action exits 1"
+    assert_file_contains "${home}/usage.out" "volume [-s pulseaudio_sink_name] action" \
+        "script mode: nested print_usage ran"
+    assert_eq 0 "$(out_value firefox "${home}")" "script mode: firefox picker exits 0"
+    assert_file_contains "${home}/fake.log" "rofi-menu: Personal (fixtureprofile)" \
+        "script mode: firefox picker offered the profile from profiles.ini"
+    assert_eq 1 "$(out_value unknown "${home}")" "script mode: unknown command exits 1"
+    assert_file_contains "${home}/unknown.out" 'Unknown command "e1_unknown"' \
+        "script mode: unknown command reported"
+    assert_file_contains "${home}/unknown.out" "volume|" "script mode: usage lists the commands"
+    assert_eq 0 "$(out_value rclone "${home}")" "script mode: rclone_bisync exits 0"
+    assert_file_contains "${home}/fake.log" \
+        "rclone [--log-systemd] [--log-level] [INFO] [--auto-confirm] [--human-readable] [--modify-window] [24h] [bisync] [--flag] [src dir] [dst]" \
+        "script mode: rclone_systemd passed arguments through"
+}
 
-REPO_FUNCS="$(defined_functions "${REPO_ROOT}/dot_bashrc" "${REPO_ROOT}/dot_xsessionrc" \
-    "${REPO_ROOT}/dot_bash_completion.d/"* "${REPO_ROOT}/bin/executable_helper.bash" \
-    "${REPO_ROOT}/bin/helper/"*.bash)"
-EXPECTED_IDLE="$(sorted_words "${PUBLIC_BASH[@]}" "${ALLOW_EAGER_BASH[@]}")"
-EXPECTED_AFTER="$(sorted_words "${PUBLIC_BASH[@]}" "${ALLOW_EAGER_BASH[@]}" "${ALLOW_LAZY_BASH[@]}")"
-
-echo "== Classification completeness"
-assert_set_eq "$(sorted_words "${PUBLIC_BASH[@]}" "${ALLOW_EAGER_BASH[@]}" \
-    "${ALLOW_LAZY_BASH[@]}" "${PRIVATE_BASH[@]}")" "${REPO_FUNCS}" \
-    "every repository Bash function definition is classified exactly once"
-
-# --- Interactive Bash: idle namespace, public calls, post-call namespace ------
-# The script records the function table before and after exercising public
-# helpers, CLI script-private paths and the lazy completion helper.
-IDLE_SCRIPT='
-compgen -A function | sed "s/^/fn_idle:/"
-echo "path=${PATH}"
-echo "job=${E1_JOB_SENTINEL:-unset}"
-echo "prompt=${PROMPT_COMMAND}"
-for f in '"${PRIVATE_BASH[*]}"'; do "$f" >/dev/null 2>&1; echo "call_${f}=$?"; done
-cmd=E1_CALLER_CMD
-export E1_ENV_SENTINEL=keep
-opts_before="$-"
-hh_i3_save_chezmoi_ws >/dev/null; echo "i3_all=$?"
-hh_i3_save_ws 1 >/dev/null; echo "i3_one=$?"
-hh_i3_save_ws 0 2>"${HOME}/i3_err" >/dev/null; echo "i3_bad=$?"
-hh_i3_restore_ws 1 >/dev/null; echo "i3_restore=$?"
-echo "cmd=${cmd}"
-helper.bash volume mute >/dev/null; echo "cli_volume=$?"
-helper.bash volume bogus > "${HOME}/usage.out"; echo "cli_usage=$?"
-helper.bash firefox >/dev/null; echo "cli_firefox=$?"
-helper.bash e1_unknown > "${HOME}/unknown.out"; echo "cli_unknown=$?"
-helper.bash rclone_bisync --e1 src dst >/dev/null; echo "cli_rclone=$?"
-helper.bash tmux_session >/dev/null; echo "cli_tmux=$?"
-echo "opts_same=$([[ "$-" == "${opts_before}" ]] && echo yes || echo no)"
-echo "env=${E1_ENV_SENTINEL}"
-hh_rsync_ssh -h >/dev/null; echo "rsync_help=$?"
-declare -a e1_hosts=()
-_ssh_config_hosts e1_hosts
-echo "hosts=${e1_hosts[*]}"
-hh_gio_mount; echo "gio_mount=$?"
-echo "pwd=${PWD}"
-hh_gio_umount; echo "gio_umount=$?"
-compgen -A function | sed "s/^/fn_after:/"
-'
-
-echo "== Interactive Bash startup and public helper calls"
-run_bash "${NEW_HOME}" "${IDLE_SCRIPT}"
-assert_eq 0 "${RUN_STATUS}" "interactive bash startup + script exits 0"
-NEW_IDLE="$(functions_in idle)"
-assert_set_eq "${EXPECTED_IDLE}" "$(comm -12 <(printf '%s\n' "${NEW_IDLE}") <(printf '%s\n' "${REPO_FUNCS}"))" \
-    "idle: repository functions are exactly public + eager allowlist"
-if printf '%s\n' "${NEW_IDLE}" | grep -qx '_vendor_fixture_complete'; then
-    pass "idle: third-party underscore completion function preserved"
-else
-    fail "idle: third-party underscore completion function missing"
-fi
-not_callable=1
-for f in "${PRIVATE_BASH[@]}"; do
-    status="$(out_value "call_${f}" "${NEW_HOME}")"
-    if [[ "${status}" != 127 ]]; then
-        fail "idle: ${f} is callable (status ${status:-none})"
-        not_callable=0
-    fi
-done
-(( not_callable )) && pass "idle: all ${#PRIVATE_BASH[@]} script-private names are not callable (127)"
-assert_eq "<HOME>/bin:<HOME>/ai-wrapper/bin:${FAKEBIN}:/usr/bin:/bin" \
-    "$(out_value path "${NEW_HOME}")" "PATH export kept in caller"
-assert_eq loaded "$(out_value job "${NEW_HOME}")" "JOB_SETUP_FILE from .env sourced in caller"
-assert_eq 0 "$(out_value i3_all "${NEW_HOME}")" "hh_i3_save_chezmoi_ws succeeds through wrapper"
-assert_eq 0 "$(out_value i3_one "${NEW_HOME}")" "hh_i3_save_ws succeeds through wrapper"
-assert_eq 1 "$(out_value i3_bad "${NEW_HOME}")" "hh_i3_save_ws failure status propagates"
-assert_file_contains "${NEW_HOME}/i3_err" "workspace number must be 1-9" "hh_i3_save_ws failure stderr propagates"
-assert_eq 0 "$(out_value i3_restore "${NEW_HOME}")" "hh_i3_restore_ws succeeds through wrapper"
-assert_file_contains "${NEW_HOME}/calls.log" "i3-msg workspace 1; append_layout" "hh_i3_restore_ws reached i3-msg"
-ws_file="${NEW_HOME}/.config/i3/workspaces/workspace_1-$(uname -n).json"
-assert_file_contains "${ws_file}" '"class": "^E1$"' "i3 wrapper ran unchanged _i3_clean_layout body"
-assert_eq E1_CALLER_CMD "$(out_value cmd "${NEW_HOME}")" "caller cmd variable untouched by hh_i3_save_chezmoi_ws loop"
-assert_eq 0 "$(out_value cli_volume "${NEW_HOME}")" "script mode: volume mute dispatches"
-assert_file_contains "${NEW_HOME}/calls.log" "pactl set-sink-mute @DEFAULT_SINK@ toggle" "script mode: set_volume reached pactl"
-assert_file_contains "${NEW_HOME}/calls.log" "dunstify -a changeVolume" "script mode: send_notification_volume ran"
-assert_eq 1 "$(out_value cli_usage "${NEW_HOME}")" "script mode: bad volume action exits 1"
-assert_file_contains "${NEW_HOME}/usage.out" "volume [-s pulseaudio_sink_name] action" "script mode: nested print_usage executed"
-assert_eq 0 "$(out_value cli_firefox "${NEW_HOME}")" "script mode: firefox picker dispatches"
-assert_file_contains "${NEW_HOME}/calls.log" "rofi-menu: Personal (e1profile)" "script mode: nested __emit produced profile entry"
-assert_eq 1 "$(out_value cli_unknown "${NEW_HOME}")" "script mode: unknown command exits 1"
-assert_file_contains "${NEW_HOME}/unknown.out" 'Unknown command "e1_unknown"' "script mode: show_error_and_usage ran"
-assert_file_contains "${NEW_HOME}/unknown.out" "volume|" "script mode: usage lists dispatch commands"
-assert_eq 0 "$(out_value cli_rclone "${NEW_HOME}")" "script mode: rclone_bisync dispatches"
-assert_file_contains "${NEW_HOME}/calls.log" "--modify-window 24h bisync --e1 src dst" "script mode: rclone_systemd reached rclone"
-assert_eq 0 "$(out_value cli_tmux "${NEW_HOME}")" "script mode: tmux_session dispatches"
-assert_file_contains "${NEW_HOME}/calls.log" "tmux attach-session -t =tmux-main -d" "script mode: tmux_main_session reached tmux"
-assert_eq yes "$(out_value opts_same "${NEW_HOME}")" "caller shell options unchanged by i3/CLI calls"
-assert_eq keep "$(out_value env "${NEW_HOME}")" "caller environment unchanged by i3/CLI calls"
-assert_eq 0 "$(out_value rsync_help "${NEW_HOME}")" "hh_rsync_ssh -h works in-process"
-assert_eq "bob@alpha beta" "$(out_value hosts "${NEW_HOME}")" "_ssh_config_hosts completion helper works"
-assert_eq 0 "$(out_value gio_mount "${NEW_HOME}")" "hh_gio_mount succeeds"
-assert_eq "<HOME>/mnt/phone" "$(out_value pwd "${NEW_HOME}")" "hh_gio_mount changes caller directory"
-assert_eq 0 "$(out_value gio_umount "${NEW_HOME}")" "hh_gio_umount succeeds"
-assert_set_eq "${EXPECTED_AFTER}" \
-    "$(comm -12 <(functions_in after) <(printf '%s\n' "${REPO_FUNCS}"))" \
-    "after calls: repository functions are exactly public + eager + lazy _flush"
-if grep -q 'xhost' "${NEW_HOME}/calls.log"; then
-    pass "startup xhost call resolved to the fake"
-else
-    fail "startup xhost call not trapped by the fake"
-fi
-
-if (( have_baseline )); then
-    echo "== Baseline detection control"
-    run_bash "${BASE_HOME}" 'compgen -A function | sed "s/^/fn_idle:/"'
-    base_leaks="$(comm -12 <(functions_in idle) <(sorted_words "${PRIVATE_BASH[@]}") | tr '\n' ' ')"
-    if [[ "${base_leaks}" == *_ff_launch* && "${base_leaks}" == *_i3_get_host* \
-        && "${base_leaks}" == *apply_xsession_input_settings* ]]; then
-        pass "baseline leak detected by the same probe (${base_leaks% })"
-    else
-        fail "probe does not detect baseline leaks: [${base_leaks}]"
-    fi
-fi
-
-
-# --- hh_sshfsctl runs sshfs.bash -------------------------------------------
-# The public helper only runs ~/bin/sshfs.bash with its arguments; it must
-# not change the caller's shell options or define any private helper.
-SSHFS_SCRIPT='
-opts_before="$-"
-hh_sshfsctl help > "${HOME}/sshfs_help" 2>&1; echo "help=$?"
-echo "opts_same=$([[ "$-" == "${opts_before}" ]] && echo yes || echo no)"
-echo "private=$(type -t _hh_sshfsctl)"
-mv "${HOME}/bin/sshfs.bash" "${HOME}/bin/sshfs.real"
-printf "#!/bin/bash\necho \"stub \$#\"; printf \"[%%s]\" \"\$@\"; echo\n" > "${HOME}/bin/sshfs.bash"
-chmod +x "${HOME}/bin/sshfs.bash"
-hh_sshfsctl mount "a b" "" > "${HOME}/sshfs_stub"; echo "stub=$?"
-mv "${HOME}/bin/sshfs.real" "${HOME}/bin/sshfs.bash"
-'
-echo "== hh_sshfsctl delegates to sshfs.bash (bash)"
-run_bash "${NEW_HOME}" "${SSHFS_SCRIPT}"
-assert_eq 0 "$(out_value help "${NEW_HOME}")" "hh_sshfsctl help succeeds"
-assert_file_contains "${NEW_HOME}/sshfs_help" "Interactive SSHFS mount manager" "hh_sshfsctl help runs sshfs.bash"
-assert_eq yes "$(out_value opts_same "${NEW_HOME}")" "hh_sshfsctl leaves caller shell options unchanged"
-assert_eq "" "$(out_value private "${NEW_HOME}")" "no _hh_sshfsctl is defined in interactive bash"
-assert_eq 0 "$(out_value stub "${NEW_HOME}")" "hh_sshfsctl runs ~/bin/sshfs.bash"
-assert_file_contains "${NEW_HOME}/sshfs_stub" "stub 3" "hh_sshfsctl forwards every argument"
-assert_file_contains "${NEW_HOME}/sshfs_stub" "[mount][a b][]" "hh_sshfsctl keeps spaced and empty arguments"
-if (cd "${REPO_ROOT}" && git grep -qE '^[[:space:]]*(function[[:space:]]+)?_hh_sshfsctl[[:space:]]*\(\)' -- .); then
-    fail "a _hh_sshfsctl definition exists in the repository"
-else
-    pass "no _hh_sshfsctl definition exists in the repository"
-fi
-if grep -vE '^[[:space:]]*#' "${REPO_ROOT}/bin/executable_sshfs.bash" | grep -qE '(^|[^_])hh_sshfsctl'; then
-    fail "sshfs.bash calls the public hh_sshfsctl (recursion risk)"
-else
-    pass "sshfs.bash never calls the public hh_sshfsctl"
-fi
-
-# --- Bash startup and re-source: tmux pane plumbing, PATH --------------------
-# Seeded caller PATH carries an unrelated duplicate (/usr/bin twice) that
-# must survive untouched while the managed entries are added once.
-SEEDED_PATH="${FAKEBIN}:/usr/bin:/bin:/usr/bin"
-RESOURCE_KEYS=(histfile prompt1 path1 sync histfile_moved prompt2 path2 histfile2)
-TMUX_SCRIPT='
+# --- Bash: re-sourcing ~/.bashrc ---------------------------------------------------
+BASH_RESOURCE_PROBE='
 echo "histfile=${HISTFILE}"
 echo "prompt1=${PROMPT_COMMAND}"
 echo "path1=${PATH}"
-if [[ -n "${E1_SIMULATE_MOVE:-}" ]]; then
+if [[ -n "${MOVE_PANE:-}" ]]; then
     echo "'"${TMUX_ID_MOVED}"'" > "${HOME}/tmux_id"
     _tmux_pane_hist_sync; echo "sync=$?"
 fi
 echo "histfile_moved=${HISTFILE}"
 source "${HOME}/.bashrc"
+echo "resource_status=$?"
 echo "prompt2=${PROMPT_COMMAND}"
 echo "path2=${PATH}"
 echo "histfile2=${HISTFILE}"
-compgen -A function | sed "s/^/fn_resourced:/"
-'
-# run_resource_shell <home> <outside|valid|failed>
-run_resource_shell() {
-    local home="$1" mode="$2"
+home_functions resourced
+echo PROBE_DONE'
+
+# scenario_bash_resource <outside|valid|failed>: outside tmux, in a pane
+# whose id lookup works, in a pane whose lookup fails.
+scenario_bash_resource() {
+    local mode="$1" home prompt1 prompt2 histfile
+    home="$(new_home "bash-resource-${mode}")" || return
+    local -a env=(PATH="${SEEDED_PATH}")
     case "${mode}" in
-        outside)
-            run_bash "${home}" "${TMUX_SCRIPT}" PATH="${SEEDED_PATH}"
-            ;;
-        valid)
-            printf '%s\n' "${TMUX_ID_INITIAL}" > "${home}/tmux_id"
-            run_bash "${home}" "${TMUX_SCRIPT}" PATH="${SEEDED_PATH}" \
-                TMUX=/tmp/e1-fake,1,0 TMUX_PANE="${TMUX_PANE_FIXTURE}" E1_SIMULATE_MOVE=1
-            ;;
-        failed)
-            : > "${home}/tmux_id"
-            run_bash "${home}" "${TMUX_SCRIPT}" PATH="${SEEDED_PATH}" \
-                TMUX=/tmp/e1-fake,1,0 TMUX_PANE="${TMUX_PANE_FIXTURE}"
-            ;;
+        valid) env+=(TMUX="${FAKE_TMUX}" TMUX_PANE="${TMUX_PANE_FIXTURE}" MOVE_PANE=1) ;;
+        failed) : > "${home}/tmux_id"; env+=(TMUX="${FAKE_TMUX}" TMUX_PANE="${TMUX_PANE_FIXTURE}") ;;
     esac
+    run_bash "${home}" "${STARTUP_STATUS}${BASH_PROBE}${BASH_RESOURCE_PROBE}" "${env[@]}"
+    assert_clean_startup "bash ${mode}"
+    assert_eq 0 "$(out_value resource_status "${home}")" "bash ${mode}: re-source exits 0"
+    prompt1="$(out_value prompt1 "${home}")"
+    prompt2="$(out_value prompt2 "${home}")"
+    assert_eq "${prompt1}" "${prompt2}" "bash ${mode}: re-source keeps PROMPT_COMMAND identical"
+    assert_eq 1 "$(hook_count _tmux_log_last_cmd "${prompt2}")" "bash ${mode}: one last-command hook"
+    assert_eq "${EXPECTED_PATH}" "$(out_value path1 "${home}")" "bash ${mode}: managed PATH entries added once"
+    assert_eq "${EXPECTED_PATH}" "$(out_value path2 "${home}")" "bash ${mode}: PATH unchanged by re-source"
+    assert_set_eq "$(words "${PUBLIC[@]}" "${ALLOW_BASH[@]}" "${VENDOR_FIXTURE[@]}")" "$(functions_in resourced)" \
+        "bash ${mode}: re-source defines no extra functions"
+    histfile="<HOME>/.local/state/tmux/panes"
+    if [[ "${mode}" == valid ]]; then
+        assert_eq 1 "$(hook_count _tmux_pane_hist_sync "${prompt2}")" "bash valid: one pane history hook"
+        assert_eq "${histfile}/${TMUX_ID_INITIAL}.bash_history" "$(out_value histfile "${home}")" \
+            "bash valid: pane HISTFILE claimed at startup"
+        assert_eq 0 "$(out_value sync "${home}")" "bash valid: history sync after a pane move exits 0"
+        assert_eq "${histfile}/${TMUX_ID_MOVED}.bash_history" "$(out_value histfile_moved "${home}")" \
+            "bash valid: pane move updates HISTFILE"
+        assert_eq "${histfile}/${TMUX_ID_MOVED}.bash_history" "$(out_value histfile2 "${home}")" \
+            "bash valid: re-source keeps the moved pane HISTFILE (no re-claim)"
+    else
+        assert_eq 0 "$(hook_count _tmux_pane_hist_sync "${prompt1}${prompt2}")" \
+            "bash ${mode}: no pane history hook"
+        assert_eq "<HOME>/.bash_history" "$(out_value histfile2 "${home}")" "bash ${mode}: default HISTFILE"
+    fi
 }
-hook_count() { grep -o "$1" <<<"$2" | wc -l | tr -d ' '; }
-EXPECTED_PATH="<HOME>/bin:<HOME>/ai-wrapper/bin:${SEEDED_PATH}"
 
-echo "== Bash in valid tmux pane: history plumbing and re-source"
-run_resource_shell "${NEW_HOME}" valid
-assert_eq 0 "${RUN_STATUS}" "in-tmux interactive startup exits 0"
-assert_eq "<HOME>/.local/state/tmux/panes/${TMUX_ID_INITIAL}.bash_history" \
-    "$(out_value histfile "${NEW_HOME}")" "pane HISTFILE claimed at startup"
-new_prompt1="$(out_value prompt1 "${NEW_HOME}")"
-if [[ "${new_prompt1}" == "_tmux_pane_hist_sync || history -a; _tmux_log_last_cmd; "* ]]; then
-    pass "history sync and last-command hooks registered in baseline order"
-else
-    fail "unexpected PROMPT_COMMAND: ${new_prompt1}"
-fi
-assert_eq 0 "$(out_value sync "${NEW_HOME}")" "_tmux_pane_hist_sync follows a pane move"
-assert_eq "<HOME>/.local/state/tmux/panes/${TMUX_ID_MOVED}.bash_history" \
-    "$(out_value histfile_moved "${NEW_HOME}")" "_tmux_pane_hist_sync updates caller HISTFILE"
-assert_file_contains "${NEW_HOME}/calls.log" "release ${TMUX_PANE_FIXTURE}" "old pane history released"
-if [[ -f "${NEW_HOME}/.local/state/tmux/panes/.owner.${TMUX_PANE_FIXTURE}" ]]; then
-    pass "_tmux_pane_hist_claim wrote owner file"
-else
-    fail "_tmux_pane_hist_claim owner file missing"
-fi
-new_prompt2="$(out_value prompt2 "${NEW_HOME}")"
-assert_eq "${new_prompt1}" "${new_prompt2}" "re-source restores the identical PROMPT_COMMAND"
-assert_eq 1 "$(hook_count _tmux_pane_hist_sync "${new_prompt2}")" "re-source keeps exactly one history sync hook"
-assert_eq 1 "$(hook_count _tmux_log_last_cmd "${new_prompt2}")" "re-source keeps exactly one last-command hook"
-assert_eq "<HOME>/.local/state/tmux/panes/${TMUX_ID_MOVED}.bash_history" \
-    "$(out_value histfile2 "${NEW_HOME}")" "re-source keeps the moved pane HISTFILE (no re-claim)"
-assert_eq "${EXPECTED_PATH}" "$(out_value path1 "${NEW_HOME}")" "managed PATH entries prepended once at startup"
-assert_eq "$(out_value path1 "${NEW_HOME}")" "$(out_value path2 "${NEW_HOME}")" \
-    "re-source leaves PATH unchanged (no duplicates, unrelated duplicate kept)"
-assert_set_eq "${EXPECTED_IDLE}" \
-    "$(comm -12 <(functions_in resourced) <(printf '%s\n' "${REPO_FUNCS}"))" \
-    "re-source: repository functions are exactly public + eager allowlist"
+# --- Bash: i3 wrapper whose module disappeared after startup -------------------------
+scenario_bash_i3_wrapper_source_failure() {
+    local home
+    home="$(new_home bash-i3-missing)" || return
+    run_bash "${home}" '
+rm -f "${HOME}/bin/helper/i3.bash"
+hh_i3_save_ws 1 > /dev/null 2> "${HOME}/i3.err"; echo "status=$?"
+echo PROBE_DONE'
+    assert_contains "${RUN_STDOUT}" PROBE_DONE "i3 wrapper: shell survives a failed module source"
+    assert_eq 1 "$(out_value status "${home}")" "i3 wrapper: returns the failed source status"
+    assert_file_contains "${home}/i3.err" "i3.bash" "i3 wrapper: error names the missing module"
+}
 
-if (( have_baseline )); then
-    new_values=()
-    for key in "${RESOURCE_KEYS[@]}"; do
-        new_values+=("${key}=$(out_value "${key}" "${NEW_HOME}")")
-    done
-    run_resource_shell "${BASE_HOME}" valid
-    idx=0
-    for key in "${RESOURCE_KEYS[@]}"; do
-        case "${key}" in
-            prompt2|path2) ;;
-            *) assert_eq "${new_values[${idx}]}" "${key}=$(out_value "${key}" "${BASE_HOME}")" \
-                "valid tmux ${key} identical to pre-E1 baseline" ;;
-        esac
-        idx=$((idx + 1))
-    done
-    base_prompt2="$(out_value prompt2 "${BASE_HOME}")"
-    base_path2="$(out_value path2 "${BASE_HOME}")"
-    if [[ "${base_prompt2}" != *_tmux_pane_hist_sync* ]]; then
-        pass "control: same probe shows baseline re-source dropping _tmux_pane_hist_sync"
-    else
-        fail "control: baseline re-source unexpectedly kept _tmux_pane_hist_sync"
-    fi
-    if [[ "$(hook_count '<HOME>/bin:' "${base_path2}")" -gt 1 ]]; then
-        pass "control: same probe shows baseline re-source duplicating PATH entries"
-    else
-        fail "control: baseline PATH duplication not detected: ${base_path2}"
-    fi
-fi
+# --- macOS module layout -------------------------------------------------------------
+scenario_bash_macos_layout() {
+    local home
+    home="$(new_home bash-macos "${MACOS_SKIPPED_MODULES[@]}")" || return
+    run_bash "${home}" "${STARTUP_STATUS}${BASH_PROBE}"'
+home_functions idle
+helper.bash rclone_bisync src dst > /dev/null 2>&1; echo "script_mode=$?"
+echo PROBE_DONE'
+    assert_clean_startup "bash macOS layout"
+    assert_set_eq "$(without "$(words "${PUBLIC[@]}" "${ALLOW_BASH[@]}" "${VENDOR_FIXTURE[@]}")" "${LINUX_ONLY_PUBLIC[@]}")" \
+        "$(functions_in idle)" "bash macOS layout: only the present modules' helpers (no dangling wrappers)"
+    assert_eq 0 "$(out_value script_mode "${home}")" "bash macOS layout: script mode still dispatches"
+}
 
-for mode in outside failed; do
-    case "${mode}" in
-        outside) echo "== Bash outside tmux: startup and re-source" ;;
-        failed) echo "== Bash in tmux with failed pane lookup: startup and re-source" ;;
-    esac
-    run_resource_shell "${NEW_HOME}" "${mode}"
-    assert_eq 0 "${RUN_STATUS}" "${mode}: interactive startup exits 0"
-    prompt1="$(out_value prompt1 "${NEW_HOME}")"
-    prompt2="$(out_value prompt2 "${NEW_HOME}")"
-    assert_eq 0 "$(hook_count _tmux_pane_hist_sync "${prompt1}${prompt2}")" \
-        "${mode}: no pane history hook installed at startup or re-source"
-    assert_eq 1 "$(hook_count _tmux_log_last_cmd "${prompt2}")" "${mode}: one last-command hook after re-source"
-    assert_eq "${prompt1}" "${prompt2}" "${mode}: re-source restores the identical PROMPT_COMMAND"
-    assert_eq "<HOME>/.bash_history" "$(out_value histfile "${NEW_HOME}")" "${mode}: default HISTFILE kept"
-    assert_eq "${EXPECTED_PATH}" "$(out_value path2 "${NEW_HOME}")" "${mode}: PATH unchanged by re-source"
-    if (( have_baseline )); then
-        new_prompt1="${prompt1}"
-        new_histfile="$(out_value histfile "${NEW_HOME}")"
-        run_resource_shell "${BASE_HOME}" "${mode}"
-        assert_eq "${new_prompt1}" "$(out_value prompt1 "${BASE_HOME}")" "${mode}: startup PROMPT_COMMAND identical to baseline"
-        assert_eq "${new_histfile}" "$(out_value histfile "${BASE_HOME}")" "${mode}: HISTFILE identical to baseline"
-    fi
-done
-
-# --- Source failure inside a wrapper -----------------------------------------
-echo "== i3 wrapper source failure"
-run_bash "${NEW_HOME}" 'rm -f "${HOME}/bin/helper/i3.bash"; hh_i3_save_ws 1 >/dev/null 2>"${HOME}/i3_missing"; echo "st=$?"; echo "alive=yes"'
-assert_eq 0 "${RUN_STATUS}" "shell survives a failed wrapper source (no recursion/timeout)"
-assert_eq 1 "$(out_value st "${NEW_HOME}")" "wrapper returns the failed source status"
-assert_eq yes "$(out_value alive "${NEW_HOME}")" "shell continues after failed wrapper source"
-assert_file_contains "${NEW_HOME}/i3_missing" "i3.bash" "failed source reports the missing module"
-cp "${REPO_ROOT}/bin/helper/i3.bash" "${NEW_HOME}/bin/helper/i3.bash"
-
-# --- macOS module layout ------------------------------------------------------
-echo "== Missing Linux-only modules (macOS layout)"
-MAC_HOME="${TMP_ROOT}/macos"
-deploy_tree "${REPO_ROOT}" "${MAC_HOME}" "${MACOS_SKIPPED_MODULES[@]}"
-run_bash "${MAC_HOME}" 'compgen -A function | sed "s/^/fn_idle:/"; helper.bash tmux_session >/dev/null; echo "cli_tmux=$?"; hh_unar "${HOME}/nofile"; echo "ex=$?"'
-assert_eq 0 "${RUN_STATUS}" "macOS-layout interactive startup exits 0"
-MAC_ONLY_LINUX_FUNCS="$(defined_functions "${REPO_ROOT}/bin/helper/i3.bash" \
-    "${REPO_ROOT}/bin/helper/storage.bash" "${REPO_ROOT}/bin/helper/utils.bash")"
-mac_expected="$(comm -23 <(printf '%s\n' "${EXPECTED_IDLE}") <(printf '%s\n' "${MAC_ONLY_LINUX_FUNCS}"))"
-assert_set_eq "${mac_expected}" "$(comm -12 <(functions_in idle) <(printf '%s\n' "${REPO_FUNCS}"))" \
-    "macOS layout: only present modules' public helpers (no dangling i3 wrappers)"
-if printf '%s\n' "${mac_expected}" | grep -qx hh_colors && printf '%s\n' "${mac_expected}" | grep -qx hh_unar; then
-    pass "macOS layout keeps formerly unconditional hh_colors/hh_unar"
-else
-    fail "macOS layout lost hh_colors/hh_unar"
-fi
-assert_eq 0 "$(out_value ex "${MAC_HOME}")" "macOS layout: hh_unar runs"
-assert_eq 0 "$(out_value cli_tmux "${MAC_HOME}")" "macOS layout: script-mode tmux_session still dispatches"
-
-# --- Zsh ----------------------------------------------------------------------
-echo "== Zsh"
-OLD_NAMES=(colors ex tmux_restore git_watch git_cleanout sshfsctl gio_mount
-    gio_umount job_mount job_umount upgrade_system yay_no_cache adb_pull_music
-    unzip_books cut_video gpg_decrypt gpg_encrypt rsync_ssh rm_ssh cp_ssh
-    i3_save_chezmoi_ws i3_save_ws i3_restore_ws)
-ZSH_REPO_FUNCS="$(printf '%s\n' "$(defined_functions "${REPO_ROOT}/dot_zshrc" \
-    "${REPO_ROOT}/bin/helper/"*.zsh "${REPO_ROOT}/bin/helper/"*.bash)" \
-    "${REPO_FUNCS}" "${PRIVATE_BASH[@]}" "${OLD_NAMES[@]}" | sed '/^$/d' | sort -u)"
-ZSH_EXPECTED="$(sorted_words "${PUBLIC_ZSH[@]}" "${ALLOW_ZSH[@]}")"
-zsh_functions_in() { printf '%s\n' "${RUN_OUT}" | sed -n "s/^fn_$1://p" | sort -u \
-    | comm -12 - <(printf '%s\n' "${ZSH_REPO_FUNCS}"); }
+# --- zsh ---------------------------------------------------------------------------
 ZSH_SCRIPT='
-print -l ${(k)functions} | sed "s/^/fn_idle:/"
+home_functions idle
 print -r -- "precmd1=${precmd_functions[*]}"
 print -r -- "addhist1=${zshaddhistory_functions[*]}"
 print -r -- "path1=${PATH}"
 print -r -- "histfile=${HISTFILE}"
-precmd_functions+=(e1_vendor_hook)
-hh_i3_save_ws 1 >/dev/null; print "i3_one=$?"
-hh_i3_save_ws 0 >/dev/null 2>&1; print "i3_bad=$?"
-hh_rsync_ssh -h >/dev/null; print "rsync_help=$?"
-hh_unar "${HOME}/nofile" >/dev/null; print "ex=$?"
-hh_gio_mount; print "gio_mount=$?"; print -r -- "pwd=${PWD}"
-cd "${HOME}"
-opts_before="$-"
-hh_sshfsctl help >/dev/null; print "sshfs=$?"
-[[ "$-" == "${opts_before}" ]] && print "sshfs_opts_same=yes" || print "sshfs_opts_same=no"
-print -r -- "sshfs_private=$(whence -w _hh_sshfsctl)"
-print -l ${(k)functions} | sed "s/^/fn_after:/"
+precmd_functions+=(vendor_hook)
+{
+    hh_i3_save_ws 1
+    hh_rsync_ssh -h
+    hh_unar "${HOME}/nofile"
+    hh_gio_mount; cd "${HOME}"
+    hh_sshfsctl help
+} > /dev/null 2>&1
+home_functions after
 source "${HOME}/.zshrc"
+print -r -- "resource_status=$?"
 print -r -- "precmd2=${precmd_functions[*]}"
 print -r -- "addhist2=${zshaddhistory_functions[*]}"
 print -r -- "path2=${PATH}"
-print -l ${(k)functions} | sed "s/^/fn_resourced:/"
-'
-if command -v zsh >/dev/null 2>&1; then
-    for mode in outside valid failed; do
-        echo "== Zsh ${mode}: namespace, calls and re-source"
-        case "${mode}" in
-            outside) run_zsh "${NEW_HOME}" "${ZSH_SCRIPT}" PATH="${SEEDED_PATH}" ;;
-            valid)
-                printf '%s\n' "${TMUX_ID_INITIAL}" > "${NEW_HOME}/tmux_id"
-                run_zsh "${NEW_HOME}" "${ZSH_SCRIPT}" PATH="${SEEDED_PATH}" \
-                    TMUX=/tmp/e1-fake,1,0 TMUX_PANE="${TMUX_PANE_FIXTURE}" ;;
-            failed)
-                : > "${NEW_HOME}/tmux_id"
-                run_zsh "${NEW_HOME}" "${ZSH_SCRIPT}" PATH="${SEEDED_PATH}" \
-                    TMUX=/tmp/e1-fake,1,0 TMUX_PANE="${TMUX_PANE_FIXTURE}" ;;
-        esac
-        assert_eq 0 "${RUN_STATUS}" "zsh ${mode}: startup + script exits 0"
-        for phase in idle after resourced; do
-            assert_set_eq "${ZSH_EXPECTED}" "$(zsh_functions_in "${phase}")" \
-                "zsh ${mode} ${phase}: repository functions are exactly public + zsh allowlist"
-        done
-        precmd1="$(out_value precmd1 "${NEW_HOME}")"
-        if [[ "${mode}" == valid ]]; then
-            assert_eq "_reset_ctrl_d_count vcs_info _tmux_log_last_cmd _tmux_pane_hist_sync" "${precmd1}" \
-                "zsh ${mode}: precmd hooks registered once in order"
-            assert_eq "_tmux_pane_hist_addhistory" "$(out_value addhist1 "${NEW_HOME}")" \
-                "zsh ${mode}: zshaddhistory hook registered"
-            assert_eq "<HOME>/.local/state/tmux/panes/${TMUX_ID_INITIAL}.zsh_history" \
-                "$(out_value histfile "${NEW_HOME}")" "zsh ${mode}: pane HISTFILE claimed"
-        else
-            assert_eq "_reset_ctrl_d_count vcs_info _tmux_log_last_cmd" "${precmd1}" \
-                "zsh ${mode}: no pane history hook outside a valid pane"
-            assert_eq "" "$(out_value addhist1 "${NEW_HOME}")" "zsh ${mode}: no zshaddhistory hook"
-        fi
-        assert_eq "${precmd1} e1_vendor_hook" "$(out_value precmd2 "${NEW_HOME}")" \
-            "zsh ${mode}: re-source adds no duplicate and keeps vendor hook order"
-        assert_eq "$(out_value addhist1 "${NEW_HOME}")" "$(out_value addhist2 "${NEW_HOME}")" \
-            "zsh ${mode}: zshaddhistory hooks unchanged by re-source"
-        assert_eq "${EXPECTED_PATH}" "$(out_value path1 "${NEW_HOME}")" "zsh ${mode}: managed PATH entries added once"
-        assert_eq "${EXPECTED_PATH}" "$(out_value path2 "${NEW_HOME}")" "zsh ${mode}: PATH unchanged by re-source"
-        assert_eq 0 "$(out_value i3_one "${NEW_HOME}")" "zsh ${mode}: hh_i3_save_ws runs under bash"
-        assert_eq 1 "$(out_value i3_bad "${NEW_HOME}")" "zsh ${mode}: hh_i3_save_ws failure status propagates"
-        assert_eq 0 "$(out_value rsync_help "${NEW_HOME}")" "zsh ${mode}: hh_rsync_ssh -h"
-        assert_eq 0 "$(out_value ex "${NEW_HOME}")" "zsh ${mode}: hh_unar runs"
-        assert_eq "<HOME>/mnt/phone" "$(out_value pwd "${NEW_HOME}")" "zsh ${mode}: hh_gio_mount changes caller cwd"
-        assert_eq 0 "$(out_value sshfs "${NEW_HOME}")" "zsh ${mode}: hh_sshfsctl help runs sshfs.bash"
-        assert_eq yes "$(out_value sshfs_opts_same "${NEW_HOME}")" "zsh ${mode}: hh_sshfsctl leaves caller options unchanged"
-        assert_eq "_hh_sshfsctl: none" "$(out_value sshfs_private "${NEW_HOME}")" "zsh ${mode}: no _hh_sshfsctl defined"
+home_functions resourced
+echo PROBE_DONE'
+
+scenario_zsh() {
+    local mode="$1" home phase precmd1 expected
+    home="$(new_home "zsh-${mode}")" || return
+    local -a env=(PATH="${SEEDED_PATH}")
+    case "${mode}" in
+        valid) env+=(TMUX="${FAKE_TMUX}" TMUX_PANE="${TMUX_PANE_FIXTURE}") ;;
+        failed) : > "${home}/tmux_id"; env+=(TMUX="${FAKE_TMUX}" TMUX_PANE="${TMUX_PANE_FIXTURE}") ;;
+    esac
+    run_zsh "${home}" "${STARTUP_STATUS}${ZSH_PROBE}${ZSH_SCRIPT}" "${env[@]}"
+    assert_clean_startup "zsh ${mode}"
+    assert_eq 0 "$(out_value resource_status "${home}")" "zsh ${mode}: re-source exits 0"
+    expected="$(words "${PUBLIC[@]}" "${ALLOW_ZSH[@]}")"
+    for phase in idle after resourced; do
+        assert_set_eq "${expected}" "$(functions_in "${phase}")" \
+            "zsh ${mode} ${phase}: functions from HOME files are exactly public + zsh allowlist"
     done
-    printf '%s\n' "${TMUX_ID_INITIAL}" > "${NEW_HOME}/tmux_id"
-
-    if (( have_baseline )); then
-        run_zsh "${BASE_HOME}" 'source "${HOME}/.zshrc"; print -r -- "precmd2=${precmd_functions[*]}"'
-        if [[ "$(hook_count _reset_ctrl_d_count "$(out_value precmd2 "${BASE_HOME}")")" -gt 1 ]]; then
-            pass "control: same probe shows baseline .zshrc re-source duplicating precmd hooks"
-        else
-            fail "control: baseline precmd duplication not detected"
-        fi
+    precmd1="$(out_value precmd1 "${home}")"
+    assert_eq "${precmd1} vendor_hook" "$(out_value precmd2 "${home}")" \
+        "zsh ${mode}: re-source adds no duplicate precmd hook and keeps a vendor hook"
+    assert_eq "$(out_value addhist1 "${home}")" "$(out_value addhist2 "${home}")" \
+        "zsh ${mode}: zshaddhistory hooks unchanged by re-source"
+    assert_eq 1 "$(hook_count _tmux_log_last_cmd "${precmd1}")" "zsh ${mode}: one last-command hook"
+    assert_eq "${EXPECTED_PATH}" "$(out_value path1 "${home}")" "zsh ${mode}: managed PATH entries added once"
+    assert_eq "${EXPECTED_PATH}" "$(out_value path2 "${home}")" "zsh ${mode}: PATH unchanged by re-source"
+    if [[ "${mode}" == valid ]]; then
+        assert_eq 1 "$(hook_count _tmux_pane_hist_sync "${precmd1}")" "zsh valid: one pane history hook"
+        assert_eq "_tmux_pane_hist_addhistory" "$(out_value addhist1 "${home}")" \
+            "zsh valid: zshaddhistory hook registered"
+        assert_eq "<HOME>/.local/state/tmux/panes/${TMUX_ID_INITIAL}.zsh_history" \
+            "$(out_value histfile "${home}")" "zsh valid: pane HISTFILE claimed"
+    else
+        assert_eq 0 "$(hook_count _tmux_pane_hist_sync "${precmd1}")" "zsh ${mode}: no pane history hook"
+        assert_eq "" "$(out_value addhist1 "${home}")" "zsh ${mode}: no zshaddhistory hook"
     fi
+}
 
-    echo "== Zsh macOS layout"
-    run_zsh "${MAC_HOME}" 'print -l ${(k)functions} | sed "s/^/fn_idle:/"'
-    assert_eq 0 "${RUN_STATUS}" "zsh macOS-layout startup exits 0"
-    assert_set_eq "$(comm -23 <(printf '%s\n' "${ZSH_EXPECTED}") <(printf '%s\n' "${MAC_ONLY_LINUX_FUNCS}"))" \
-        "$(zsh_functions_in idle)" "zsh macOS layout: only present modules' public helpers"
-else
-    gap "zsh not installed on this runner: zsh namespace, bash_exec boundary, re-source and macOS layout not verified here (owner-side native run required)"
+scenario_zsh_macos_layout() {
+    local home
+    home="$(new_home zsh-macos "${MACOS_SKIPPED_MODULES[@]}")" || return
+    run_zsh "${home}" "${STARTUP_STATUS}${ZSH_PROBE}"'
+home_functions idle
+echo PROBE_DONE'
+    assert_clean_startup "zsh macOS layout"
+    assert_set_eq "$(without "$(words "${PUBLIC[@]}" "${ALLOW_ZSH[@]}")" "${LINUX_ONLY_PUBLIC[@]}")" \
+        "$(functions_in idle)" "zsh macOS layout: only the present modules' helpers"
+}
+
+echo "== Bash"
+scenario_bash_function_set
+scenario_bash_script_mode
+for mode in outside valid failed; do
+    scenario_bash_resource "${mode}"
+done
+scenario_bash_i3_wrapper_source_failure
+scenario_bash_macos_layout
+
+echo "== zsh"
+if require_cmd "zsh function set, re-source and macOS layout" zsh; then
+    for mode in outside valid failed; do
+        scenario_zsh "${mode}"
+    done
+    scenario_zsh_macos_layout
 fi
 
-# --- Retired code and structure --------------------------------------------
-echo "== Retired code and structure"
-old_body_left="$(cd "${REPO_ROOT}" && git grep -lF '<start|stop|status|journal>' -- . ':!tests' ':!docs' | tr '\n' ' ')"
-assert_eq "" "${old_body_left}" "old hh_sshfsctl systemctl body exists nowhere outside tests/docs"
-removed_left="$(defined_functions "${REPO_ROOT}/dot_bashrc" "${REPO_ROOT}/dot_zshrc" \
-    "${REPO_ROOT}/bin/executable_helper.bash" "${REPO_ROOT}/bin/helper/"* \
-    | grep -xE 'job_mount|job_umount' | tr '\n' ' ')"
-assert_eq "" "${removed_left}" "job_mount/job_umount removed everywhere"
-if [[ "$(grep -cF "${TMUX_PLUMBING_MARKER}" "${REPO_ROOT}/bin/helper/tmux_last_cmd.bash")" -eq 1 ]]; then
-    pass "plumbing block present exactly once in tmux_last_cmd.bash"
-else
-    fail "plumbing block missing or duplicated in tmux_last_cmd.bash"
-fi
-if ! defined_functions "${REPO_ROOT}/bin/helper/tmux.bash" | grep -q '^_tmux_'; then
-    pass "tmux.bash no longer duplicates the _tmux_* callbacks"
-else
-    fail "tmux.bash still defines _tmux_* callbacks"
-fi
-
-echo
-echo "${failures} failure(s), ${gaps} verification gap(s)"
-(( failures == 0 ))
+tests_finish

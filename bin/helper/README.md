@@ -88,8 +88,8 @@ load only this file, not the session builders.
 - `hh_adb_pull_music()` - Pull music from Android
 - `hh_unzip_books()` - Unzip and rename fb2 books
 - `hh_cut_video()` - Cut video segment
-- `hh_gpg_decrypt()` - Decrypt GPG file
-- `hh_gpg_encrypt()` - Encrypt with GPG
+- `hh_gpg_decrypt <in.asc> <out>` - Decrypt into <out> and verify the signature
+- `hh_gpg_encrypt <recipient>` - Sign and encrypt stdin (armoured, to stdout)
 
 ### shell.bash - Interactive Conveniences
 **Dependencies**: None (portable; deployed on Linux and macOS)
