@@ -41,12 +41,29 @@ tmp="${file}.filter.$$"
 paths="${file}.paths.$$"
 trap 'rm -f "${tmp}" "${paths}"' EXIT
 
+# Shell PIDs from one list-panes: display-message does not fail for a
+# pane that is gone (it answers with the current pane), so a pane closed
+# since the save would get another pane's directory.
+live=$(tmux list-panes -a -F '#{session_name}	#{window_index}	#{pane_index}	#{pane_pid}' 2>/dev/null) || live=""
+
+# live_pid <session> <window> <pane>: the pane's shell PID, if it is live.
+live_pid() {
+    local s w p pid
+    while IFS=$'\t' read -r s w p pid; do
+        if [[ "${s}" == "$1" && "${w}" == "$2" && "${p}" == "$3" ]]; then
+            printf '%s' "${pid}"
+            return 0
+        fi
+    done <<<"${live}"
+    return 1
+}
+
 # One "session<TAB>window<TAB>pane<TAB>path" line per pane whose saved
 # path is empty. Written unescaped, like resurrect's own save (a
 # backslash in a path does not survive resurrect's restore either).
 awk -F '\t' '$1 == "pane" && $8 == ":" { print $2 "\t" $3 "\t" $6 }' "${file}" \
 | while IFS=$'\t' read -r session window pane; do
-    pid=$(tmux display-message -p -t "=${session}:${window}.${pane}" '#{pane_pid}' 2>/dev/null) || continue
+    pid=$(live_pid "${session}" "${window}" "${pane}") || continue
     [[ "${pid}" =~ ^[0-9]+$ ]] || continue
     dir=$(pane_cwd "${pid}")
     [[ "${dir}" == /* ]] || continue

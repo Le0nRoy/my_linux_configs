@@ -10,8 +10,11 @@
 function _tmux_log_last_cmd() {
     [[ -n "${TMUX:-}" && "${TMUX_PANE:-}" =~ ^%[0-9]+$ ]] || return 0
     local id state
-    id=$(tmux display-message -p -t "${TMUX_PANE}" '#S:#I.#P' 2>/dev/null) || return 0
-    [[ -n "${id}" ]] || return 0
+    # display-message does not fail for a pane that no longer exists (it
+    # prints empty fields or another pane's), so the pane ID must match.
+    id=$(tmux display-message -p -t "${TMUX_PANE}" '#{pane_id} #S:#I.#P' 2>/dev/null) || return 0
+    [[ "${id}" == "${TMUX_PANE} "?* ]] || return 0
+    id="${id#* }"
     state="${XDG_STATE_HOME:-${HOME}/.local/state}/tmux/panes"
     mkdir -p "${state}"
     ( umask 077 && history 1 | sed 's/^ *[0-9]* *//' > "${state}/${id}.last" )
@@ -42,8 +45,9 @@ fi
 # returns, and loading it here too would duplicate every entry.
 function _tmux_pane_hist_path() {
     local id
-    id=$(tmux display-message -p -t "${TMUX_PANE}" '#S:#I.#P' 2>/dev/null) || return 1
-    [[ -n "${id}" ]] || return 1
+    id=$(tmux display-message -p -t "${TMUX_PANE}" '#{pane_id} #S:#I.#P' 2>/dev/null) || return 1
+    [[ "${id}" == "${TMUX_PANE} "?* ]] || return 1
+    id="${id#* }"
     printf '%s/%s.bash_history' "${_TMUX_PANE_HIST_DIR}" "${id}"
 }
 
