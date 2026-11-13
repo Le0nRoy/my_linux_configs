@@ -25,6 +25,7 @@ This is a **chezmoi-managed Linux system configuration** repository:
 ## Chezmoi Workflow
 
 Always use `chezmoi diff` before `chezmoi apply`. Changes in this repo don't deploy until `chezmoi apply` runs.
+Full workflow (naming, templates, ignores, run scripts, safe verification): `chezmoi-workflow` skill (`.claude/skills/chezmoi-workflow/SKILL.md`). Code style and commit format: `coding-standards` skill (`.claude/skills/coding-standards/SKILL.md`).
 
 File naming conventions matter:
 - `dot_` → deploys as `.<name>` under `~/`

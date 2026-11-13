@@ -24,8 +24,8 @@ This is a **chezmoi-managed Linux system configuration** repository:
 | Need | Where |
 |------|-------|
 | All rules and policies | `AGENTS.md` |
-| Chezmoi naming/workflow | `chezmoi-workflow` skill |
-| Code standards | `coding-standards` skill |
+| Chezmoi naming/workflow | `chezmoi-workflow` skill (`.claude/skills/chezmoi-workflow/SKILL.md`) |
+| Code standards | `coding-standards` skill (`.claude/skills/coding-standards/SKILL.md`) |
 | Test writing | `qa-automation` skill (`.claude/skills/qa-automation/SKILL.md`) |
 | Orchestration workflow | Shared `orchestrator-mode` skill |
 | Tortuga task operations | Shared `tortuga` skill; only on request |
