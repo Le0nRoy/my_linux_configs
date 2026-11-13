@@ -21,7 +21,7 @@ TEST_FILES=(
     test_tmux_harness.bash
     test_tmux_preservation.bash
     test_agent_skill_distribution.bash
-    test_retired_desktop_integration.bash
+    test_polybar_chezmoi_widget.bash
 )
 
 usage() {
