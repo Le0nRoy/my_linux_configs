@@ -157,6 +157,7 @@ deploy_tree() {
         "${home}/.mozilla/firefox/fixtureprofile" || return 1
     _fixture_install "${src}/dot_bashrc" "${home}/.bashrc" || return 1
     _fixture_install "${src}/dot_zshrc" "${home}/.zshrc" || return 1
+    printf 'skip_global_compinit=1\n' > "${home}/.zshenv"
     for f in helper.bash transfer.bash; do
         _fixture_install "${src}/dot_bash_completion.d/${f}" "${home}/.bash_completion.d/${f}" || return 1
     done
@@ -222,7 +223,7 @@ sandbox_env() {
     local home="$1"
     SANDBOX_ENV=(HOME="${home}" USER=fixtureuser HOSTNAME=fixturehost TERM=xterm
         PATH="${FAKEBIN}:/usr/bin:/bin" XDG_STATE_HOME="${home}/.local/state"
-        ZDOTDIR="${home}" FAKE_LOG="${home}/fake.log" FAKE_CONFIG_DIR="${home}/fake.d"
+        ZDOTDIR="${home}" skip_global_compinit=1 FAKE_LOG="${home}/fake.log" FAKE_CONFIG_DIR="${home}/fake.d"
         FAKE_TMUX_ID_FILE="${home}/tmux_id" FAKE_GIO_MOUNT="${home}/mnt/phone")
 }
 
@@ -267,6 +268,7 @@ startup_noise_filtered() {
             "bash: cannot set terminal process group ("*"): Inappropriate ioctl for device") ;;
             "bash: no job control in this shell") ;;
             *"not interactive and can't open terminal"*) ;;
+            *"compinit:"*) ;;
             *) printf '%s\n' "${line}" ;;
         esac
     done <<< "${RUN_STDERR}"

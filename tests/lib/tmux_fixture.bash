@@ -148,6 +148,7 @@ RC
     # zsh panes (ZDOTDIR): dot_zshrc's order, precmd_functions set before
     # the module is sourced.
     mkdir -p "${TS_HOME}/.zdot"
+    printf 'skip_global_compinit=1\n' > "${TS_HOME}/.zdot/.zshenv"
     cat > "${TS_HOME}/.zdot/.zshrc" <<'RC'
 umask 022
 HISTFILE="${HOME}/.zsh_history"
@@ -158,7 +159,7 @@ precmd_functions=()
 RC
     TS_ENV=(HOME="${TS_HOME}" XDG_STATE_HOME="${TS_STATE}" XDG_CONFIG_HOME="${TS_HOME}/.config"
         TMUX_TMPDIR="${TS_ROOT}/t" PATH="${TS_ROOT}/guardbin:/usr/bin:/bin" SHELL=/bin/bash
-        ZDOTDIR="${TS_HOME}/.zdot" TERM=xterm-256color LANG=C.UTF-8
+        ZDOTDIR="${TS_HOME}/.zdot" skip_global_compinit=1 TERM=xterm-256color LANG=C.UTF-8
         F_ROOT="${TS_ROOT}" F_REAL_TMUX="${TMUXF_REAL}"
         GIT_ALLOW_PROTOCOL=file GIT_CONFIG_NOSYSTEM=1
         # The boot script resets PATH; its `tmux` still reaches the guard.

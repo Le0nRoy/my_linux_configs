@@ -741,10 +741,12 @@ test_systemd_unit() {
 
 test_launch_agent() {
     require_cmd "LaunchAgent plist" python3 chezmoi || return 0
-    local root
+    local root chezmoi_bin chezmoi_dir
     root="$(make_test_dir plist)"
     mkdir -p "${root}/home"
-    env -i HOME="${root}/home" PATH=/usr/bin:/bin chezmoi --source "${REPO_ROOT}" execute-template \
+    chezmoi_bin="$(command -v chezmoi 2> /dev/null || echo "chezmoi")"
+    chezmoi_dir="$(dirname "${chezmoi_bin}")"
+    env -i HOME="${root}/home" PATH="${chezmoi_dir}:/usr/bin:/bin" "${chezmoi_bin}" --source "${REPO_ROOT}" execute-template \
         < "${REPO_ROOT}/Library/LaunchAgents/local.tmux.plist.tmpl" > "${root}/local.tmux.plist"
     run_capture python3 -I -c 'import plistlib, sys; p = plistlib.load(open(sys.argv[1], "rb")); print(p["ProgramArguments"][0], p["RunAtLoad"], p["KeepAlive"])' \
         "${root}/local.tmux.plist"

@@ -26,6 +26,7 @@ env:
   CHEZMOI_VERSION: "2.74.0"
   CHEZMOI_SHA256: 1b98a567f726f41540414aea4caf912699d53e248b29ccf8369cf553657b2374
   TOOLS_DIR: /home/runner/.cache/chezmoi-ci/tools
+  skip_global_compinit: "1"
 
 jobs:
   tests:
