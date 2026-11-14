@@ -84,16 +84,23 @@ function tmux_main_session() {
             # Create a throwaway session first: tmux < 3.2 requires a
             # live session for `run-shell` to work. PID-suffixed name
             # avoids colliding with a user session called _main_boot.
+            # TMUX_BOOT_RESTORE=1: this function owns the restore, so
+            # tmux.conf keeps tmux-continuum's racing background
+            # auto-restore off for this server.
             local boot_session="_main_boot_$$"
-            tmux new-session -d -s "${boot_session}"
+            TMUX_BOOT_RESTORE=1 tmux new-session -d -s "${boot_session}"
             tmux run-shell "${restore_script}"
             # Always drop the bootstrap: if resurrect restored real
             # sessions, they remain and the empty _main_boot_$$ is just
             # noise; if it restored nothing, killing the bootstrap
             # makes has-session below return false and the default
             # layout builder runs. `|| true` covers the missing-target
-            # case with no separate has-session guard.
-            tmux kill-session -t "${boot_session}" 2>/dev/null || true
+            # case (the post-restore cleanup hook may have killed it).
+            # `kill-ses` (unique prefix), not `kill-session`: tmux.conf
+            # aliases kill-session to an interactive confirm-before,
+            # which fails here, so the bootstrap leaked, was saved and
+            # came back on every boot. `=`: exact name.
+            tmux kill-ses -t "=${boot_session}" 2>/dev/null || true
         fi
         if tmux has-session 2>/dev/null; then
             if tmux has-session -t "=${session_name}" 2>/dev/null; then

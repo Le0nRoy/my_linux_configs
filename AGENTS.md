@@ -25,6 +25,7 @@ This is a **chezmoi-managed Linux system configuration** repository:
 ## Chezmoi Workflow
 
 Always use `chezmoi diff` before `chezmoi apply`. Changes in this repo don't deploy until `chezmoi apply` runs.
+Full workflow (naming, templates, ignores, run scripts, safe verification): `chezmoi-workflow` skill (`.claude/skills/chezmoi-workflow/SKILL.md`). Code style and commit format: `coding-standards` skill (`.claude/skills/coding-standards/SKILL.md`).
 
 File naming conventions matter:
 - `dot_` → deploys as `.<name>` under `~/`
@@ -33,6 +34,12 @@ File naming conventions matter:
 - `.tmpl` → processed as a Go template before deployment
 - `run_once_` → runs once on `chezmoi apply`, tracked by chezmoi
 - `run_always_` → runs on every `chezmoi apply`
+
+---
+
+## Testing
+
+Tests live in `tests/` (plain bash, helpers in `tests/lib/common.bash`). Run them all with `bash tests/run_all.bash` (`TESTS_STRICT=1` as CI; every `tests/test_*.bash` must be registered there). CI runs the same in strict mode via `.github/workflows/tests.yml`. Rules and run commands: `qa-automation` skill (`.claude/skills/qa-automation/SKILL.md`).
 
 ---
 

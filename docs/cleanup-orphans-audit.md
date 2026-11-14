@@ -31,7 +31,8 @@ stays unmerged pending owner acceptance.
 |------|-------|
 | Inspected revision | `agent/feature-55` at `dc61d97790543a4a323ce2a6fee0332f158e0eb5` (squash merge of PR #68) |
 | PR #68 source head | `d170491` — **not available** in this checkout. Its evidence is inherited, never re-attributed to `dc61d977` |
-| This report's tested head | The docs-only commit(s) on top of `dc61d977`. `git diff --stat dc61d977 HEAD` touches only `docs/`, so every production and test file is byte-identical to `dc61d977` |
+| This report's tested head | The docs-only commit(s) on top of `dc61d977`. `git diff --stat dc61d977 HEAD` touches only `docs/`, so every production and test file was byte-identical to `dc61d977` when §5 was run (historical; see the next row) |
+| Later refresh | **2026-11-14**, working tree at `c2d2a00` (`agent/feature-55-followups`). Every `file:line` citation in §3, §4, §6 and Appendix A was re-checked against that tree with a script: Appendix A definition lines and references were recomputed with the method in this section, and every other citation was checked against the construct it names. Stale lines were updated, mostly from the EasyEffects merge (#70: `bin/executable_polybar_volume_all.bash`, `dot_config/i3/config.tmpl`) and #55 follow-ups (`bin/helper/*`, `dot_config/tmux/tmux.conf.tmpl`, `bin/executable_tmux_boot.bash`). Earlier refresh (also against the working tree): the `hh_ex` → `hh_unar` rename (c5e4b6a) and `hh_sshfsctl` becoming a wrapper that launches `~/bin/sshfs.bash` (046cb3f; its old systemctl body was retired). §6.1 was fixed by 9452b3b. **Not re-inventoried:** paths and definitions added after `dc61d977` (Appendix A.1, Appendix B note) and new associations such as the EasyEffects autostart (`dot_config/i3/config.tmpl:121`) and the bootstrap cleanup / save filter tmux hooks (`dot_config/tmux/tmux.conf.tmpl:217,221`). Counts in §1–§4 still describe `dc61d977`. §2, §5 and Appendix B are historical `dc61d977` snapshots |
 | Inspection date | **2026-11-05** (this audit). Any other dates are labelled *historical last change* (`git log -1`) and are not inspection dates |
 | AI-Wrapper submodule | gitlink `db66133af5c94fff51a6984db2cb7ba85adcb03c` unchanged and not traversed. A separate clean clone at that SHA was used only as `AI_WRAPPER_PINNED_SRC` input for the existing distribution test (§5.1) |
 | Not read | Live host files, `/Data/Job`, `~/bin/.env`, secrets, installed tmux plugins, host package managers |
@@ -46,7 +47,7 @@ target revision, plus these bounded scans:
   over the 105 tracked paths that are not tests, Markdown or the gitlink.
   The scan found 202 hits. Two of those are AWK `function flush()`
   definitions inside `awk '…'` programs, not shell. One shell definition
-  uses `name ()` with `{` on the next line (`hh_ex`), which the scan misses,
+  uses `name ()` with `{` on the next line (`hh_unar`), which the scan misses,
   so it was added by hand. Python `def` and Vimscript `function!`
   definitions were also added by hand. Result: 206 definitions in
   Appendix A.
@@ -134,12 +135,12 @@ unverified.
 
 | # | Source (path:line) | Expected command | Scope / guard | Recommendation |
 |---|--------------------|------------------|---------------|----------------|
-| A1 | `dot_config/i3/config.tmpl:31-55,76,78,94,102,145-159,164,166,254,256,261` | `bash` → owned `~/bin/helper.bash <action>` (B1) | Linux | Retain; chain in §3.2 |
-| A2 | `dot_config/i3/config.tmpl:81,262,263` | owned `~/bin/i3_workspaces.bash` (B2) | Linux | Retain |
+| A1 | `dot_config/i3/config.tmpl:31-55,76,78,94,102,147-161,166,168,256,258,263` | `bash` → owned `~/bin/helper.bash <action>` (B1) | Linux | Retain; chain in §3.2 |
+| A2 | `dot_config/i3/config.tmpl:81,264,265` | owned `~/bin/i3_workspaces.bash` (B2) | Linux | Retain |
 | A3 | `dot_config/i3/config.tmpl:83,85` | `i3-msg` (`append_layout`), `uname` | Linux; dragonlady / dragoncave | Retain |
 | A4 | `dot_config/i3/config.tmpl:88` | `firefox` | Linux | Retain; G revalidate |
-| A5 | `dot_config/i3/config.tmpl:89,142,143` | `alacritty` | Linux | Retain; G revalidate |
-| A6 | `dot_config/i3/config.tmpl:143` | `/usr/bin/zsh` (absolute path) | Linux | Retain; G revalidate |
+| A5 | `dot_config/i3/config.tmpl:89,144,145` | `alacritty` | Linux | Retain; G revalidate |
+| A6 | `dot_config/i3/config.tmpl:145` | `/usr/bin/zsh` (absolute path) | Linux | Retain; G revalidate |
 | A7 | `dot_config/i3/config.tmpl:93` | `Telegram` (autostart) | Linux; **dragonlady** | Retain in tree (other-host support; B/G owns host removal) |
 | A8 | `dot_config/i3/config.tmpl:94` | `helper.bash todoist` → `find ~/Applications/ -name 'Todoist*'` | Linux; **dragonlady** | Retain in tree (B/G) |
 | A9 | `dot_config/i3/config.tmpl:96` | `thunderbird` | Linux; dragonlady | Retain; G revalidate |
@@ -152,20 +153,20 @@ unverified.
 | A16 | `dot_config/i3/config.tmpl:112,113` | `light` | Linux; dragonlady | Retain; G revalidate |
 | A17 | `dot_config/i3/config.tmpl:115` | `redshift` | Linux; dragonlady | Retain; G revalidate |
 | A18 | `dot_config/i3/config.tmpl:119` | `start-pulseaudio-x11` | Linux | Retain; G revalidate |
-| A19 | `dot_config/i3/config.tmpl:122` | owned `~/bin/xrandr_manager.bash` (B3) | Linux | Retain |
-| A20 | `dot_config/i3/config.tmpl:125` | `inputplug` → owned `~/bin/input_device_handler.bash` (B4) | Linux | Retain; G revalidate |
-| A21 | `dot_config/i3/config.tmpl:128` | `libinput-gestures-setup` | Linux | Retain; G revalidate |
-| A22 | `dot_config/i3/config.tmpl:131` | `pkill`, owned `~/bin/xrandr_keymap_watcher.bash` (B5) | Linux | Retain |
-| A23 | `dot_config/i3/config.tmpl:139,140` | `rofi` | Linux | Retain; G revalidate |
-| A24 | `dot_config/i3/config.tmpl:153` | `pavucontrol` | Linux | Retain; G revalidate |
-| A25 | `dot_config/i3/config.tmpl:161` | `keepassxc` | Linux | **Retain (protected)** |
-| A26 | `dot_config/i3/config.tmpl:165` | `bash ~/.xsessionrc` (owned) | Linux | Retain |
-| A27 | `dot_config/i3/config.tmpl:169` | `xsel`, `xargs`, `vlc` | Linux | Retain; G revalidate |
-| A28 | `dot_config/i3/config.tmpl:171-183` | `quodlibet` (bindings; autostart at :92 is commented out) | Linux | Retain; G revalidate |
-| A29 | `dot_config/i3/config.tmpl:185-190` | `flameshot` | Linux | Retain; G revalidate |
-| A30 | `dot_config/i3/config.tmpl:193,194` | owned `~/bin/asusctl_rofi.bash` (B6) | Linux; dragonlady | Retain; G revalidate on ASUS hardware |
-| A31 | `dot_config/i3/config.tmpl:207,208` | `notify-send` | Linux | Retain; G revalidate |
-| A32 | `dot_config/i3/config.tmpl:262,263` | `systemctl reboot` / `poweroff` | Linux | Retain |
+| A19 | `dot_config/i3/config.tmpl:124` | owned `~/bin/xrandr_manager.bash` (B3) | Linux | Retain |
+| A20 | `dot_config/i3/config.tmpl:127` | `inputplug` → owned `~/bin/input_device_handler.bash` (B4) | Linux | Retain; G revalidate |
+| A21 | `dot_config/i3/config.tmpl:130` | `libinput-gestures-setup` | Linux | Retain; G revalidate |
+| A22 | `dot_config/i3/config.tmpl:133` | `pkill`, owned `~/bin/xrandr_keymap_watcher.bash` (B5) | Linux | Retain |
+| A23 | `dot_config/i3/config.tmpl:141,142` | `rofi` | Linux | Retain; G revalidate |
+| A24 | `dot_config/i3/config.tmpl:155` | `pavucontrol` | Linux | Retain; G revalidate |
+| A25 | `dot_config/i3/config.tmpl:163` | `keepassxc` | Linux | **Retain (protected)** |
+| A26 | `dot_config/i3/config.tmpl:167` | `bash ~/.xsessionrc` (owned) | Linux | Retain |
+| A27 | `dot_config/i3/config.tmpl:171` | `xsel`, `xargs`, `vlc` | Linux | Retain; G revalidate |
+| A28 | `dot_config/i3/config.tmpl:173-185` | `quodlibet` (bindings; autostart at :92 is commented out) | Linux | Retain; G revalidate |
+| A29 | `dot_config/i3/config.tmpl:187-192` | `flameshot` | Linux | Retain; G revalidate |
+| A30 | `dot_config/i3/config.tmpl:195,196` | owned `~/bin/asusctl_rofi.bash` (B6) | Linux; dragonlady | Retain; G revalidate on ASUS hardware |
+| A31 | `dot_config/i3/config.tmpl:209,210` | `notify-send` | Linux | Retain; G revalidate |
+| A32 | `dot_config/i3/config.tmpl:264,265` | `systemctl reboot` / `poweroff` | Linux | Retain |
 | A33 | `dot_config/polybar/config.ini.tmpl:160` | owned `~/bin/polybar_chezmoi_widget.sh` (B7) | Linux | Retain |
 | A34 | `dot_config/polybar/config.ini.tmpl:165` | owned `~/bin/check_dir_usage.bash` (B8) on `/Data/Downloads/DownloadedMusic/` | Linux | Retain; G revalidate path |
 | A35 | `dot_config/polybar/config.ini.tmpl:229,237` | `nvidia-smi` (has `|| echo "N/A"` fallback) | Linux; module listed only for dragonlady (`:112`) | Retain; G revalidate |
@@ -178,9 +179,9 @@ unverified.
 | A42 | `dot_config/tmux/tmux.conf.tmpl:60` | owned `~/bin/tmux_pipe_pane_init.bash` (B13) | macOS | Retain |
 | A43 | `dot_config/tmux/tmux.conf.tmpl:141` | `ps`, `tail` (status-left) | Linux, macOS | Retain |
 | A44 | `dot_config/tmux/tmux.conf.tmpl:145` | owned `~/bin/tmux_git_branch.bash` (B14) | Linux, macOS | Retain |
-| A45 | `dot_config/tmux/tmux.conf.tmpl:215` | owned `~/bin/tmux_prefill_last_cmd.bash` (B15), resurrect hook | Linux, macOS | Retain |
-| A46 | `dot_config/tmux/tmux.conf.tmpl:221` | owned `~/bin/tmux_pane_hist_release.bash` (B16) | Linux, macOS | Retain |
-| A47 | `dot_config/tmux/tmux.conf.tmpl:230` | `~/.tmux/plugins/tpm/tpm` (installed by `run_once_install-tpm-plugins.bash`) | Linux, macOS | Retain; G revalidate plugin install |
+| A45 | `dot_config/tmux/tmux.conf.tmpl:217` | owned `~/bin/tmux_prefill_last_cmd.bash` (B15), resurrect hook (since 9452b3b it first runs `~/bin/tmux_bootstrap_cleanup.bash`, a script added after `dc61d977` and not in §3.2) | Linux, macOS | Retain |
+| A46 | `dot_config/tmux/tmux.conf.tmpl:227` | owned `~/bin/tmux_pane_hist_release.bash` (B16) | Linux, macOS | Retain |
+| A47 | `dot_config/tmux/tmux.conf.tmpl:243` | `~/.tmux/plugins/tpm/tpm` (installed by `run_once_install-tpm-plugins.bash`) | Linux, macOS | Retain; G revalidate plugin install |
 | A48 | `dot_config/systemd/user/failure-notification@.service:7`, `success-notification@.service:7` | `/usr/bin/notify-send` (needs a notification daemon such as dunst) | Linux | Retain; G revalidate |
 | A49 | `dot_config/systemd/user/rclone-{encrypt,linux,media}-cloud-bisync{,-resync}.service:10/11`, `rclone-minecraft-local-bisync{,-resync}.service:10` (8 units) | `/usr/bin/bash` → owned `helper.bash rclone_bisync` → `rclone`; `EnvironmentFile=%h/.config/environment.d/rclone-bisync.conf` | Linux | Retain; G revalidate `rclone` and remotes |
 | A50 | `dot_config/systemd/user/sshfs@.service:12,13` | owned `%h/bin/sshfs-mount.sh` (B17) | Linux | Retain |
@@ -233,13 +234,13 @@ tools are what host session G needs to check.
 | B13 | `bin/executable_tmux_pipe_pane_init.bash` | A42 | `tmux` |
 | B14 | `bin/executable_tmux_git_branch.bash` | A44 | `git` |
 | B15 | `bin/executable_tmux_prefill_last_cmd.bash` | A45 | `tmux` |
-| B16 | `bin/executable_tmux_pane_hist_release.bash` | A46, `bin/helper/tmux_last_cmd.bash:67`, `bin/helper/tmux_last_cmd.zsh:69` | `tmux` |
+| B16 | `bin/executable_tmux_pane_hist_release.bash` | A46, `bin/helper/tmux_last_cmd.bash:71`, `bin/helper/tmux_last_cmd.zsh:73` | `tmux` |
 | B17 | `bin/executable_sshfs-mount.sh` | A50, `bin/executable_sshfs.bash:442` | `sshfs`, `fusermount3` |
 | B18 | `bin/executable_tmux_boot.bash` | A52, A54 | `tmux` |
 | B19 | `bin/executable_yt_playlist_mp3.bash` | A53 | `yt-dlp` |
 | B20 | `bin/executable_polybar-supervisor.bash` | `bin/helper/system.bash:44`, `bin/executable_xrandr_manager.bash:168` | `polybar` |
 | B21 | `bin/executable_firefox_rofi.bash` | **No tracked invoker** (user command on `PATH`) | B1 |
-| B22 | `bin/executable_sshfs.bash` | **No tracked invoker** (interactive TUI on `PATH`) | `ssh`, `sshfs`, `systemctl`, B17 |
+| B22 | `bin/executable_sshfs.bash` | `bin/helper/storage.bash:8` (public `hh_sshfsctl`, interactive only); also a TUI on `PATH` | `ssh`, `sshfs`, `systemctl`, B17 |
 | B23 | `bin/executable_xrandr_dmenu_test.bash` | **No tracked invoker** (debug script) | `xrandr`, `rofi`, `dmenu`, B3 |
 
 The public `hh_*` helpers (§4.1) also call external tools: `gio`, `adb`,
@@ -255,8 +256,8 @@ its application is removed, but its config does not fail.
 
 | Source | Applications matched | Scope | Recommendation |
 |--------|----------------------|-------|----------------|
-| `dot_config/i3/config.tmpl:287-312` (`assign`) | slack, job_navigator, thunderbird, zoom, jetbrains-studio / `jetbrains-.+`, Android Emulator, Arduino IDE, alacritty, quodlibet, Telegram, firefox, todoist, discord, joplin, steam, minecraft-launcher, chromium, opera | Linux | Retain. Telegram/Todoist/Joplin/Discord/JetBrains rules stay as other-host support until B/G; Steam/Minecraft/IDE rules are protected |
-| `dot_config/i3/config.tmpl:316-364` (`for_window`) | dialog/notification types, peek, firefox, alsamixer, nvidia-settings, telegram-desktop, thunderbird, flameshot, steam, virtualbox, galculator, Android Emulator, zoom, gthumb, okular, slack, keepassxc, pavucontrol, blueman-manager, iwgtk, matplotlib, picture-in-picture | Linux | Retain; G may report rules whose application is gone |
+| `dot_config/i3/config.tmpl:289-314` (`assign`) | slack, job_navigator, thunderbird, zoom, jetbrains-studio / `jetbrains-.+`, Android Emulator, Arduino IDE, alacritty, quodlibet, Telegram, firefox, todoist, discord, joplin, steam, minecraft-launcher, chromium, opera | Linux | Retain. Telegram/Todoist/Joplin/Discord/JetBrains rules stay as other-host support until B/G; Steam/Minecraft/IDE rules are protected |
+| `dot_config/i3/config.tmpl:318-367` (`for_window`) | dialog/notification types, peek, firefox, alsamixer, nvidia-settings, telegram-desktop, thunderbird, flameshot, steam, virtualbox, galculator, Android Emulator, zoom, gthumb, okular, slack, keepassxc, pavucontrol, easyeffects (added by #70), blueman-manager, iwgtk, matplotlib, picture-in-picture | Linux | Retain; G may report rules whose application is gone |
 | `dot_config/i3/workspaces/workspace_4-dragonlady.json:91-144` | Telegram, Todoist, Joplin swallow criteria (consumed by `append_layout`, A3) | Linux; dragonlady | Retain until B/G decides |
 | `dot_config/i3/workspaces/workspace_4-dragoncave.json` | Layout swallow criteria | Linux; dragoncave | Retain |
 | `dot_config/private_mimeapps.list:1-48` | Desktop IDs `org.telegram.desktop`, `firefox`, `org.kde.okular`, `userapp-Thunderbird-*`, `discord-402572971681644545`, `pcmanfm`, `org.gnome.gThumb`, `feh`, `jetbrains-toolbox`, `claude-code-url-handler`, `libreoffice-startcenter` | Linux | Retain. Only `firefox.desktop` is tracked here (A59); the other `.desktop` files come from packages. A missing desktop file makes XDG skip the handler |
@@ -284,7 +285,7 @@ the owner's hosts is **not verified**.
 |---------|------:|-------|
 | Executable-bearing association rows | 68 | A1–A68 (some rows list several commands or lines) |
 | Owned-script chain rows | 23 | B1–B23 (all tracked `bin/executable_*`) |
-| Owned scripts with no tracked invoker | 3 | B21, B22, B23 (user commands on `PATH`; also listed under Group 2) |
+| Owned scripts with no tracked invoker | 2 | B21, B23 (user commands on `PATH`; also listed under Group 2). B22 is launched only by the interactive `hh_sshfsctl` |
 | Distinct external command names in A1–A68 | 57 | Listed below |
 | Confirmed missing executables | **unknown** | Pending session G |
 
@@ -315,10 +316,13 @@ registration and possible external consumers are recorded separately.
 
 ### 4.1 Definition counts (computed from Appendix A)
 
+Counts are for `dc61d977`. The six definitions added since then are in
+Appendix A.1 and are not counted here.
+
 | Class | Occurrences | Notes |
 |-------|------------:|-------|
 | Public `hh_*` implementations (`bin/helper/*.bash`) | 20 | The approved public API |
-| Zsh public shims (`bin/helper/bash_exec.zsh:21-87`) | 14 | Bash-only helpers run through `bash -c` |
+| Zsh public shims (`bin/helper/bash_exec.zsh:22-88`) | 14 | Bash-only helpers run through `bash -c` |
 | Bash public i3 subshell wrappers (`bin/executable_helper.bash:41-43`) | 3 | Interactive-only wrappers around `i3.bash` |
 | Approved Bash plumbing | 10 | `_bashrc_git_branch`, `_tmux_log_last_cmd`, `_tmux_pane_hist_{path,claim,sync}`, `_helper_script`, `_ssh_config_hosts`, nested `_flush`, `_rsync_ssh_complete`, `_rm_ssh_complete` |
 | Approved Zsh plumbing | 8 | `_ctrl_d_exit`, `_reset_ctrl_d_count`, `_tmux_log_last_cmd`, `_tmux_pane_hist_{path,claim,detect,addhistory,sync}` |
@@ -327,7 +331,7 @@ registration and possible external consumers are recorded separately.
 | Sourced private (`dot_xsessionrc:14`) | 1 | `apply_xsession_input_settings` |
 | Script-local (`bin/executable_*`, `modify_dot_gitconfig`) | 120 | asusctl_rofi 11, i3_workspaces 3, polybar-supervisor 4, polybar_system_stats 7, polybar_volume_all 23, sshfs-mount 1, sshfs 18, tmux_prefill_last_cmd 1, xrandr_manager 51, modify_dot_gitconfig 1 |
 | **Shell subtotal** | **201** | 180 unique names |
-| Embedded AWK `flush()` (`bin/executable_polybar_volume_all.bash:177,281`) | 2 | Separate AWK programs |
+| Embedded AWK `flush()` (`bin/executable_polybar_volume_all.bash:208,346`) | 2 | Separate AWK programs |
 | Python `main` (`bin/executable_tmux_osc52_pbcopy.py:16`) | 1 | |
 | Vimscript `MoveToNextComma`, `MoveToPrevComma` (`dot_vimrc:140,145`) | 2 | |
 | **Total definitions** | **206** | |
@@ -340,7 +344,7 @@ Bash plus 8 Zsh entries, which share 4 names: **14 unique names, 18
 shell-specific occurrences**. They are runtime exceptions to private
 absence, not a separate function category. The public API is 20 `hh_*`
 functions plus the `hh_cp_ssh` alias (`bin/helper/transfer.bash:190`,
-`bin/helper/bash_exec.zsh:72`). That is an interface count, not a
+`bin/helper/bash_exec.zsh:73`). That is an interface count, not a
 definition count. `has_control_bytes` (`bin/executable_tmux_prefill_last_cmd.bash:20`)
 is a script-local helper called at `:48`. It is not an interactive API and
 not an allowlist entry.
@@ -350,9 +354,9 @@ not an allowlist entry.
 | # | Definition | Static callers | Dynamic interface / status | Uncertainty | Recommendation |
 |---|------------|----------------|----------------------------|-------------|----------------|
 | F1 | `get_display` — `bin/helper/system.bash:9` | **None** (no dispatch action; the reachability pass leaves it unreachable) | Helper-module private, loaded only in `helper.bash` script mode | Low. Out-of-tree scripts could only reach it by sourcing `system.bash` | **Source-only no-caller candidate.** Retain in H; owner decides removal later |
-| F2 | `hh_git_cleanout` (`git.bash:5`), `hh_sshfsctl` (`storage.bash:5`), `hh_gio_mount` (`storage.bash:69`), `hh_gio_umount` (`storage.bash:81`), `hh_tmux_restore` (`tmux_commands.bash:10`) | None outside their own bodies | Public interactive API (Bash `helper.bash:28` module list; Zsh `dot_zshrc:120-128`) | Interactive use cannot be seen from source | Retain (public API) |
+| F2 | `hh_git_cleanout` (`git.bash:5`), `hh_sshfsctl` (`storage.bash:5`, a wrapper that launches `~/bin/sshfs.bash` with its arguments), `hh_gio_mount` (`storage.bash:11`), `hh_gio_umount` (`storage.bash:36`), `hh_tmux_restore` (`tmux_commands.bash:10`) | None outside their own bodies | Public interactive API (Bash `helper.bash:28` module list; Zsh `dot_zshrc:120-128`) | Interactive use cannot be seen from source | Retain (public API) |
 | F3 | 14 Zsh shims (`bash_exec.zsh`) and 3 Bash i3 wrappers (`helper.bash:41-43`) | Invoked by name from the interactive shell only | Public wrappers | Same as F2 | Retain |
-| F4 | `hh_colors`, `hh_ex`, `hh_upgrade_system`, `hh_yay_no_cache`, `hh_adb_pull_music`, `hh_unzip_books`, `hh_cut_video`, `hh_gpg_decrypt`, `hh_gpg_encrypt`, `hh_i3_*` implementations | Only the `bash -c '… && NAME "$@"'` strings in `bash_exec.zsh` or the `helper.bash:41-43` wrappers | Public API; Bash loads them directly | — | Retain |
+| F4 | `hh_colors`, `hh_unar`, `hh_upgrade_system`, `hh_yay_no_cache`, `hh_adb_pull_music`, `hh_unzip_books`, `hh_cut_video`, `hh_gpg_decrypt`, `hh_gpg_encrypt`, `hh_i3_*` implementations | Only the `bash -c '… && NAME "$@"'` strings in `bash_exec.zsh` or the `helper.bash:41-43` wrappers | Public API; Bash loads them directly | — | Retain |
 
 Every other definition in Appendix A has at least one verified call site
 or registration outside its own body: `complete -F`, `PROMPT_COMMAND`,
@@ -373,9 +377,10 @@ plausible. **Retain; owner revalidates usage.** The other 14 actions are
 invoked from A1, A8, A49, A59 or B3–B5.
 
 **Owned scripts without a tracked invoker:** `bin/executable_firefox_rofi.bash`,
-`bin/executable_sshfs.bash`, `bin/executable_xrandr_dmenu_test.bash`
-(B21–B23). These are user commands on `PATH`. **Retain; owner
-revalidates.**
+`bin/executable_xrandr_dmenu_test.bash` (B21, B23). These are user
+commands on `PATH`. `bin/executable_sshfs.bash` (B22) is launched by the
+public `hh_sshfsctl` (`bin/helper/storage.bash:8`), so its only tracked
+invoker is interactive. **Retain; owner revalidates.**
 
 ### 4.3 Variables
 
@@ -406,6 +411,12 @@ reported only V1 and V2. Zsh-only files were reviewed by hand (V3).
 ---
 
 ## 5. Regression evidence
+
+> **Historical.** This section records runs against `dc61d977` on
+> 2026-11-05 and was not re-run in the 2026-11-14 refresh. The test suites
+> have since been rewritten; `tests/test_retired_desktop_integration.bash`
+> was removed in 900aea9 (replaced by `tests/test_polybar_chezmoi_widget.bash`).
+> Line numbers in §5.4 refer to the revisions named in its table.
 
 ### 5.1 Fresh runs at this head (degraded runner)
 
@@ -500,18 +511,17 @@ CI pattern are existing behaviour and unchanged.
 ## 6. Non-orphan risk context (disclosure only)
 
 These are not orphans. Each one is a proposal only. No fix and no new
-issue is part of this package.
+issue is part of this package. Item 1 was later fixed outside this package (noted inline).
 
 1. **`tmux_main_session` bootstrap cleanup goes through the aliased
-   `kill-session`.** `bin/helper/tmux.bash:96` runs
-   `tmux kill-session -t "${boot_session}"`. However,
+   `kill-session`.** *Resolved after this audit by 9452b3b.* At
+   `dc61d977`, `bin/helper/tmux.bash` ran
+   `tmux kill-session -t "${boot_session}"`, but
    `dot_config/tmux/tmux.conf.tmpl:130` aliases `kill-session` to an
-   interactive `confirm-before … kill-ses`. `bin/executable_tmux_boot.bash:44`
-   already uses `kill-ses` for exactly this reason (comment at `:40-41`).
-   The body of `tmux_main_session` was frozen under the contract, so the
-   temporary `_main_boot_$$` session may survive. Evidence is static. The
-   proposal is a one-line `kill-session` → `kill-ses` change in a future
-   owner-approved follow-up.
+   interactive `confirm-before … kill-ses`, so the temporary
+   `_main_boot_$$` session could survive. `bin/helper/tmux.bash:103` now
+   runs `tmux kill-ses -t "=${boot_session}"` (comment at `:99-102`), the
+   same form `bin/executable_tmux_boot.bash:64` uses (comment at `:57-59`).
 2. **`helper.bash volume -h` calls a nested function before it exists.**
    `bin/executable_helper.bash:127` calls `print_usage`. That function is
    defined only inside `set_volume` (`bin/helper/system.bash:84`), which has
@@ -580,7 +590,7 @@ exports, V12 `VBOX_USB`, and the §6 follow-ups.
   missing, so templates were not rendered and Zsh/native tmux checks rely
   on inherited PR #68 evidence.
 - **Excluded scopes:** the AI-Wrapper submodule contents, test files and
-  fixtures (147 anchored-scan definition hits under `tests/`, not
+  fixtures (147 anchored-scan definition hits under `tests/` at `dc61d977`, not
   enumerated), Markdown docs, and
   installed plugin copies.
 
@@ -588,7 +598,8 @@ exports, V12 `VBOX_USB`, and the §6 follow-ups.
 
 ## Appendix A — production definition manifest
 
-Columns: definition site at `dc61d977`, name, class, and references found
+Columns: definition site in the working tree at `c2d2a00` (refreshed
+2026-11-14; the set of rows is the `dc61d977` inventory), name, class, and references found
 outside the function's own body (`file:lines`). For script-local classes,
 only same-file references count. Public `hh_*` rows can include usage
 strings and `bash -c` strings: these show dynamic dispatch, not
@@ -608,9 +619,9 @@ added by hand.
 | 9 | `bin/executable_asusctl_rofi.bash:122` | `_menu_battery` | script-local | bin/executable_asusctl_rofi.bash:211 |
 | 10 | `bin/executable_asusctl_rofi.bash:159` | `_menu_aura` | script-local | bin/executable_asusctl_rofi.bash:212 |
 | 11 | `bin/executable_asusctl_rofi.bash:194` | `_menu_main` | script-local | bin/executable_asusctl_rofi.bash:217 |
-| 12 | `bin/executable_helper.bash:41` | `hh_i3_save_chezmoi_ws` | Bash public i3 subshell wrapper | bin/helper/bash_exec.zsh:77; bin/helper/i3.bash:45 |
-| 13 | `bin/executable_helper.bash:42` | `hh_i3_save_ws` | Bash public i3 subshell wrapper | bin/helper/bash_exec.zsh:81; bin/helper/i3.bash:108 |
-| 14 | `bin/executable_helper.bash:43` | `hh_i3_restore_ws` | Bash public i3 subshell wrapper | bin/helper/bash_exec.zsh:85; bin/helper/i3.bash:157 |
+| 12 | `bin/executable_helper.bash:41` | `hh_i3_save_chezmoi_ws` | Bash public i3 subshell wrapper | bin/helper/bash_exec.zsh:78; bin/helper/i3.bash:45 |
+| 13 | `bin/executable_helper.bash:42` | `hh_i3_save_ws` | Bash public i3 subshell wrapper | bin/helper/bash_exec.zsh:82; bin/helper/i3.bash:109 |
+| 14 | `bin/executable_helper.bash:43` | `hh_i3_restore_ws` | Bash public i3 subshell wrapper | bin/helper/bash_exec.zsh:86; bin/helper/i3.bash:158 |
 | 15 | `bin/executable_helper.bash:69` | `show_error_and_usage` | dispatcher-private | bin/executable_helper.bash:244 |
 | 16 | `bin/executable_i3_workspaces.bash:14` | `drop_single_window_titles` | script-local | bin/executable_i3_workspaces.bash:59 |
 | 17 | `bin/executable_i3_workspaces.bash:32` | `save_all` | script-local | bin/executable_i3_workspaces.bash:83 |
@@ -626,29 +637,29 @@ added by hand.
 | 27 | `bin/executable_polybar_system_stats.bash:262` | `get_max_temp` | script-local | bin/executable_polybar_system_stats.bash:451 |
 | 28 | `bin/executable_polybar_system_stats.bash:312` | `get_max_fan` | script-local | bin/executable_polybar_system_stats.bash:454 |
 | 29 | `bin/executable_polybar_system_stats.bash:350` | `get_power_detail` | script-local | bin/executable_polybar_system_stats.bash:448 |
-| 30 | `bin/executable_polybar_volume_all.bash:81` | `get_volume` | script-local | bin/executable_polybar_volume_all.bash:109,452 |
-| 31 | `bin/executable_polybar_volume_all.bash:87` | `get_mute` | script-local | bin/executable_polybar_volume_all.bash:453 |
-| 32 | `bin/executable_polybar_volume_all.bash:96` | `clamp_volume` | script-local | bin/executable_polybar_volume_all.bash:113,590,591,592 |
-| 33 | `bin/executable_polybar_volume_all.bash:107` | `change_volume` | script-local | bin/executable_polybar_volume_all.bash:355,356,569,572 |
-| 34 | `bin/executable_polybar_volume_all.bash:121` | `toggle_mute` | script-local | bin/executable_polybar_volume_all.bash:357,482 |
-| 35 | `bin/executable_polybar_volume_all.bash:127` | `volume_bar` | script-local | bin/executable_polybar_volume_all.bash:366,368,594,595,596,598,599 |
-| 36 | `bin/executable_polybar_volume_all.bash:140` | `is_real_device` | script-local | bin/executable_polybar_volume_all.bash:156,235,400,586,587,588 |
-| 37 | `bin/executable_polybar_volume_all.bash:145` | `get_default_device` | script-local | bin/executable_polybar_volume_all.bash:264,393,457,555 |
-| 38 | `bin/executable_polybar_volume_all.bash:151` | `get_next_device` | script-local | bin/executable_polybar_volume_all.bash:562 |
-| 39 | `bin/executable_polybar_volume_all.bash:171` | `get_devices` | script-local | bin/executable_polybar_volume_all.bash:265,323,411 |
-| 40 | `bin/executable_polybar_volume_all.bash:203` | `format_dev_name` | script-local | bin/executable_polybar_volume_all.bash:238,321,401,582,583,584 |
-| 41 | `bin/executable_polybar_volume_all.bash:231` | `build_output` | script-local | bin/executable_polybar_volume_all.bash:266 |
-| 42 | `bin/executable_polybar_volume_all.bash:262` | `render` | script-local | bin/executable_polybar_volume_all.bash:606 |
-| 43 | `bin/executable_polybar_volume_all.bash:279` | `list_streams` | script-local | bin/executable_polybar_volume_all.bash:514 |
-| 44 | `bin/executable_polybar_volume_all.bash:309` | `device_index` | script-local | bin/executable_polybar_volume_all.bash:501 |
-| 45 | `bin/executable_polybar_volume_all.bash:317` | `device_label` | script-local | bin/executable_polybar_volume_all.bash:448 |
-| 46 | `bin/executable_polybar_volume_all.bash:352` | `apply_volume_key` | script-local | bin/executable_polybar_volume_all.bash:437,477 |
-| 47 | `bin/executable_polybar_volume_all.bash:363` | `volume_status` | script-local | bin/executable_polybar_volume_all.bash:409,460,598,599 |
-| 48 | `bin/executable_polybar_volume_all.bash:372` | `context_menu` | script-local | bin/executable_polybar_volume_all.bash:566 |
-| 49 | `bin/executable_polybar_volume_all.bash:446` | `device_menu` | script-local | bin/executable_polybar_volume_all.bash:440 |
-| 50 | `bin/executable_polybar_volume_all.bash:497` | `move_streams_menu` | script-local | bin/executable_polybar_volume_all.bash:488 |
-| 51 | `bin/executable_polybar_volume_all.bash:553` | `handle_click` | script-local | bin/executable_polybar_volume_all.bash:608 |
-| 52 | `bin/executable_polybar_volume_all.bash:579` | `self_check` | script-local | bin/executable_polybar_volume_all.bash:607 |
+| 30 | `bin/executable_polybar_volume_all.bash:81` | `get_volume` | script-local | bin/executable_polybar_volume_all.bash:109,301,520 |
+| 31 | `bin/executable_polybar_volume_all.bash:87` | `get_mute` | script-local | bin/executable_polybar_volume_all.bash:304,521 |
+| 32 | `bin/executable_polybar_volume_all.bash:96` | `clamp_volume` | script-local | bin/executable_polybar_volume_all.bash:113,683,684,685 |
+| 33 | `bin/executable_polybar_volume_all.bash:107` | `change_volume` | script-local | bin/executable_polybar_volume_all.bash:424,425,637,640 |
+| 34 | `bin/executable_polybar_volume_all.bash:121` | `toggle_mute` | script-local | bin/executable_polybar_volume_all.bash:426,550 |
+| 35 | `bin/executable_polybar_volume_all.bash:127` | `volume_bar` | script-local | bin/executable_polybar_volume_all.bash:435,437,687,688,689,691,692 |
+| 36 | `bin/executable_polybar_volume_all.bash:147` | `is_real_device` | script-local | bin/executable_polybar_volume_all.bash:196,654,655,656,666,667,669,672,674 |
+| 37 | `bin/executable_polybar_volume_all.bash:166` | `get_default_device` | script-local | bin/executable_polybar_volume_all.bash:313,462,525,623 |
+| 38 | `bin/executable_polybar_volume_all.bash:172` | `get_next_device` | script-local | bin/executable_polybar_volume_all.bash:630 |
+| 39 | `bin/executable_polybar_volume_all.bash:191` | `get_devices` | script-local | bin/executable_polybar_volume_all.bash:178,314,392,479 |
+| 40 | `bin/executable_polybar_volume_all.bash:240` | `format_dev_name` | script-local | bin/executable_polybar_volume_all.bash:274,390,469,650,651,652 |
+| 41 | `bin/executable_polybar_volume_all.bash:268` | `build_output` | script-local | bin/executable_polybar_volume_all.bash:315 |
+| 42 | `bin/executable_polybar_volume_all.bash:311` | `render` | script-local | bin/executable_polybar_volume_all.bash:699 |
+| 43 | `bin/executable_polybar_volume_all.bash:335` | `list_streams` | script-local | bin/executable_polybar_volume_all.bash:582 |
+| 44 | `bin/executable_polybar_volume_all.bash:378` | `device_index` | script-local | bin/executable_polybar_volume_all.bash:569 |
+| 45 | `bin/executable_polybar_volume_all.bash:386` | `device_label` | script-local | bin/executable_polybar_volume_all.bash:516 |
+| 46 | `bin/executable_polybar_volume_all.bash:421` | `apply_volume_key` | script-local | bin/executable_polybar_volume_all.bash:505,545 |
+| 47 | `bin/executable_polybar_volume_all.bash:432` | `volume_status` | script-local | bin/executable_polybar_volume_all.bash:477,528,691,692 |
+| 48 | `bin/executable_polybar_volume_all.bash:441` | `context_menu` | script-local | bin/executable_polybar_volume_all.bash:634 |
+| 49 | `bin/executable_polybar_volume_all.bash:514` | `device_menu` | script-local | bin/executable_polybar_volume_all.bash:508 |
+| 50 | `bin/executable_polybar_volume_all.bash:565` | `move_streams_menu` | script-local | bin/executable_polybar_volume_all.bash:556 |
+| 51 | `bin/executable_polybar_volume_all.bash:621` | `handle_click` | script-local | bin/executable_polybar_volume_all.bash:701 |
+| 52 | `bin/executable_polybar_volume_all.bash:647` | `self_check` | script-local | bin/executable_polybar_volume_all.bash:700 |
 | 53 | `bin/executable_sshfs-mount.sh:60` | `check_mount_health` | script-local | bin/executable_sshfs-mount.sh:120 |
 | 54 | `bin/executable_sshfs.bash:29` | `show_header` | script-local | bin/executable_sshfs.bash:182,273,329,337,383,398 |
 | 55 | `bin/executable_sshfs.bash:42` | `parse_ssh_hosts` | script-local | bin/executable_sshfs.bash:180 |
@@ -722,20 +733,20 @@ added by hand.
 | 123 | `bin/executable_xrandr_manager.bash:973` | `main` | script-local | bin/executable_xrandr_manager.bash:1031 |
 | 124 | `bin/helper/backup.bash:5` | `rclone_systemd` | helper-module private | bin/executable_helper.bash:227 |
 | 125 | `bin/helper/backup.bash:22` | `rclone_to_backup` | helper-module private | bin/executable_helper.bash:229,231 |
-| 126 | `bin/helper/bash_exec.zsh:21` | `hh_colors` | Zsh public shim | — |
-| 127 | `bin/helper/bash_exec.zsh:25` | `hh_ex` | Zsh public shim | — |
-| 128 | `bin/helper/bash_exec.zsh:32` | `hh_upgrade_system` | Zsh public shim | — |
-| 129 | `bin/helper/bash_exec.zsh:36` | `hh_yay_no_cache` | Zsh public shim | — |
-| 130 | `bin/helper/bash_exec.zsh:40` | `hh_adb_pull_music` | Zsh public shim | — |
-| 131 | `bin/helper/bash_exec.zsh:44` | `hh_unzip_books` | Zsh public shim | — |
-| 132 | `bin/helper/bash_exec.zsh:48` | `hh_cut_video` | Zsh public shim | — |
-| 133 | `bin/helper/bash_exec.zsh:52` | `hh_gpg_decrypt` | Zsh public shim | — |
-| 134 | `bin/helper/bash_exec.zsh:56` | `hh_gpg_encrypt` | Zsh public shim | — |
-| 135 | `bin/helper/bash_exec.zsh:63` | `hh_rsync_ssh` | Zsh public shim | bin/helper/bash_exec.zsh:72; bin/helper/transfer.bash:29,30,46,47,48,49,190; dot_bash_completion.d/transfer.bash:82; dot_zshrc:135,136 |
-| 136 | `bin/helper/bash_exec.zsh:67` | `hh_rm_ssh` | Zsh public shim | bin/helper/transfer.bash:114,123,124,125; dot_bash_completion.d/transfer.bash:123; dot_zshrc:137 |
-| 137 | `bin/helper/bash_exec.zsh:76` | `hh_i3_save_chezmoi_ws` | Zsh public shim | bin/helper/i3.bash:45 |
-| 138 | `bin/helper/bash_exec.zsh:80` | `hh_i3_save_ws` | Zsh public shim | bin/helper/i3.bash:108 |
-| 139 | `bin/helper/bash_exec.zsh:84` | `hh_i3_restore_ws` | Zsh public shim | bin/helper/i3.bash:157 |
+| 126 | `bin/helper/bash_exec.zsh:22` | `hh_colors` | Zsh public shim | — |
+| 127 | `bin/helper/bash_exec.zsh:26` | `hh_unar` | Zsh public shim | bin/helper/shell.bash:42,47,51,65 |
+| 128 | `bin/helper/bash_exec.zsh:33` | `hh_upgrade_system` | Zsh public shim | — |
+| 129 | `bin/helper/bash_exec.zsh:37` | `hh_yay_no_cache` | Zsh public shim | — |
+| 130 | `bin/helper/bash_exec.zsh:41` | `hh_adb_pull_music` | Zsh public shim | — |
+| 131 | `bin/helper/bash_exec.zsh:45` | `hh_unzip_books` | Zsh public shim | bin/helper/utils.bash:69,81 |
+| 132 | `bin/helper/bash_exec.zsh:49` | `hh_cut_video` | Zsh public shim | — |
+| 133 | `bin/helper/bash_exec.zsh:53` | `hh_gpg_decrypt` | Zsh public shim | bin/helper/utils.bash:102 |
+| 134 | `bin/helper/bash_exec.zsh:57` | `hh_gpg_encrypt` | Zsh public shim | bin/helper/utils.bash:117 |
+| 135 | `bin/helper/bash_exec.zsh:64` | `hh_rsync_ssh` | Zsh public shim | bin/helper/bash_exec.zsh:73; bin/helper/transfer.bash:29,30,46,47,48,49,190; dot_bash_completion.d/transfer.bash:82; dot_zshrc:135,136 |
+| 136 | `bin/helper/bash_exec.zsh:68` | `hh_rm_ssh` | Zsh public shim | bin/helper/transfer.bash:114,123,124,125; dot_bash_completion.d/transfer.bash:123; dot_zshrc:137 |
+| 137 | `bin/helper/bash_exec.zsh:77` | `hh_i3_save_chezmoi_ws` | Zsh public shim | bin/helper/i3.bash:45 |
+| 138 | `bin/helper/bash_exec.zsh:81` | `hh_i3_save_ws` | Zsh public shim | bin/helper/i3.bash:109 |
+| 139 | `bin/helper/bash_exec.zsh:85` | `hh_i3_restore_ws` | Zsh public shim | bin/helper/i3.bash:158 |
 | 140 | `bin/helper/firefox.bash:8` | `_ff_find_profiles_ini` | helper-module private | bin/helper/firefox.bash:117 |
 | 141 | `bin/helper/firefox.bash:20` | `_ff_parse_profiles_ini` | helper-module private | bin/helper/firefox.bash:140 |
 | 142 | `bin/helper/firefox.bash:24` | `__emit` | helper-module private | bin/helper/firefox.bash:29,31,40,41 |
@@ -745,16 +756,16 @@ added by hand.
 | 146 | `bin/helper/firefox.bash:101` | `_ff_profile_picker` | helper-module private | bin/executable_helper.bash:217 |
 | 147 | `bin/helper/firefox.bash:225` | `_ff_open_link` | helper-module private | bin/executable_helper.bash:215 |
 | 148 | `bin/helper/git.bash:5` | `hh_git_cleanout` | public hh_ implementation | — |
-| 149 | `bin/helper/i3.bash:9` | `_i3_get_host` | helper-module private | bin/helper/i3.bash:60,127,175 |
-| 150 | `bin/helper/i3.bash:20` | `_i3_check_ws_num` | helper-module private | bin/helper/i3.bash:122,171,172 |
-| 151 | `bin/helper/i3.bash:28` | `_i3_clean_layout` | helper-module private | bin/helper/i3.bash:90,139 |
-| 152 | `bin/helper/i3.bash:43` | `hh_i3_save_chezmoi_ws` | public hh_ implementation | bin/helper/bash_exec.zsh:77 |
-| 153 | `bin/helper/i3.bash:106` | `hh_i3_save_ws` | public hh_ implementation | bin/helper/bash_exec.zsh:81 |
-| 154 | `bin/helper/i3.bash:155` | `hh_i3_restore_ws` | public hh_ implementation | bin/helper/bash_exec.zsh:85 |
-| 155 | `bin/helper/shell.bash:8` | `hh_colors` | public hh_ implementation | bin/helper/bash_exec.zsh:22 |
-| 156 | `bin/helper/storage.bash:5` | `hh_sshfsctl` | public hh_ implementation | — |
-| 157 | `bin/helper/storage.bash:69` | `hh_gio_mount` | public hh_ implementation | — |
-| 158 | `bin/helper/storage.bash:81` | `hh_gio_umount` | public hh_ implementation | — |
+| 149 | `bin/helper/i3.bash:9` | `_i3_get_host` | helper-module private | bin/helper/i3.bash:60,128,176 |
+| 150 | `bin/helper/i3.bash:20` | `_i3_check_ws_num` | helper-module private | bin/helper/i3.bash:123,172,173 |
+| 151 | `bin/helper/i3.bash:28` | `_i3_clean_layout` | helper-module private | bin/helper/i3.bash:91,140 |
+| 152 | `bin/helper/i3.bash:43` | `hh_i3_save_chezmoi_ws` | public hh_ implementation | bin/helper/bash_exec.zsh:78 |
+| 153 | `bin/helper/i3.bash:107` | `hh_i3_save_ws` | public hh_ implementation | bin/helper/bash_exec.zsh:82 |
+| 154 | `bin/helper/i3.bash:156` | `hh_i3_restore_ws` | public hh_ implementation | bin/helper/bash_exec.zsh:86 |
+| 155 | `bin/helper/shell.bash:8` | `hh_colors` | public hh_ implementation | bin/helper/bash_exec.zsh:23 |
+| 156 | `bin/helper/storage.bash:5` | `hh_sshfsctl` | public hh_ implementation (wrapper: runs `~/bin/sshfs.bash "$@"`, `storage.bash:8`) | — |
+| 157 | `bin/helper/storage.bash:11` | `hh_gio_mount` | public hh_ implementation | — |
+| 158 | `bin/helper/storage.bash:36` | `hh_gio_umount` | public hh_ implementation | — |
 | 159 | `bin/helper/system.bash:9` | `get_display` | helper-module private | **— (F1: no caller, unreachable)** |
 | 160 | `bin/helper/system.bash:14` | `set_us_ru_layout` | helper-module private | bin/executable_helper.bash:150,175 |
 | 161 | `bin/helper/system.bash:24` | `set_us_ge_layout` | helper-module private | bin/executable_helper.bash:153 |
@@ -767,26 +778,26 @@ added by hand.
 | 168 | `bin/helper/tmux.bash:5` | `tmux_ide_session` | helper-module private | bin/executable_helper.bash:236,237 |
 | 169 | `bin/helper/tmux.bash:64` | `tmux_main_session` | helper-module private | bin/executable_helper.bash:234 |
 | 170 | `bin/helper/tmux_commands.bash:10` | `hh_tmux_restore` | public hh_ implementation | — |
-| 171 | `bin/helper/tmux_commands.bash:49` | `hh_git_watch` | public hh_ implementation | bin/helper/tmux.bash:45,57,128 |
-| 172 | `bin/helper/tmux_last_cmd.bash:10` | `_tmux_log_last_cmd` | approved Bash plumbing | bin/helper/tmux_last_cmd.bash:22,23; bin/helper/tmux_last_cmd.zsh:16,17 |
-| 173 | `bin/helper/tmux_last_cmd.bash:43` | `_tmux_pane_hist_path` | approved Bash plumbing | bin/helper/tmux_last_cmd.bash:58,74; bin/helper/tmux_last_cmd.zsh:47,76 |
-| 174 | `bin/helper/tmux_last_cmd.bash:50` | `_tmux_pane_hist_claim` | approved Bash plumbing | bin/helper/tmux_last_cmd.bash:66,76; bin/helper/tmux_last_cmd.zsh:68,78 |
-| 175 | `bin/helper/tmux_last_cmd.bash:56` | `_tmux_pane_hist_sync` | approved Bash plumbing | bin/helper/tmux_last_cmd.bash:90,91; bin/helper/tmux_last_cmd.zsh:86,87 |
-| 176 | `bin/helper/tmux_last_cmd.zsh:5` | `_tmux_log_last_cmd` | approved Zsh plumbing | bin/helper/tmux_last_cmd.bash:22,23; bin/helper/tmux_last_cmd.zsh:16,17 |
-| 177 | `bin/helper/tmux_last_cmd.zsh:31` | `_tmux_pane_hist_path` | approved Zsh plumbing | bin/helper/tmux_last_cmd.bash:58,74; bin/helper/tmux_last_cmd.zsh:47,76 |
-| 178 | `bin/helper/tmux_last_cmd.zsh:38` | `_tmux_pane_hist_claim` | approved Zsh plumbing | bin/helper/tmux_last_cmd.bash:66,76; bin/helper/tmux_last_cmd.zsh:68,78 |
-| 179 | `bin/helper/tmux_last_cmd.zsh:45` | `_tmux_pane_hist_detect` | approved Zsh plumbing | bin/helper/tmux_last_cmd.zsh:60,65 |
-| 180 | `bin/helper/tmux_last_cmd.zsh:59` | `_tmux_pane_hist_addhistory` | approved Zsh plumbing | bin/helper/tmux_last_cmd.zsh:88,89 |
-| 181 | `bin/helper/tmux_last_cmd.zsh:64` | `_tmux_pane_hist_sync` | approved Zsh plumbing | bin/helper/tmux_last_cmd.bash:90,91; bin/helper/tmux_last_cmd.zsh:86,87 |
-| 182 | `bin/helper/transfer.bash:9` | `hh_rsync_ssh` | public hh_ implementation | bin/helper/bash_exec.zsh:64,72; bin/helper/transfer.bash:190; dot_bash_completion.d/transfer.bash:82; dot_zshrc:135,136 |
-| 183 | `bin/helper/transfer.bash:97` | `hh_rm_ssh` | public hh_ implementation | bin/helper/bash_exec.zsh:68; dot_bash_completion.d/transfer.bash:123; dot_zshrc:137 |
-| 184 | `bin/helper/utils.bash:5` | `hh_upgrade_system` | public hh_ implementation | bin/helper/bash_exec.zsh:33 |
-| 185 | `bin/helper/utils.bash:41` | `hh_yay_no_cache` | public hh_ implementation | bin/helper/bash_exec.zsh:37 |
-| 186 | `bin/helper/utils.bash:48` | `hh_adb_pull_music` | public hh_ implementation | bin/helper/bash_exec.zsh:41 |
-| 187 | `bin/helper/utils.bash:53` | `hh_unzip_books` | public hh_ implementation | bin/helper/bash_exec.zsh:45 |
-| 188 | `bin/helper/utils.bash:67` | `hh_cut_video` | public hh_ implementation | bin/helper/bash_exec.zsh:49 |
-| 189 | `bin/helper/utils.bash:77` | `hh_gpg_decrypt` | public hh_ implementation | bin/helper/bash_exec.zsh:53 |
-| 190 | `bin/helper/utils.bash:83` | `hh_gpg_encrypt` | public hh_ implementation | bin/helper/bash_exec.zsh:57 |
+| 171 | `bin/helper/tmux_commands.bash:49` | `hh_git_watch` | public hh_ implementation | bin/helper/tmux.bash:45,57,135 |
+| 172 | `bin/helper/tmux_last_cmd.bash:10` | `_tmux_log_last_cmd` | approved Bash plumbing | bin/helper/tmux_last_cmd.bash:25,26; bin/helper/tmux_last_cmd.zsh:19,20 |
+| 173 | `bin/helper/tmux_last_cmd.bash:46` | `_tmux_pane_hist_path` | approved Bash plumbing | bin/helper/tmux_last_cmd.bash:62,78; bin/helper/tmux_last_cmd.zsh:51,80 |
+| 174 | `bin/helper/tmux_last_cmd.bash:54` | `_tmux_pane_hist_claim` | approved Bash plumbing | bin/helper/tmux_last_cmd.bash:70,80; bin/helper/tmux_last_cmd.zsh:72,82 |
+| 175 | `bin/helper/tmux_last_cmd.bash:60` | `_tmux_pane_hist_sync` | approved Bash plumbing | bin/helper/tmux_last_cmd.bash:94,95; bin/helper/tmux_last_cmd.zsh:90,91 |
+| 176 | `bin/helper/tmux_last_cmd.zsh:5` | `_tmux_log_last_cmd` | approved Zsh plumbing | bin/helper/tmux_last_cmd.bash:25,26; bin/helper/tmux_last_cmd.zsh:19,20 |
+| 177 | `bin/helper/tmux_last_cmd.zsh:34` | `_tmux_pane_hist_path` | approved Zsh plumbing | bin/helper/tmux_last_cmd.bash:62,78; bin/helper/tmux_last_cmd.zsh:51,80 |
+| 178 | `bin/helper/tmux_last_cmd.zsh:42` | `_tmux_pane_hist_claim` | approved Zsh plumbing | bin/helper/tmux_last_cmd.bash:70,80; bin/helper/tmux_last_cmd.zsh:72,82 |
+| 179 | `bin/helper/tmux_last_cmd.zsh:49` | `_tmux_pane_hist_detect` | approved Zsh plumbing | bin/helper/tmux_last_cmd.zsh:64,69 |
+| 180 | `bin/helper/tmux_last_cmd.zsh:63` | `_tmux_pane_hist_addhistory` | approved Zsh plumbing | bin/helper/tmux_last_cmd.zsh:92,93 |
+| 181 | `bin/helper/tmux_last_cmd.zsh:68` | `_tmux_pane_hist_sync` | approved Zsh plumbing | bin/helper/tmux_last_cmd.bash:94,95; bin/helper/tmux_last_cmd.zsh:90,91 |
+| 182 | `bin/helper/transfer.bash:9` | `hh_rsync_ssh` | public hh_ implementation | bin/helper/bash_exec.zsh:65,73; bin/helper/transfer.bash:190; dot_bash_completion.d/transfer.bash:82; dot_zshrc:135,136 |
+| 183 | `bin/helper/transfer.bash:97` | `hh_rm_ssh` | public hh_ implementation | bin/helper/bash_exec.zsh:69; dot_bash_completion.d/transfer.bash:123; dot_zshrc:137 |
+| 184 | `bin/helper/utils.bash:5` | `hh_upgrade_system` | public hh_ implementation | bin/helper/bash_exec.zsh:34 |
+| 185 | `bin/helper/utils.bash:43` | `hh_yay_no_cache` | public hh_ implementation | bin/helper/bash_exec.zsh:38 |
+| 186 | `bin/helper/utils.bash:51` | `hh_adb_pull_music` | public hh_ implementation | bin/helper/bash_exec.zsh:42 |
+| 187 | `bin/helper/utils.bash:56` | `hh_unzip_books` | public hh_ implementation | bin/helper/bash_exec.zsh:46 |
+| 188 | `bin/helper/utils.bash:87` | `hh_cut_video` | public hh_ implementation | bin/helper/bash_exec.zsh:50 |
+| 189 | `bin/helper/utils.bash:97` | `hh_gpg_decrypt` | public hh_ implementation | bin/helper/bash_exec.zsh:54 |
+| 190 | `bin/helper/utils.bash:113` | `hh_gpg_encrypt` | public hh_ implementation | bin/helper/bash_exec.zsh:58 |
 | 191 | `dot_bash_completion.d/helper.bash:3` | `_helper_script` | approved Bash plumbing | dot_bash_completion.d/helper.bash:11 |
 | 192 | `dot_bash_completion.d/transfer.bash:10` | `_ssh_config_hosts` | approved Bash plumbing | dot_bash_completion.d/transfer.bash:72,116 |
 | 193 | `dot_bash_completion.d/transfer.bash:16` | `_flush` | approved Bash plumbing | dot_bash_completion.d/transfer.bash:35,39 |
@@ -797,18 +808,45 @@ added by hand.
 | 198 | `dot_zshrc:28` | `_ctrl_d_exit` | approved Zsh plumbing | dot_zshrc:40,41 |
 | 199 | `dot_zshrc:42` | `_reset_ctrl_d_count` | approved Zsh plumbing | dot_zshrc:45,46 |
 | 200 | `modify_dot_gitconfig:43` | `passthrough` | script-local | modify_dot_gitconfig:49,59 |
-| 201 | `bin/helper/shell.bash:37` | `hh_ex` | public hh_ implementation | bin/helper/bash_exec.zsh:26 |
-| 202 | `bin/executable_polybar_volume_all.bash:177` | `flush` (AWK) | embedded AWK, `get_devices` program | `bin/executable_polybar_volume_all.bash:184,199` (same AWK program, incl. `END`) |
-| 203 | `bin/executable_polybar_volume_all.bash:281` | `flush` (AWK) | embedded AWK, `list_streams` program | `bin/executable_polybar_volume_all.bash:290,304` (same AWK program, incl. `END`) |
+| 201 | `bin/helper/shell.bash:40` | `hh_unar` | public hh_ implementation | bin/helper/bash_exec.zsh:27 |
+| 202 | `bin/executable_polybar_volume_all.bash:208` | `flush` (AWK) | embedded AWK, `list_all_devices` program (in `get_devices` at `dc61d977`; split out by #70) | `bin/executable_polybar_volume_all.bash:219,236` (same AWK program, incl. `END`) |
+| 203 | `bin/executable_polybar_volume_all.bash:346` | `flush` (AWK) | embedded AWK, `list_all_streams` program (in `list_streams` at `dc61d977`; split out by #70) | `bin/executable_polybar_volume_all.bash:355,373` (same AWK program, incl. `END`) |
 | 204 | `bin/executable_tmux_osc52_pbcopy.py:16` | `main` (Python) | script-local | `bin/executable_tmux_osc52_pbcopy.py:42` (`__main__`) |
 | 205 | `dot_vimrc:140` | `MoveToNextComma` (Vimscript) | editor config | `dot_vimrc:134` (`xnoremap <C-w>`) |
 | 206 | `dot_vimrc:145` | `MoveToPrevComma` (Vimscript) | editor config | `dot_vimrc:137` (`xnoremap <C-b>`) |
+
+### Appendix A.1 — definitions added after `dc61d977` (not in the counts)
+
+The same anchored scan over the 108 current non-test, non-Markdown paths
+finds 209 hits (202 at `dc61d977`). `hh_unar` now matches it (it was added
+by hand before), and these six are new. They are listed for completeness
+only; §4.1 counts and the 206 rows above still describe `dc61d977`. Each
+has a same-file caller.
+
+| # | Definition | Name | Class | References outside body |
+|---|------------|------|-------|-------------------------|
+| A.1-1 | `bin/executable_polybar_volume_all.bash:160` | `is_user_stream` | script-local (added by #70) | bin/executable_polybar_volume_all.bash:338,677,678,679,680,681 |
+| A.1-2 | `bin/executable_polybar_volume_all.bash:203` | `list_all_devices` | script-local (added by #70) | bin/executable_polybar_volume_all.bash:198 |
+| A.1-3 | `bin/executable_polybar_volume_all.bash:299` | `fx_entry` | script-local (added by #70) | bin/executable_polybar_volume_all.bash:320 |
+| A.1-4 | `bin/executable_polybar_volume_all.bash:344` | `list_all_streams` | script-local (added by #70) | bin/executable_polybar_volume_all.bash:340 |
+| A.1-5 | `bin/executable_tmux_resurrect_save_filter.bash:33` | `pane_cwd` | script-local (added by 9452b3b) | bin/executable_tmux_resurrect_save_filter.bash:68 |
+| A.1-6 | `bin/executable_tmux_resurrect_save_filter.bash:50` | `live_pid` | script-local (added by 9452b3b) | bin/executable_tmux_resurrect_save_filter.bash:66 |
 
 ## Appendix B — tracked path manifest
 
 All 131 `git ls-tree -r` entries at `dc61d977`. "Historical last change" is
 `git log -1 --date=short` for the path. It is **not** the inspection date;
 every path was inspected on 2026-11-05 at the depth given.
+
+**Historical snapshot.** This table is the `dc61d977` tree and was not
+re-inventoried in the 2026-11-14 refresh. Since then,
+`tests/test_retired_desktop_integration.bash` was removed (900aea9), and
+these paths were added: `bin/executable_tmux_bootstrap_cleanup.bash`,
+`bin/executable_tmux_resurrect_save_filter.bash` (9452b3b),
+`.github/workflows/tests.yml`, `tests/run_all.bash`, `tests/lib/common.bash`,
+`tests/lib/tmux_fixture.bash`, `tests/test_lib_common.bash`,
+`tests/test_tmux_harness.bash`, `tests/test_polybar_chezmoi_widget.bash`,
+and `.claude/skills/` Markdown.
 
 | # | Path | Role | Inspection / disposition | Historical last change |
 |---|------|------|--------------------------|------------------------|
@@ -940,6 +978,6 @@ every path was inspected on 2026-11-05 at the depth given.
 | 126 | `tests/pty_drive.py` | regression test / fixture | Excluded from orphan inventory; executed as evidence (§5) | 2026-11-05 dc61d97 |
 | 127 | `tests/test_agent_skill_distribution.bash` | regression test / fixture | Excluded from orphan inventory; executed as evidence (§5) | 2026-10-31 0d46a7f |
 | 128 | `tests/test_hh_public_api.bash` | regression test / fixture | Excluded from orphan inventory; executed as evidence (§5) | 2026-11-05 dc61d97 |
-| 129 | `tests/test_retired_desktop_integration.bash` | regression test / fixture | Excluded from orphan inventory; executed as evidence (§5) | 2026-10-31 bd8ac4e |
+| 129 | `tests/test_retired_desktop_integration.bash` | regression test / fixture | Excluded from orphan inventory; executed as evidence (§5). **Removed in 900aea9** | 2026-10-31 bd8ac4e |
 | 130 | `tests/test_shell_helper_isolation.bash` | regression test / fixture | Excluded from orphan inventory; executed as evidence (§5) | 2026-11-05 dc61d97 |
 | 131 | `tests/test_tmux_preservation.bash` | regression test / fixture | Excluded from orphan inventory; executed as evidence (§5) | 2026-11-05 dc61d97 |

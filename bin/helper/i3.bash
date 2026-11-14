@@ -59,6 +59,7 @@ hh_i3_save_chezmoi_ws() {
     local host
     host="$(_i3_get_host)" || return 1
 
+    local cmd
     for cmd in i3-save-tree i3-msg jq; do
         if ! command -v "${cmd}" &>/dev/null; then
             echo "Error: ${cmd} not found" >&2
@@ -179,6 +180,9 @@ hh_i3_restore_ws() {
         return 1
     fi
 
-    i3-msg "workspace ${target_num}; append_layout ${ws_path}"
+    if ! i3-msg "workspace ${target_num}; append_layout ${ws_path}"; then
+        echo "Error: i3-msg failed to restore ${ws_path}" >&2
+        return 1
+    fi
     echo "Restored layout from workspace ${src_num} into workspace ${target_num}"
 }

@@ -49,7 +49,7 @@ _reset_ctrl_d_count() { _ctrl_d_count=0; }
 zstyle :compinstall filename '/home/lap/.zshrc'
 
 autoload -Uz compinit
-compinit
+compinit -i
 # End of lines added by compinstall
 
 # ----- Custom Prompt -----

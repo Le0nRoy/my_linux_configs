@@ -15,7 +15,7 @@ helper/
 ├── tmux.bash        # Tmux session management
 ├── tmux_last_cmd.bash # Tmux pane prompt/history callbacks (bash)
 ├── aliases.shrc     # Interactive aliases shared by bash and zsh
-├── shell.bash       # Portable interactive conveniences (hh_colors, hh_ex)
+├── shell.bash       # Portable interactive conveniences (hh_colors, hh_unar)
 ├── bash_exec.zsh    # zsh entry points that run Bash-only helpers in bash
 ├── git.bash         # Git utilities
 ├── system.bash      # System/display/notifications
@@ -68,7 +68,9 @@ load only this file, not the session builders.
 ### storage.bash - Storage Operations
 **Dependencies**: None
 **Functions**:
-- `hh_sshfsctl()` - Control SSHFS mounts via systemd (sets `-euo pipefail` in the caller)
+- `hh_sshfsctl [args]` - Run the interactive SSHFS mount manager `~/bin/sshfs.bash`
+  with the given arguments (no arguments in a terminal opens its menu;
+  `mount`, `umount`, `status`, `help`). It does not change caller options.
 - `hh_gio_mount()` - Mount phone/device via GIO and `cd` into it
 - `hh_gio_umount()` - Unmount device via GIO
 
@@ -86,14 +88,14 @@ load only this file, not the session builders.
 - `hh_adb_pull_music()` - Pull music from Android
 - `hh_unzip_books()` - Unzip and rename fb2 books
 - `hh_cut_video()` - Cut video segment
-- `hh_gpg_decrypt()` - Decrypt GPG file
-- `hh_gpg_encrypt()` - Encrypt with GPG
+- `hh_gpg_decrypt <in.asc> <out>` - Decrypt into <out> and verify the signature
+- `hh_gpg_encrypt <recipient>` - Sign and encrypt stdin (armoured, to stdout)
 
 ### shell.bash - Interactive Conveniences
 **Dependencies**: None (portable; deployed on Linux and macOS)
 **Functions**:
 - `hh_colors()` - Print the terminal's ANSI color table
-- `hh_ex <file>` - Extract an archive by extension
+- `hh_unar <file>` - Extract an archive by extension
 
 ### aliases.shrc - Shared Aliases
 Aliases for both shells (`ls`, `grep`, `cp -i`, ..., `claude_wrapper` →
@@ -164,7 +166,8 @@ hh_i3_save_ws 1
 `.zshrc` provides the same public helpers, aliases and environment
 (`common.bash`, `~/bin/.env`, `$JOB_SETUP_FILE`, `PATH`):
 - in-process: `tmux_commands.bash`, `git.bash`, `storage.bash` (helpers that
-  must change the caller's cwd or options run in the calling shell);
+  must change the caller's cwd run in the calling shell; `hh_sshfsctl` only
+  runs `~/bin/sshfs.bash`);
 - via `bash_exec.zsh`: `shell`, `utils`, `transfer` and `i3` helpers rely on
   Bash semantics (mapfile, word splitting, failed globs, `printf %q`), so
   each runs its unchanged module in a child `bash` with the shared aliases.
@@ -250,7 +253,7 @@ helper.bash tmux_session
 source ~/bin/helper.bash
 hh_git_cleanout
 
-# Interactive isolation, re-source and baseline-body regression
+# Interactive isolation, re-source and baseline control-probe regression
 bash tests/test_shell_helper_isolation.bash
 # Public hh_ API, bash/zsh parity and PTY key tests
 bash tests/test_hh_public_api.bash

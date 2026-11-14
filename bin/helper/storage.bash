@@ -3,91 +3,52 @@
 # No dependencies
 
 function hh_sshfsctl() {
-    # Control SSHFS mounts via systemd
-    # Usage: hh_sshfsctl [-h] [-r user@host] <start|stop|status|journal> <remote_path> <local_path>
-    set -euo pipefail
-
-    local usage="Usage: hh_sshfsctl [-h] [-r user@host] <start|stop|status|journal> <remote_path> <local_path>
-Options:
-  -h          Show this help message
-  -r ADDRESS  Remote host in format user@host (default: caveman@192.168.3.31)"
-
-    # Default values
-    local remote_host="caveman@192.168.3.31"
-
-    # Parse options
-    local OPTIND opt
-    while getopts ":hr:" opt; do
-        case "$opt" in
-            h)
-                echo "${usage}"
-                return 0
-                ;;
-            r)
-                remote_host="${OPTARG}"
-                ;;
-            *)
-                echo "${usage}"
-                return 1
-                ;;
-        esac
-    done
-    shift $((OPTIND -1))
-
-    # Positional arguments
-    local action="${1:-}"
-    local remote_path="${2:-}"
-    local local_path="${3:-}"
-
-    if [[ -z "${action}" || -z "${remote_path}" || -z "${local_path}" ]]; then
-        echo "${usage}"
-        return 1
-    fi
-
-    local remote="${remote_host}:${remote_path}"
-    local instance="${remote}:${local_path}"
-    local escaped
-    escaped="$(systemd-escape "${instance}")"
-
-    case "${action}" in
-        start|stop|status)
-            echo "Running: systemctl --user ${action} sshfs@${escaped}"
-            systemctl --user "${action}" "sshfs@${escaped}"
-            ;;
-        journal)
-            echo "Running: journalctl -f --user-unit=sshfs@${escaped}"
-            journalctl -f --user-unit=sshfs@${escaped}
-            ;;
-        *)
-            echo "Invalid action: ${action}"
-            echo "${usage}"
-            return 1
-            ;;
-    esac
+    # Open the interactive SSHFS mount manager (~/bin/sshfs.bash)
+    # Usage: hh_sshfsctl [mount|umount|status|help]
+    "${HOME}/bin/sshfs.bash" "$@"
 }
 
 function hh_gio_mount() {
-    # Mount phone/device via GIO and change to mount point
-    local phone_path
-    phone_path="$(gio mount -li | grep activation_root | awk 'sub("^.*=", "")')"
-    if ! gio info "${phone_path}" > /dev/null 2>&1; then
-        gio mount "${phone_path}"
+    # Mount phone/device via GIO and change to its mount point.
+    # Errors go to stderr and return non-zero; the caller's shell is never
+    # exited and its directory is left alone on failure.
+    local phone_path mount_point
+    phone_path="$(gio mount -li | sed -n 's/^.*activation_root=//p' | head -n 1)"
+    if [[ -z "${phone_path}" ]]; then
+        echo "hh_gio_mount: no device found (gio mount -li)" >&2
+        return 1
     fi
-    local mount_point
-    mount_point="$(gio info "${phone_path}" | awk '/local path/{print $3}')"
-    cd "${mount_point}" || exit 1
+    if ! gio info "${phone_path}" > /dev/null 2>&1; then
+        gio mount "${phone_path}" || return
+    fi
+    mount_point="$(gio info "${phone_path}" | sed -n 's/^local path: //p' | head -n 1)"
+    if [[ -z "${mount_point}" ]]; then
+        echo "hh_gio_mount: ${phone_path} has no local path" >&2
+        return 1
+    fi
+    if [[ ! -d "${mount_point}" ]]; then
+        echo "hh_gio_mount: mount point ${mount_point} is not a directory" >&2
+        return 1
+    fi
+    cd "${mount_point}"
 }
 
 function hh_gio_umount() {
-    # Unmount phone/device via GIO
-    local phone_path
-    phone_path="$(gio mount -li | grep activation_root | awk 'sub("^.*=", "")')"
-    if ! gio info "${phone_path}" > /dev/null 2>&1; then
-        local mount_point
-        mount_point="$(gio info "${phone_path}" | awk '/local path/{print $3}')"
-        if [[ "${PWD}" == "${mount_point}" ]]; then
-            cd "${HOME}" || exit 1
-        fi
-        gio mount -u "${phone_path}"
+    # Unmount phone/device via GIO; leaves the mount point first if the
+    # caller is inside it.
+    local phone_path mount_point
+    phone_path="$(gio mount -li | sed -n 's/^.*activation_root=//p' | head -n 1)"
+    if [[ -z "${phone_path}" ]]; then
+        echo "hh_gio_umount: no device found (gio mount -li)" >&2
+        return 1
     fi
+    if ! gio info "${phone_path}" > /dev/null 2>&1; then
+        echo "hh_gio_umount: ${phone_path} is not mounted" >&2
+        return 1
+    fi
+    mount_point="$(gio info "${phone_path}" | sed -n 's/^local path: //p' | head -n 1)"
+    if [[ -n "${mount_point}" && "${PWD}/" == "${mount_point%/}/"* ]]; then
+        cd "${HOME}" || return
+    fi
+    gio mount -u "${phone_path}"
 }

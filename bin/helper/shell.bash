@@ -32,26 +32,38 @@ hh_colors() {
 	done
 }
 
-# hh_ex - archive extractor
-# usage: hh_ex <file>
-hh_ex ()
-{
-  if [ -f $1 ] ; then
-    case $1 in
-      *.tar.bz2)   tar xjf $1   ;;
-      *.tar.gz)    tar xzf $1   ;;
-      *.bz2)       bunzip2 $1   ;;
-      *.rar)       unrar x $1     ;;
-      *.gz)        gunzip $1    ;;
-      *.tar)       tar xf $1    ;;
-      *.tbz2)      tar xjf $1   ;;
-      *.tgz)       tar xzf $1   ;;
-      *.zip)       unzip $1     ;;
-      *.Z)         uncompress $1;;
-      *.7z)        7z x $1      ;;
-      *)           echo "'$1' cannot be extracted via ex()" ;;
-    esac
-  else
-    echo "'$1' is not a valid file"
-  fi
+# hh_unar - archive extractor
+# usage: hh_unar <archive>
+# Extracts into the current directory. Errors go to stderr; the status is
+# non-zero for a usage error, a missing file, an unsupported type or a
+# failed extraction (the extractor's own status).
+hh_unar() {
+	if (($# != 1)); then
+		echo "Usage: hh_unar <archive>" >&2
+		return 1
+	fi
+	local file="$1"
+	if [[ ! -e "${file}" ]]; then
+		echo "hh_unar: '${file}': no such file" >&2
+		return 1
+	fi
+	if [[ ! -f "${file}" ]]; then
+		echo "hh_unar: '${file}': not a regular file" >&2
+		return 1
+	fi
+	case "${file}" in
+		*.tar.bz2|*.tbz2) tar xjf "${file}" ;;
+		*.tar.gz|*.tgz)   tar xzf "${file}" ;;
+		*.tar)            tar xf "${file}" ;;
+		*.bz2)            bunzip2 "${file}" ;;
+		*.rar)            unrar x "${file}" ;;
+		*.gz)             gunzip "${file}" ;;
+		*.zip)            unzip "${file}" ;;
+		*.Z)              uncompress "${file}" ;;
+		*.7z)             7z x "${file}" ;;
+		*)
+			echo "hh_unar: '${file}': unsupported archive type" >&2
+			return 1
+			;;
+	esac
 }
