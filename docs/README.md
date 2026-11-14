@@ -23,8 +23,10 @@ Use this directory for:
 | [repository-overview.md](repository-overview.md) | Repository structure, quick start, key components |
 | [xrandr-manager.md](xrandr-manager.md) | Display management tool documentation |
 | [ai-agent-sandboxing.md](ai-agent-sandboxing.md) | Bubblewrap sandbox architecture |
+| [agent-skill-distribution.md](agent-skill-distribution.md) | Shared agent skills (caveman, ponytail): pipeline, agent matrix, verification |
 | [systemd-services.md](systemd-services.md) | User systemd services reference |
 | [helper_refactor_plan.md](helper_refactor_plan.md) | Helper module design document |
+| [cleanup-orphans-audit.md](cleanup-orphans-audit.md) | #62 cleanup orphan audit: config/executable and function/variable orphan groups, regression evidence, host handoff |
 
 ### Related Documentation (Outside docs/)
 
@@ -42,6 +44,7 @@ docs/
 ├── repository-overview.md      # Repository overview and quick start
 ├── xrandr-manager.md           # Display management documentation
 ├── ai-agent-sandboxing.md      # Sandbox architecture documentation
+├── agent-skill-distribution.md # Shared agent skill distribution
 ├── systemd-services.md         # Systemd services reference
 ├── helper_refactor_plan.md     # Design document for helper refactor
 ├── plans/                      # Active implementation plans

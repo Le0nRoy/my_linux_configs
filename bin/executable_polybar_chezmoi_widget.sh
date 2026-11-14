@@ -1,18 +1,20 @@
 #!/bin/bash
 # Polybar widget for uncommitted chezmoi changes.
 #
-# `chezmoi status` first column marks pending script runs with `R`
+# Output: "" when clean, "!CHZ" when target files differ, "?CHZ" when
+# `chezmoi status` fails (missing binary, broken source/config), so an error
+# is never shown as a clean state.
+#
+# `chezmoi status` marks pending script runs with `R`
 # (run_always_/run_onchange_/run_once_) even when no target file will
 # change on disk. Those are noise for the widget — the operator only
 # cares about real file adds/mods/deletes. Filter `R` rows out.
 
-WHITELIST=(\
-    .config/KeePass/KeePass.config.xml \
-)
-CHANGES=$(chezmoi status | awk '$1 !~ /R/ {print $2}')
+if ! STATUS=$(chezmoi status); then
+    echo "?CHZ"
+    exit 0
+fi
 
-for f in "${WHITELIST[@]}"; do
-    CHANGES=$(echo "$CHANGES" | grep -v "^$f$")
-done
+CHANGES=$(printf '%s\n' "$STATUS" | awk 'NF && $1 !~ /R/')
 
 [ -n "$CHANGES" ] && echo "!CHZ" || echo ""

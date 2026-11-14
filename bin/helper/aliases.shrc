@@ -1,0 +1,27 @@
+# Interactive aliases shared by bash (~/.bashrc), zsh (~/.zshrc) and the
+# bash child that zsh runs Bash-only public helpers in (bash_exec.zsh).
+# Sourced before the helper modules so function bodies parsed afterwards
+# expand them exactly as in an interactive bash. Keep syntax to the
+# bash/zsh common subset.
+# Not named *.bash: like ~/.bashrc it is an rc fragment, not a script.
+
+alias ls='ls --color=auto'
+alias grep='grep --colour=auto'
+alias egrep='egrep --colour=auto'
+alias fgrep='fgrep --colour=auto'
+alias xclip='xclip -selection clipboard'
+alias ln='ln -i'
+alias cp="cp -i"                          # confirm before overwriting something
+alias df='df -h'                          # human-readable sizes
+alias free='free -m'                      # show sizes in MB
+alias zip='zip -q'
+alias unzip='unzip -q'
+alias vim='vim -p'
+alias pwd='pwd -P'
+alias xprop_class='xprop | grep -i class'
+alias lsblk="lsblk -o NAME,LABEL,SIZE,MOUNTPOINTS,UUID"
+alias xev_get_codes="xev | awk -F'[ )]+' '/^KeyPress/ { a[NR+2] } NR in a { printf \"%-3s %s\n\", \$5, \$8 }'"
+
+# AI-Wrapper entry point (deployed by run_always_install-ai-wrapper.bash
+# into ~/ai-wrapper; chezmoi strips the executable_ source prefix).
+alias claude_wrapper='~/ai-wrapper/bin/claude_wrapper.bash'

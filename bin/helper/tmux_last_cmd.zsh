@@ -3,9 +3,13 @@
 # bin/helper.bash). File mode 0600 — history may contain secrets.
 
 _tmux_log_last_cmd() {
-    [[ -n "${TMUX:-}" ]] || return 0
+    [[ -n "${TMUX:-}" && "${TMUX_PANE:-}" == %<-> ]] || return 0
     local id state
-    id=$(tmux display-message -p '#S:#I.#P' 2>/dev/null) || return 0
+    # display-message does not fail for a pane that no longer exists (it
+    # prints empty fields or another pane's), so the pane ID must match.
+    id=$(tmux display-message -p -t "${TMUX_PANE}" '#{pane_id} #S:#I.#P' 2>/dev/null) || return 0
+    [[ "${id}" == "${TMUX_PANE} "?* ]] || return 0
+    id="${id#* }"
     state="${XDG_STATE_HOME:-${HOME}/.local/state}/tmux/panes"
     mkdir -p "${state}"
     ( umask 077 && fc -ln -1 > "${state}/${id}.last" )
@@ -17,7 +21,7 @@ if [[ ${precmd_functions[(ie)_tmux_log_last_cmd]} -gt ${#precmd_functions} ]]; t
 fi
 
 # Per-pane zsh history: each tmux pane keeps its own history file so an
-# up-arrow after `tmux_restore` shows the commands run in THAT pane,
+# up-arrow after `hh_tmux_restore` shows the commands run in THAT pane,
 # not a shared global list. Deliberate tradeoff: commands typed inside
 # tmux go only to the per-pane files, not to ~/.zsh_history.
 #
@@ -29,8 +33,9 @@ fi
 # and loading it here too would duplicate every entry.
 _tmux_pane_hist_path() {
     local id
-    id=$(tmux display-message -p -t "${TMUX_PANE}" '#S:#I.#P' 2>/dev/null) || return 1
-    [[ -n "${id}" ]] || return 1
+    id=$(tmux display-message -p -t "${TMUX_PANE}" '#{pane_id} #S:#I.#P' 2>/dev/null) || return 1
+    [[ "${id}" == "${TMUX_PANE} "?* ]] || return 1
+    id="${id#* }"
     print -r -- "${_TMUX_PANE_HIST_DIR}/${id}.zsh_history"
 }
 

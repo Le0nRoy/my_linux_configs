@@ -2,6 +2,8 @@
 
 This document describes the sandboxing infrastructure for AI development assistants (Claude, Codex, Cursor).
 
+> Historical: the wrappers now live in the `ai-wrapper` submodule. For how shared skills reach each agent, see [agent-skill-distribution.md](agent-skill-distribution.md).
+
 ## Table of Contents
 
 - [Overview](#overview)
