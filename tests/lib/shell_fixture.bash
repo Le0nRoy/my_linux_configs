@@ -266,6 +266,7 @@ startup_noise_filtered() {
         case "${line}" in
             "bash: cannot set terminal process group ("*"): Inappropriate ioctl for device") ;;
             "bash: no job control in this shell") ;;
+            *"not interactive and can't open terminal"*) ;;
             *) printf '%s\n' "${line}" ;;
         esac
     done <<< "${RUN_STDERR}"

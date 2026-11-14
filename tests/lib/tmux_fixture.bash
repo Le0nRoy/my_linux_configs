@@ -96,9 +96,12 @@ tmuxf_socket_dir() {
 
 tmuxf_render_conf() {
     local os="$1" out="$2" data=()
+    local chezmoi_bin chezmoi_dir
+    chezmoi_bin="$(command -v chezmoi 2> /dev/null || echo "chezmoi")"
+    chezmoi_dir="$(dirname "${chezmoi_bin}")"
     [[ "${os}" == darwin ]] && data=(--override-data '{"chezmoi":{"os":"darwin"}}')
-    env -i HOME="${TS_HOME}" PATH=/usr/bin:/bin XDG_STATE_HOME="${TS_STATE}" \
-        chezmoi --source "${REPO_ROOT}" execute-template "${data[@]}" \
+    env -i HOME="${TS_HOME}" PATH="${chezmoi_dir}:/usr/bin:/bin" XDG_STATE_HOME="${TS_STATE}" \
+        "${chezmoi_bin}" --source "${REPO_ROOT}" execute-template "${data[@]}" \
         < "${REPO_ROOT}/dot_config/tmux/tmux.conf.tmpl" > "${out}"
 }
 
