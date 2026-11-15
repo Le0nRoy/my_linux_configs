@@ -74,6 +74,16 @@ Never run `chezmoi apply` as part of testing.
 11. **Registered and in CI.** Every `tests/test_*.bash` is listed in
     `tests/run_all.bash` and runs in CI.
 
+## Before reporting done
+
+When a change touches a script or command the user runs every day (for example
+`sshfs.bash` mounting, tmux boot and restore, shell startup), check that
+workflow end to end before reporting done. Run the old version (from
+`git show HEAD:<path>`) and the new one side by side in a sandbox, with stubbed
+external commands and the same input. Compare the commands each one sends, and
+their output. Report any difference, including behaviour changes for old
+calling forms. Passing unit tests alone isn't enough.
+
 ## tests/lib/common.bash API
 
 ```bash
